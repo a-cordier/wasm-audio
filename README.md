@@ -1,9 +1,5 @@
-# lit-element with gulp
+# web assembly audio
 
-A simple project workflow for working with typescript lit-element web components.
+## a very naive web assembly oscillator
 
-## Build system
-
-  - Task orchestration relies on gulp
-  - Build relies on rollup
-  - Live reload relies on browserSync
+A simple project to showcase the use of web assembly modules in web audio worklets
