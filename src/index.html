@@ -1,0 +1,55 @@
+<!doctype html>
+
+<!--suppress HtmlUnknownTarget -->
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <title></title>
+    <meta name="description" content="">
+    <meta name="author" content="36ve">
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">
+    <script src="index.js"></script>
+</head>
+
+<body>
+    <div class="content">
+        <child-element></child-element>
+    </div>
+</body>
+
+<style>
+    :root {
+        --light-color: #68718a;
+        --lighter-color: #c9d2eb;
+        --darker-color: #110517;
+
+        --control-background-color: #110517;
+        --control-top-color: #110517;
+        --control-handle-color: #00954a;
+        --control-cursor-color: #110517;
+
+        --key-sharp-color: var(--light-color);
+        --key-whole-color: var(--lighter-color);
+
+        --overlay-color: var(--light-color);
+
+        --ui-transition-time: .4s;
+    }
+
+    html {
+        font-family: 'Roboto', sans-serif;
+    }
+
+    body {
+        background-color: var(--darker-color, black);
+    }
+
+    .content {
+        width: 100%;
+    }
+</style>
+
+</html>
