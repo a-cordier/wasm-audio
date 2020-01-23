@@ -1,10 +1,16 @@
+import wasm from './oscillator-kernel.wasmmodule.js';
 
-const TWO_PI = 2 * Math.PI;
+import {
+    RENDER_QUANTUM_FRAMES, // 128
+    MAX_CHANNEL_COUNT, // 32
+    HeapAudioBuffer
+} from './wasm-audio-helper.js';
 
 class OscillatorProcessor extends AudioWorkletProcessor {
     #startTime = -1;
     #stopTime = undefined;
-    #phase = 0
+    #heapOutputBuffer = new HeapAudioBuffer(wasm, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);
+    #kernel = new wasm.OscillatorKernel();
 
     static get parameterDescriptors() {
         return [
@@ -46,28 +52,23 @@ class OscillatorProcessor extends AudioWorkletProcessor {
 
         let output = outputs[0];
 
-        for (let channel = 0; channel < output.length; ++channel) {
-            const outputChannel = output[channel];
-            for (let i = 0; i < outputChannel.length; ++i) {
-                outputChannel[i] = Math.sin(this.#phase);
-                this.updatePhase(parameters.frequency);
-            }
+        let channelCount = output.length;
+
+        this.#heapOutputBuffer.adaptChannel(channelCount);
+
+        const frequencyValues = parameters.frequency;
+        const frequency = frequencyValues[0];
+
+        // No input = no copy from audio thread to wasm but if we were building an effect, there would be one!
+
+        this.#kernel.process(this.#heapOutputBuffer.getHeapAddress(), channelCount, frequency, currentTime);
+
+        for (let channel = 0; channel < channelCount; ++channel) {
+            output[channel].set(this.#heapOutputBuffer.getChannelData(channel)); // wasm to audio thread copy
         }
+
         return true;
     }
-
-    updatePhase(frequency) {
-        this.#phase += this.computePhaseIncrement(frequency);
-        if (this.#phase > TWO_PI) {
-            this.#phase -= TWO_PI;
-        }
-    }
-
-    computePhaseIncrement(frequency) {
-        return frequency * TWO_PI / sampleRate;
-    }
-
-
 }
 
 

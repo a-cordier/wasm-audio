@@ -38,7 +38,7 @@ export class Child extends LitElement {
         this.analyzer.connect(this.audioContext.destination);
 
         await this.audioContext.audioWorklet.addModule('oscillator-processor.js');
-        this.voiceManager = new VoiceManager(this.audioContext, createNativeVoiceGenerator);
+        this.voiceManager = new VoiceManager(this.audioContext, createVoiceGenerator);
     }
 
     async onKeyOn(event: CustomEvent) {
