@@ -1,14 +1,21 @@
 function createStartMessage(time) {
     return {
-        type: 'START_MESSAGE',
+        type: 'START',
         time
     }
 }
 
 function createStopMessage(time) {
     return {
-        type: 'STOP_MESSAGE',
+        type: 'STOP',
         time
+    }
+}
+
+function createWaveformMessage(waveform) {
+    return {
+        type: 'WAVEFORM',
+        waveform
     }
 }
 
@@ -26,10 +33,19 @@ export class WasmOscillatorNode extends AudioWorkletNode {
     }
 
     stop(time = this.context.currentTime) {
-        this.port.postMessage(createStopMessage(time));
+        this.amplitude.linearRampToValueAtTime(10E-20, time - 0.1);
+        this.port.postMessage(createStopMessage(time ));
     }
 
     get frequency() {
         return this.params.get('frequency');
+    }
+
+    get amplitude() {
+        return this.params.get('amplitude');
+    }
+
+    set wave(type: string) {
+        this.port.postMessage(createWaveformMessage(type));
     }
 }

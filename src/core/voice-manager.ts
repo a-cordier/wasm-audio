@@ -1,10 +1,8 @@
 import {WasmOscillatorNode} from "../worklets/oscillator-node";
 
 export function *createVoiceGenerator(audioContext: AudioContext, maxVoiceCount = 16) {
-    const voices = Array.from({ length: maxVoiceCount }, () => new WasmOscillatorNode(audioContext));
-
     for (let i = 0;;++i) {
-        yield voices[i % maxVoiceCount];
+        yield new WasmOscillatorNode(audioContext);
     }
 }
 

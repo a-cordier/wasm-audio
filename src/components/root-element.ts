@@ -4,6 +4,7 @@ import './keys-element';
 import './visualizer-element';
 
 import {VoiceManager, createNativeVoiceGenerator, createVoiceGenerator} from "../core/voice-manager";
+import {WAVEFORM} from "../worklets/oscillator-node";
 
 @customElement('child-element')
 export class Child extends LitElement {
@@ -47,6 +48,7 @@ export class Child extends LitElement {
         }
 
         const osc = this.voiceManager.next();
+        osc.wave = "triangle";
         this.gain.gain.value = this.oscs.size > 1 ? 0.75 / this.oscs.size : 0.5;
         osc.frequency.value = event.detail.frequency;
         osc.connect(this.gain);
@@ -59,7 +61,6 @@ export class Child extends LitElement {
 
         if (this.oscs.has(midiValue)) {
             this.oscs.get(midiValue).stop();
-            this.oscs.get(midiValue).disconnect();
             this.oscs.delete(midiValue);
         }
     }

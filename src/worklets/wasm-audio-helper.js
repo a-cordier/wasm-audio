@@ -152,8 +152,23 @@ class HeapAudioBuffer {
     }
 } // class HeapAudioBuffer
 
+/**
+ * Simplified buffer used with parameters, that don't need to
+ * account for channels
+ */
+class HeapParameterBuffer extends HeapAudioBuffer {
+    constructor(wasm, length) {
+        super(wasm, length, 1, 1);
+    }
+
+    getData() {
+        return this.getChannelData(0);
+    }
+}
+
 export {
     MAX_CHANNEL_COUNT,
     RENDER_QUANTUM_FRAMES,
     HeapAudioBuffer,
+    HeapParameterBuffer
 };
