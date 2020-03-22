@@ -2,6 +2,7 @@ import {LitElement, html, css, customElement, property} from 'lit-element';
 import {createMidiOctaves, midiToNote} from "../core/note";
 import {classMap} from "lit-html/directives/class-map";
 import {createMidiController} from "../core/midi-controller";
+import {MidiMessage, isNote, Status} from "../midi/midi-message";
 
 const octaves = createMidiOctaves(440);
 
@@ -47,6 +48,9 @@ export class Keys extends LitElement {
 
     @property({type: Array})
     private octaves = initOctaves(this.lowerKey, this.higherKey);
+
+    @property({type: Number})
+    private midiChannel = 1;
 
     private mouseControlledKey = null;
 
@@ -105,39 +109,39 @@ export class Keys extends LitElement {
         }
     }
 
-    async onMidiMessage(midiMessage) {
-        const command = midiMessage.data[0];
+    async onMidiMessage(message) {
+        const midiMessage = MidiMessage(new DataView(message.data.buffer));
 
-        if (command !== 144 && command != 128) {
+        if (!isNote(midiMessage)) {
             return;
         }
 
-        const note = midiMessage.data[1];
+        if (midiMessage.data.channel !== this.midiChannel) {
+            return;
+        }
 
-        const key = this.findKey(note);
+        const key = this.findKey(midiMessage.data.value);
 
         if (!key) {
             return;
         }
 
-
-        switch (command) {
-            case 144: // noteOn
-                return await this.keyOn(key);
-            case 128: // noteOff
-                return await this.keyOff(key);
+        if (midiMessage.status === Status.NOTE_ON) {
+            return await this.keyOn(key);
         }
+
+        return await this.keyOff(key);
     }
 
     async keyOn(key) {
         this.pressedKeys.add(key);
-        this.dispatchEvent(new CustomEvent('keyOn', {detail: key}));
+        this.dispatchEvent(new CustomEvent('keyOn', {detail: {...key, channel: this.midiChannel}}));
         await this.requestUpdate();
     }
 
     async keyOff(key) {
         this.pressedKeys.delete(key);
-        this.dispatchEvent(new CustomEvent('keyOff', {detail: key}));
+        this.dispatchEvent(new CustomEvent('keyOff', {detail: {...key, channel: this.midiChannel}}));
         await this.requestUpdate();
     }
 
@@ -182,8 +186,8 @@ export class Keys extends LitElement {
                 user-select: none;
                 outline: none;
             }
-            
-            .octaves  {
+
+            .octaves {
                 display: flex;
                 justify-content: flex-start;
                 height: var(--key-height, 150px);
@@ -194,7 +198,7 @@ export class Keys extends LitElement {
 
                 display: grid;
                 grid-template-columns: repeat(84, 1fr);
-                margin-left: -5px;
+                margin-left: -7px;
             }
 
             .key {
@@ -211,9 +215,9 @@ export class Keys extends LitElement {
                 background-color: var(--control-background-color, #ccc);
                 height: 100%;
             }
-            
+
             .key--pressed {
-                filter: brightness(0.8);
+                filter: brightness(2);
             }
 
             .C {

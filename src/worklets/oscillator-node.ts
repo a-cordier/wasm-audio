@@ -33,8 +33,7 @@ export class WasmOscillatorNode extends AudioWorkletNode {
     }
 
     stop(time = this.context.currentTime) {
-        this.amplitude.linearRampToValueAtTime(10E-20, time - 0.1);
-        this.port.postMessage(createStopMessage(time ));
+        this.port.postMessage(createStopMessage(time));
     }
 
     get frequency() {

@@ -8,21 +8,27 @@ import {
 } from './wasm-audio-helper.js';
 
 const waveforms = Object.freeze({
-    "sine": wasm.mode.SINE,
-    "saw": wasm.mode.SAW,
-    "triangle": wasm.mode.TRIANGLE,
-    "square": wasm.mode.SQUARE
+    "sine": wasm.WaveForm.SINE,
+    "sawtooth": wasm.WaveForm.SAW,
+    "square": wasm.WaveForm.SQUARE
+});
+
+const OscillatorState = Object.freeze({
+    STOPPING: "STOPPING",
+    STOPPED: "STOPPED"
 });
 
 class OscillatorProcessor extends AudioWorkletProcessor {
     #startTime = -1;
     #stopTime = undefined;
+
     #outputBuffer = new HeapAudioBuffer(wasm, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);
     #frequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
-    #amplitudeBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
 
+    // noinspection JSUnresolvedFunction
     #kernel = new wasm.OscillatorKernel();
 
+    // noinspection JSUnusedGlobalSymbols
     static get parameterDescriptors() {
         return [
             {
@@ -66,9 +72,13 @@ class OscillatorProcessor extends AudioWorkletProcessor {
             return true;
         }
 
-        if (this.#stopTime && this.#stopTime <= currentTime) {
-            this.port.postMessage('STOP');
+        if (this.#kernel.isStopped()) {
+            this.#kernel.reset();
             return false;
+        }
+
+        if (this.#stopTime && this.#stopTime <= currentTime) {
+            this.#kernel.enterReleaseStage();
         }
 
         let output = outputs[0];
@@ -77,15 +87,14 @@ class OscillatorProcessor extends AudioWorkletProcessor {
 
         this.#outputBuffer.adaptChannel(channelCount);
         this.#frequencyBuffer.getData().set(parameters.frequency);
-        this.#amplitudeBuffer.getData().set(parameters.amplitude);
 
-        const [outputPtr, frequencyPtr, amplitudePtr] = [
+
+        const [outputPtr, frequencyPtr] = [
             this.#outputBuffer.getHeapAddress(),
             this.#frequencyBuffer.getHeapAddress(),
-            this.#amplitudeBuffer.getHeapAddress()
         ];
 
-        this.#kernel.process(outputPtr, channelCount, frequencyPtr, amplitudePtr);
+        this.#kernel.process(outputPtr, channelCount, frequencyPtr);
 
         for (let channel = 0; channel < channelCount; ++channel) {
             output[channel].set(this.#outputBuffer.getChannelData(channel)); // wasm to audio thread copy
@@ -96,4 +105,5 @@ class OscillatorProcessor extends AudioWorkletProcessor {
 }
 
 
+// noinspection JSUnresolvedFunction
 registerProcessor('oscillator', OscillatorProcessor);
