@@ -1,13 +1,13 @@
-import {WasmOscillatorNode} from "../worklets/oscillator-node";
+import { WasmOscillatorNode } from "../worklets/oscillator-node";
 
-export function *createVoiceGenerator(audioContext: AudioContext, maxVoiceCount = 16) {
-    for (let i = 0;;++i) {
+export function* createVoiceGenerator(audioContext: AudioContext, maxVoiceCount = 256) {
+    for (let i = 0; ; ++i) {
         yield new WasmOscillatorNode(audioContext);
     }
 }
 
-export function *createNativeVoiceGenerator(audioContext: AudioContext) {
-    for (;;) {
+export function* createNativeVoiceGenerator(audioContext: AudioContext) {
+    for (; ;) {
         yield Object.assign(new OscillatorNode(audioContext), { type: 'triangle' })
     }
 }

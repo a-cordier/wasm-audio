@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <memory>
 
@@ -41,22 +42,11 @@ class EnvelopeGenerator {
 
 	public:
 	float computeMultiplier(int a, int d, float s, int r) {
-		float multiplier;
 		switch (stage) {
-			case EnvelopeStage::ATTACK:
-				multiplier = computeLinearRampUp(0.f, 1.f, a);
-				stage = computeNextStage(a);
-				return multiplier;
-			case EnvelopeStage::DECAY:
-				multiplier = computeLinearRampDown(s, 1.f, d);
-				stage = computeNextStage(d);
-				return multiplier;
-			case EnvelopeStage::SUSTAIN:
-				return s;
-			case EnvelopeStage::RELEASE:
-				multiplier = computeLinearRampDown(0.f, s, r);
-				stage = computeNextStage(r);
-				return multiplier;
+			case EnvelopeStage::ATTACK: return computeAttackMultiplier(a);
+			case EnvelopeStage::DECAY: return computeDecayMultiplier(s, d);
+			case EnvelopeStage::SUSTAIN: return computeSustainLevel(s);
+			case EnvelopeStage::RELEASE: return computeReleaseMultiplier(s, r);
 			default: return 0.f;
 		}
 	}
@@ -83,24 +73,46 @@ class EnvelopeGenerator {
 	}
 
 	float computeLinearRampDown(float max, float min, int t) {
-		return max - computeLinearRampUp(min, max, t);
+		return max - static_cast<float>(tick) * ((max - min) / static_cast<float>(t));
+	}
+
+	float computeAttackMultiplier(int attackT) {
+		multiplier = attackT <= 1 ? 1.f : computeLinearRampUp(0.f, 1.f, attackT);
+		stage = computeNextStage(attackT);
+		return multiplier;
+	}
+
+	float computeDecayMultiplier(float sustain, int decayT) {
+		multiplier = multiplier <= sustain ? multiplier : computeLinearRampDown(multiplier, sustain, decayT);
+		stage = computeNextStage(decayT);
+		return multiplier;
+	}
+
+	float computeSustainLevel(float sustain) {
+		return multiplier <= sustain ? multiplier : sustain;
+	}
+
+	float computeReleaseMultiplier(float sustain, int releaseT) {
+		multiplier = computeLinearRampDown(computeSustainLevel(sustain), 0.f, releaseT);
+		stage = computeNextStage(releaseT);
+		return multiplier;
 	}
 
 	EnvelopeStage computeNextStage(int t) {
 		if (stage == EnvelopeStage::RELEASE) {
-			if (++tick == t) {
+			if (++tick >= t) {
 				tick = 0;
 				return EnvelopeStage::DONE;
 			}
 		}
 		if (stage == EnvelopeStage::DECAY) {
-			if (++tick == t) {
+			if (++tick >= t) {
 				tick = 0;
 				return EnvelopeStage::SUSTAIN;
 			}
 		}
 		if (stage == EnvelopeStage::ATTACK) {
-			if (++tick == t) {
+			if (++tick >= t) {
 				tick = 0;
 				return EnvelopeStage::DECAY;
 			}
@@ -111,6 +123,7 @@ class EnvelopeGenerator {
 	private:
 	EnvelopeStage stage;
 	int tick;
+	float multiplier;
 };
 
 class OscillatorKernel {
@@ -123,7 +136,6 @@ class OscillatorKernel {
 
 		startIfNecessary();
 
-		std::cout << amplitudeMultiplier << std::endl;
 		for (unsigned channel = 0; channel < channelCount; ++channel) {
 			float *channelBuffer = outputBuffer + channel * kRenderQuantumFrames;
 
@@ -132,6 +144,7 @@ class OscillatorKernel {
 				phaseIncrement = computePhaseIncrement(frequency);
 				channelBuffer[i] = computeSample(frequency) * amplitude * amplitudeMultiplier;
 				updatePhase();
+				stopIfNecessary();
 			}
 		}
 	}
@@ -192,7 +205,6 @@ class OscillatorKernel {
 			amplitudeMultiplier = envelope.computeMultiplier(attackT, decayT, sustain, releaseT);
 			phase -= TWO_PI;
 		}
-		stopIfNecessary();
 	}
 
 	void startIfNecessary() {
@@ -233,9 +245,9 @@ class OscillatorKernel {
    * ADSR envelope
    * Attack, decay and release time are defined as integer multiples of the phase T
    */
-	int attackT = 20;
-	int decayT = 100;
-	int releaseT = 100;
+	int attackT = 0;
+	int decayT = 50;
+	int releaseT = 2400 * 2;
 	float sustain = .5f; // sustain level
 	float amplitudeMultiplier = .1f;
 

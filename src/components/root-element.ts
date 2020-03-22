@@ -1,21 +1,21 @@
-import {LitElement, html, css, customElement, property} from 'lit-element'
+import { LitElement, html, css, customElement, property } from 'lit-element'
 
 import './keys-element';
 import './visualizer-element';
 
-import {VoiceManager, createNativeVoiceGenerator, createVoiceGenerator} from "../core/voice-manager";
+import { VoiceManager, createNativeVoiceGenerator, createVoiceGenerator } from "../core/voice-manager";
 
 @customElement('child-element')
 export class Root extends LitElement {
     private audioContext: AudioContext;
 
-    @property({type: AudioParam})
+    @property({ type: AudioParam })
     private freq: Partial<AudioParam> = { value: 440 };
 
-    @property({type: GainNode})
+    @property({ type: GainNode })
     private gain: GainNode;
 
-    @property({type: AnalyserNode})
+    @property({ type: AnalyserNode })
     private analyzer: AnalyserNode;
 
     private voiceManager: VoiceManager;
@@ -23,7 +23,7 @@ export class Root extends LitElement {
     private channel_1 = new Map();
     private channel_2 = new Map();
 
-    @property({type: Set})
+    @property({ type: Set })
     private pressedKeys = new Set();
 
     constructor() {
@@ -54,7 +54,7 @@ export class Root extends LitElement {
             return; // avoid playing the same note twice (the note would hang forever)
         }
 
-        const osc = this.voiceManager.next({ type: "sine", frequency});
+        const osc = this.voiceManager.next({ type: "sine", frequency });
         this.gain.gain.value = this.channel_1.size > 1 ? 0.75 / this.channel_1.size : 0.5;
         osc.connect(this.gain);
         osc.start();
@@ -81,7 +81,7 @@ export class Root extends LitElement {
             return; // avoid playing the same note twice (the note would hang forever)
         }
 
-        const osc = this.voiceManager.next({ type: "square", frequency});
+        const osc = this.voiceManager.next({ type: "square", frequency });
 
         this.gain.gain.value = this.channel_2.size > 1 ? 0.75 / this.channel_2.size : 0.5;
 
@@ -109,7 +109,7 @@ export class Root extends LitElement {
                 <div class="keys">
                     <keys-element 
                         midiChannel="1"
-                        @keyOn=${this.onKeyOn_ch1 }, 
+                        @keyOn=${this.onKeyOn_ch1}, 
                         @keyOff=${this.onKeyOff_ch1}></keys-element>
                         
                     <keys-element 
