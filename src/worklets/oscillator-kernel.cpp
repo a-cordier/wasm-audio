@@ -268,9 +268,9 @@ class OscillatorKernel {
    	 * ADSR envelope
      * Attack, decay and release time are defined as integer multiples of the phase T
      */
-	int attackT = 0;
-	int decayT = 50;
-	int releaseT = 2400;
+	int attackT = 1;
+	int decayT = 5;
+	int releaseT = 5;
 	float sustain = .5f; // sustain level
 	float amplitudeMultiplier = .1f;
 
@@ -285,6 +285,10 @@ EMSCRIPTEN_BINDINGS(CLASS_OscillatorKernel) {
 									&std::make_shared<OscillatorKernel>)
 					.function("process", &OscillatorKernel::process, allow_raw_pointers())
 					.function("setMode", &OscillatorKernel::setMode)
+					.function("setAttack", &OscillatorKernel::setAttack)
+					.function("setDecay", &OscillatorKernel::setDecay)
+					.function("setSustain", &OscillatorKernel::setSustain)
+					.function("setRelease", &OscillatorKernel::setRelease)
 					.function("isStopped", &OscillatorKernel::isStopped)
 					.function("reset", &OscillatorKernel::reset)
 					.function("enterReleaseStage", &OscillatorKernel::enterReleaseStage);

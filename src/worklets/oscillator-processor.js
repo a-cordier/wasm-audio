@@ -44,6 +44,34 @@ class OscillatorProcessor extends AudioWorkletProcessor {
                 minValue: 0,
                 maxValue: 1,
                 automationRate: "a-rate"
+            },
+            {
+                name: 'attack',
+                defaultValue: 1,
+                minValue: 0,
+                maxValue: 127,
+                automationRate: "a-rate"
+            },
+            {
+                name: 'decay',
+                defaultValue: 0,
+                minValue: 0,
+                maxValue: 1,
+                automationRate: "a-rate"
+            },
+            {
+                name: 'sustain',
+                defaultValue: 0.5,
+                minValue: 0,
+                maxValue: 1,
+                automationRate: "a-rate"
+            },
+            {
+                name: 'release',
+                defaultValue: 0.5,
+                minValue: 0,
+                maxValue: 1,
+                automationRate: "a-rate"
             }
         ];
     }

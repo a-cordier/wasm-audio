@@ -1,8 +1,8 @@
-import {LitElement, html, css, customElement, property} from 'lit-element';
-import {createMidiOctaves, midiToNote} from "../core/note";
-import {classMap} from "lit-html/directives/class-map";
-import {createMidiController} from "../core/midi-controller";
-import {MidiMessage, isNote, Status} from "../midi/midi-message";
+import { LitElement, html, css, customElement, property } from 'lit-element';
+import { createMidiOctaves, midiToNote } from "../core/note";
+import { classMap } from "lit-html/directives/class-map";
+import { createMidiController } from "../core/midi-controller";
+import { MidiMessage, isNote, Status } from "../midi/midi-message";
 
 const octaves = createMidiOctaves(440);
 
@@ -37,19 +37,19 @@ function initOctaves(lowerKey, higherKey) {
 
 @customElement('keys-element')
 export class Keys extends LitElement {
-    @property({type: Number})
+    @property({ type: Number })
     public lowerKey = 36;
 
-    @property({type: Number})
-    public higherKey = 83;
+    @property({ type: Number })
+    public higherKey = 95;
 
-    @property({type: Set})
+    @property({ type: Set })
     private pressedKeys = new Set();
 
-    @property({type: Array})
+    @property({ type: Array })
     private octaves = initOctaves(this.lowerKey, this.higherKey);
 
-    @property({type: Number})
+    @property({ type: Number })
     private midiChannel = 1;
 
     private mouseControlledKey = null;
@@ -135,13 +135,13 @@ export class Keys extends LitElement {
 
     async keyOn(key) {
         this.pressedKeys.add(key);
-        this.dispatchEvent(new CustomEvent('keyOn', {detail: {...key, channel: this.midiChannel}}));
+        this.dispatchEvent(new CustomEvent('keyOn', { detail: { ...key, channel: this.midiChannel } }));
         await this.requestUpdate();
     }
 
     async keyOff(key) {
         this.pressedKeys.delete(key);
-        this.dispatchEvent(new CustomEvent('keyOff', {detail: {...key, channel: this.midiChannel}}));
+        this.dispatchEvent(new CustomEvent('keyOff', { detail: { ...key, channel: this.midiChannel } }));
         await this.requestUpdate();
     }
 

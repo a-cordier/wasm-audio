@@ -2,6 +2,8 @@ import { LitElement, html, css, customElement, property } from 'lit-element'
 
 import './keys-element';
 import './visualizer-element';
+import './knob-element';
+import './fader-element';
 
 import { VoiceManager, createNativeVoiceGenerator, createVoiceGenerator } from "../core/voice-manager";
 
@@ -23,6 +25,8 @@ export class Root extends LitElement {
     private channel_1 = new Map();
     private channel_2 = new Map();
 
+    private channels = Array.from({ length: 16 }).map(() => new Map())
+
     @property({ type: Set })
     private pressedKeys = new Set();
 
@@ -43,60 +47,40 @@ export class Root extends LitElement {
         await this.audioContext.audioWorklet.addModule('oscillator-processor.js');
     }
 
-    async onKeyOn_ch1(event: CustomEvent) {
+    async onKeyOn(event: CustomEvent) {
         if (this.audioContext.state === 'suspended') {
             await this.audioContext.resume();
         }
 
-        const { frequency, midiValue } = event.detail;
+        const { frequency, midiValue, channel } = event.detail;
 
-        if (this.channel_1.has(midiValue)) {
+        const notes = this.channels[channel - 1];
+
+        if (notes.has(midiValue)) {
             return; // avoid playing the same note twice (the note would hang forever)
         }
 
-        const osc = this.voiceManager.next({ type: "sine", frequency });
-        this.gain.gain.value = this.channel_1.size > 1 ? 0.75 / this.channel_1.size : 0.5;
+        const osc = this.voiceManager.next({ type: "sawtooth", frequency });
+        this.gain.gain.value = notes.size > 1 ? 0.75 / notes.size : 0.5;
         osc.connect(this.gain);
         osc.start();
-        this.channel_1.set(midiValue, osc);
+        notes.set(midiValue, osc);
     }
 
-    onKeyOff_ch1(event: CustomEvent) {
-        const midiValue = event.detail.midiValue;
+    onKeyOff(event: CustomEvent) {
+        const { midiValue, channel } = event.detail;
 
-        if (this.channel_1.has(midiValue)) {
-            this.channel_1.get(midiValue).stop();
-            this.channel_1.delete(midiValue);
+        const notes = this.channels[channel - 1];
+        if (notes.has(midiValue)) {
+            notes.get(midiValue).stop();
+            notes.delete(midiValue);
         }
     }
 
-    async onKeyOn_ch2(event: CustomEvent) {
-        if (this.audioContext.state === 'suspended') {
-            await this.audioContext.resume();
-        }
+    onAttackChange(event: CustomEvent) {
+        const { value } = event.detail;
+        console.log(value);
 
-        const { frequency, midiValue } = event.detail;
-
-        if (this.channel_2.has(midiValue)) {
-            return; // avoid playing the same note twice (the note would hang forever)
-        }
-
-        const osc = this.voiceManager.next({ type: "square", frequency });
-
-        this.gain.gain.value = this.channel_2.size > 1 ? 0.75 / this.channel_2.size : 0.5;
-
-        osc.connect(this.gain);
-        osc.start();
-        this.channel_2.set(midiValue, osc);
-    }
-
-    onKeyOff_ch2(event: CustomEvent) {
-        const midiValue = event.detail.midiValue;
-
-        if (this.channel_2.has(midiValue)) {
-            this.channel_2.get(midiValue).stop();
-            this.channel_2.delete(midiValue);
-        }
     }
 
     render() {
@@ -105,17 +89,21 @@ export class Root extends LitElement {
                 <div class="visualizer">
                     <visualizer-element .analyser=${this.analyzer}></visualizer-element>
                 </div> 
+
+                <div class="control-panel">
+                    <knob-element @change="${this.onAttackChange}"></knob-element>
+                </div>
                 
                 <div class="keys">
                     <keys-element 
                         midiChannel="1"
-                        @keyOn=${this.onKeyOn_ch1}, 
-                        @keyOff=${this.onKeyOff_ch1}></keys-element>
+                        @keyOn=${this.onKeyOn}, 
+                        @keyOff=${this.onKeyOff}></keys-element>
                         
                     <keys-element 
                         midiChannel="2"
-                        @keyOn=${this.onKeyOn_ch2}, 
-                        @keyOff=${this.onKeyOff_ch2}></keys-element>    
+                        @keyOn=${this.onKeyOn}, 
+                        @keyOff=${this.onKeyOff}></keys-element>    
                 </div>
             </div>          
 
@@ -134,6 +122,20 @@ export class Root extends LitElement {
             .visualizer {
                 width: 1024px;
                 margin: auto;
+            }
+
+            .control-panel knob-element {
+                --knob-size: 50px;
+            }
+
+            .fader-group {
+                margin-top: 5em;
+                
+                width: 160px;
+                
+                display: flex;
+                justify-content: space-evenly;
+                --fader-height: 150px;
             }
 
             .keys {
