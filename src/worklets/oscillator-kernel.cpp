@@ -38,10 +38,16 @@ class EnvelopeGenerator {
 	public:
 	EnvelopeGenerator() :
 					tick(0),
+					phase(0),
 					stage(EnvelopeStage::ATTACK) {}
 
 	public:
-	float computeMultiplier(int a, int d, float s, int r) {
+	float computeMultiplier(float f, int a, int d, float s, int r) {
+		int phaseRatio = computePhaseRatio(f);
+		if (++phase % phaseRatio != 0) {
+			return multiplier;
+		}
+
 		switch (stage) {
 			case EnvelopeStage::ATTACK: return computeAttackMultiplier(a);
 			case EnvelopeStage::DECAY: return computeDecayMultiplier(s, d);
@@ -98,6 +104,23 @@ class EnvelopeGenerator {
 		return multiplier;
 	}
 
+	/**
+	 * As t is divided by 2 as we increase f,
+	 * time values need to be extended when f
+	 * raises.
+	 */
+	int computePhaseRatio(float f) {
+		if (f <= 128) return 1;
+		if (128 < f && f <= 256) return 2;
+		if (256 < f && f <= 512) return 4;
+		if (512 < f && f <= 1024) return 8;
+		if (1024 < f && f <= 2048) return 16;
+		if (2048 < f && f <= 4096) return 32;
+		if (4096 < f && f <= 8192) return 64;
+		if (8192 < f && f <= 16384) return 128;
+		return 256;
+	}
+
 	EnvelopeStage computeNextStage(int t) {
 		if (stage == EnvelopeStage::RELEASE) {
 			if (++tick >= t) {
@@ -123,6 +146,7 @@ class EnvelopeGenerator {
 	private:
 	EnvelopeStage stage;
 	int tick;
+	int phase;
 	float multiplier;
 };
 
@@ -134,16 +158,15 @@ class OscillatorKernel {
 
 		bool hasConstantFrequency = sizeof(frequencyValues) == sizeof(frequencyValues[0]);
 
-		startIfNecessary();
-
 		for (unsigned channel = 0; channel < channelCount; ++channel) {
 			float *channelBuffer = outputBuffer + channel * kRenderQuantumFrames;
 
 			for (auto i = 0; i < kRenderQuantumFrames; ++i) {
 				float frequency = hasConstantFrequency ? frequencyValues[0] : frequencyValues[i];
+				startIfNecessary(frequency);
 				phaseIncrement = computePhaseIncrement(frequency);
 				channelBuffer[i] = computeSample(frequency) * amplitude * amplitudeMultiplier;
-				updatePhase();
+				updatePhase(frequency);
 				stopIfNecessary();
 			}
 		}
@@ -199,17 +222,17 @@ class OscillatorKernel {
 		return value;
 	}
 
-	void updatePhase() {
+	void updatePhase(float frequency) {
 		phase += phaseIncrement;
 		if (phase >= TWO_PI) {
-			amplitudeMultiplier = envelope.computeMultiplier(attackT, decayT, sustain, releaseT);
+			amplitudeMultiplier = envelope.computeMultiplier(frequency, attackT, decayT, sustain, releaseT);
 			phase -= TWO_PI;
 		}
 	}
 
-	void startIfNecessary() {
+	void startIfNecessary(float frequency) {
 		if (state == OscillatorState::STARTING) {
-			amplitudeMultiplier = envelope.computeMultiplier(attackT, decayT, sustain, releaseT);
+			amplitudeMultiplier = envelope.computeMultiplier(frequency, attackT, decayT, sustain, releaseT);
 			state = OscillatorState::STARTED;
 		}
 	}
@@ -242,12 +265,12 @@ class OscillatorKernel {
 
 	float amplitude = 0.5f;
 	/**
-   * ADSR envelope
-   * Attack, decay and release time are defined as integer multiples of the phase T
-   */
+   	 * ADSR envelope
+     * Attack, decay and release time are defined as integer multiples of the phase T
+     */
 	int attackT = 0;
 	int decayT = 50;
-	int releaseT = 2400 * 2;
+	int releaseT = 2400;
 	float sustain = .5f; // sustain level
 	float amplitudeMultiplier = .1f;
 
