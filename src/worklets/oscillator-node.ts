@@ -44,6 +44,22 @@ export class WasmOscillatorNode extends AudioWorkletNode {
         return this.params.get('amplitude');
     }
 
+    get attack() {
+        return this.params.get('attack');
+    }
+
+    get decay() {
+        return this.params.get('decay');
+    }
+
+    get sustain() {
+        return this.params.get('sustain');
+    }
+
+    get release() {
+        return this.params.get('release');
+    }
+
     set wave(type: string) {
         this.port.postMessage(createWaveformMessage(type));
     }

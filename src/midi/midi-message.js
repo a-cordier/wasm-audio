@@ -14,6 +14,10 @@ export function isNote(message) {
 	return message.status === Status.NOTE_ON || message.status === Status.NOTE_OFF;
 }
 
+export function isControlChange(message) {
+	return message.status === Status.CONTROL_CHANGE;
+}
+
 export function Note(data, channel) {
 	return {
 		data: {
@@ -53,8 +57,8 @@ export function ControlChange(data, channel) {
 	return {
 		status: Status.CONTROL_CHANGE,
 		data: {
-			control: data.getUint8(0),
-			value: data.getUint8(1),
+			control: data.getUint8(1),
+			value: data.getUint8(2),
 			channel,
 		},
 	};

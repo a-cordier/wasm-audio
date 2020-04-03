@@ -3,9 +3,12 @@ import { LitElement, html, css, customElement, property } from 'lit-element'
 import './keys-element';
 import './visualizer-element';
 import './knob-element';
-import './fader-element';
+import './switch-element';
 
 import { VoiceManager, createNativeVoiceGenerator, createVoiceGenerator } from "../core/voice-manager";
+import { MidiLearn } from "../stores/midi-learn";
+
+import { Oscillator } from "../types/oscillator";
 
 @customElement('child-element')
 export class Root extends LitElement {
@@ -20,15 +23,17 @@ export class Root extends LitElement {
     @property({ type: AnalyserNode })
     private analyzer: AnalyserNode;
 
+    @property({ type: Boolean })
+    private shouldMidiLearn = false;
+
     private voiceManager: VoiceManager;
 
-    private channel_1 = new Map();
-    private channel_2 = new Map();
+    private channels: Map<number, Oscillator>[] = Array.from({ length: 16 }).map(() => new Map<number, Oscillator>())
 
-    private channels = Array.from({ length: 16 }).map(() => new Map())
-
-    @property({ type: Set })
-    private pressedKeys = new Set();
+    private attack = 0;
+    private decay = 0;
+    private sustain = 0;
+    private release = 1;
 
     constructor() {
         super();
@@ -45,6 +50,8 @@ export class Root extends LitElement {
         this.voiceManager = new VoiceManager(this.audioContext, createVoiceGenerator);
 
         await this.audioContext.audioWorklet.addModule('oscillator-processor.js');
+
+        this.registerMidiLearners();
     }
 
     async onKeyOn(event: CustomEvent) {
@@ -62,6 +69,12 @@ export class Root extends LitElement {
 
         const osc = this.voiceManager.next({ type: "sawtooth", frequency });
         this.gain.gain.value = notes.size > 1 ? 0.75 / notes.size : 0.5;
+
+        osc.attack.value = this.attack;     // A
+        osc.decay.value = this.decay;       // D
+        osc.sustain.value = this.sustain;   // S
+        osc.release.value = this.release;   // R
+
         osc.connect(this.gain);
         osc.start();
         notes.set(midiValue, osc);
@@ -79,19 +92,48 @@ export class Root extends LitElement {
 
     onAttackChange(event: CustomEvent) {
         const { value } = event.detail;
-        console.log(value);
+        this.attack = value;
+    }
 
+    onDecayChange(event: CustomEvent) {
+        const { value } = event.detail;
+        this.decay = value;
+    }
+
+    onSustainChange(event: CustomEvent) {
+        const { value } = event.detail;
+        this.sustain = value;
+    }
+
+    onReleaseChange(event: CustomEvent) {
+        const { value } = event.detail;
+        this.release = value;
+    }
+
+    notifyMidiLearners(event: CustomEvent) {
+        MidiLearn.notifyMidiLearners(event.detail.active);
+    }
+
+    registerMidiLearners() {
+        MidiLearn.onMidiLearn((shouldLearn) => this.shouldMidiLearn = shouldLearn);
     }
 
     render() {
         return html`  
             <div class="content">
                 <div class="visualizer">
-                    <visualizer-element .analyser=${this.analyzer}></visualizer-element>
+                    <visualizer-element .analyser=${this.analyzer} width="1024" height="300"></visualizer-element>
                 </div> 
 
+                <div class="menu">
+                    <switch-element @change="${this.notifyMidiLearners}"></switch-element>
+                </div>
+
                 <div class="control-panel">
-                    <knob-element @change="${this.onAttackChange}"></knob-element>
+                    <knob-element @change="${this.onAttackChange}" .shouldMidiLearn="${this.shouldMidiLearn}" .value="${this.attack}"></knob-element>
+                    <knob-element @change="${this.onDecayChange}" .shouldMidiLearn="${this.shouldMidiLearn}"></knob-element>
+                    <knob-element @change="${this.onSustainChange}" .shouldMidiLearn="${this.shouldMidiLearn}"></knob-element>
+                    <knob-element @change="${this.onReleaseChange}" .shouldMidiLearn="${this.shouldMidiLearn}"></knob-element>
                 </div>
                 
                 <div class="keys">
@@ -120,28 +162,29 @@ export class Root extends LitElement {
             }
 
             .visualizer {
-                width: 1024px;
                 margin: auto;
             }
 
-            .control-panel knob-element {
-                --knob-size: 50px;
+            .menu {
+                margin: 10px 0;
             }
 
-            .fader-group {
-                margin-top: 5em;
-                
-                width: 160px;
-                
+            .control-panel {
+                margin: 20px 0;
                 display: flex;
+                width: 300px;
                 justify-content: space-evenly;
-                --fader-height: 150px;
+            }
+
+            .control-panel knob-element {
+                --knob-size: 60px;
+                        
             }
 
             .keys {
+
                 width: 100%;
                 --key-height: 100px;
-
             }
 
         `

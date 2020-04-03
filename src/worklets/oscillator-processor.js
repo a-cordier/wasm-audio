@@ -47,31 +47,31 @@ class OscillatorProcessor extends AudioWorkletProcessor {
             },
             {
                 name: 'attack',
-                defaultValue: 1,
+                defaultValue: 0,
                 minValue: 0,
                 maxValue: 127,
-                automationRate: "a-rate"
+                automationRate: "k-rate"
             },
             {
                 name: 'decay',
                 defaultValue: 0,
                 minValue: 0,
-                maxValue: 1,
-                automationRate: "a-rate"
+                maxValue: 127,
+                automationRate: "k-rate"
             },
             {
                 name: 'sustain',
                 defaultValue: 0.5,
                 minValue: 0,
-                maxValue: 1,
-                automationRate: "a-rate"
+                maxValue: 127,
+                automationRate: "k-rate"
             },
             {
                 name: 'release',
                 defaultValue: 0.5,
                 minValue: 0,
-                maxValue: 1,
-                automationRate: "a-rate"
+                maxValue: 127,
+                automationRate: "k-rate"
             }
         ];
     }
@@ -121,6 +121,11 @@ class OscillatorProcessor extends AudioWorkletProcessor {
             this.#outputBuffer.getHeapAddress(),
             this.#frequencyBuffer.getHeapAddress(),
         ];
+
+        this.#kernel.setAttack(Number(parameters.attack));      // A
+        this.#kernel.setDecay(Number(parameters.decay));        // D
+        this.#kernel.setSustain(Number(parameters.sustain));    // S
+        this.#kernel.setRelease(Number(parameters.release));    // R
 
         this.#kernel.process(outputPtr, channelCount, frequencyPtr);
 

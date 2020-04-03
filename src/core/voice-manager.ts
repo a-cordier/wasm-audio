@@ -1,6 +1,6 @@
 import { WasmOscillatorNode } from "../worklets/oscillator-node";
 
-export function* createVoiceGenerator(audioContext: AudioContext, maxVoiceCount = 256) {
+export function* createVoiceGenerator(audioContext: AudioContext, maxVoiceCount = 4096) {
     for (let i = 0; ; ++i) {
         yield new WasmOscillatorNode(audioContext);
     }

@@ -1,6 +1,6 @@
 import { LitElement, html, css, customElement, property } from 'lit-element';
-import { createMidiOctaves, midiToNote } from "../core/note";
 import { classMap } from "lit-html/directives/class-map";
+import { createMidiOctaves, midiToNote } from "../core/note";
 import { createMidiController } from "../core/midi-controller";
 import { MidiMessage, isNote, Status } from "../midi/midi-message";
 
@@ -206,13 +206,13 @@ export class Keys extends LitElement {
             }
 
             .key--sharp {
-                background-color: var(--primary-color, #999);
+                background-color: var(--key-sharp-color, #999);
                 z-index: 1;
                 height: 60%;
             }
 
             .key--whole {
-                background-color: var(--control-background-color, #ccc);
+                background-color: var(--key-whole-color, #ccc);
                 height: 100%;
             }
 

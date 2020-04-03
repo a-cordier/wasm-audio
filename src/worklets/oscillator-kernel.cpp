@@ -78,6 +78,7 @@ class EnvelopeGenerator {
 		return tick == 0 ? min : static_cast<float>(tick) * ((max - min) / static_cast<float>(t));
 	}
 
+	//TODO: add and exponatial ramp down / ramp up
 	float computeLinearRampDown(float max, float min, int t) {
 		return max - static_cast<float>(tick) * ((max - min) / static_cast<float>(t));
 	}
@@ -105,9 +106,8 @@ class EnvelopeGenerator {
 	}
 
 	/**
-	 * As t is divided by 2 as we increase f,
-	 * time values need to be extended when f
-	 * raises.
+	 * As t is divided by 2 as we increase f by one octave,
+	 * the time domain needs to be extended accordingly when f raises.
 	 */
 	int computePhaseRatio(float f) {
 		if (f <= 128) return 1;
@@ -156,6 +156,7 @@ class OscillatorKernel {
 		float *outputBuffer = reinterpret_cast<float *>(outputPtr);
 		float *frequencyValues = reinterpret_cast<float *>(frequencyValuesPtr);
 
+		// frequency may have been automated (eg by an LFO)
 		bool hasConstantFrequency = sizeof(frequencyValues) == sizeof(frequencyValues[0]);
 
 		for (unsigned channel = 0; channel < channelCount; ++channel) {
@@ -184,13 +185,13 @@ class OscillatorKernel {
 		state = OscillatorState::STARTING;
 	}
 
-	void setAttack(int a) { attackT = a; }
+	void setAttack(int a) { attackT = a + 2; }
 
-	void setDecay(int d) { decayT = d; }
+	void setDecay(int d) { decayT = d + 10; }
 
-	void setSustain(float s) { sustain = s; }
+	void setSustain(float s) { sustain = (s * 0.5f) / 127.f + 0.5f; } // map from range [0-127] to range [0.5-1]
 
-	void setRelease(int r) { releaseT = r; }
+	void setRelease(int r) { releaseT = (r + 1) * 10; }
 
 	bool isStopped() {
 		return state == OscillatorState::STOPPED;
@@ -264,14 +265,11 @@ class OscillatorKernel {
 	float phaseIncrement = 0.f;
 
 	float amplitude = 0.5f;
-	/**
-   	 * ADSR envelope
-     * Attack, decay and release time are defined as integer multiples of the phase T
-     */
-	int attackT = 1;
-	int decayT = 5;
-	int releaseT = 5;
-	float sustain = .5f; // sustain level
+
+	int attackT = 2; // A (as a multiple of period t)
+	int decayT = 138; // D (as a multiple of period t)
+	int releaseT = 640; // S (as a float level value)
+	float sustain = .5f; // R (as a multiple of period t)
 	float amplitudeMultiplier = .1f;
 
 	OscillatorMode mode = OscillatorMode::SINE;
