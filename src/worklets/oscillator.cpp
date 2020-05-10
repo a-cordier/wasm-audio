@@ -15,7 +15,7 @@ namespace Oscillator {
 	    TRIANGLE
     };
 
-    class Generator {
+    class Kernel {
         public:
         float nextSample(float frequency) {
             frequency = shiftFrequency(frequency);
@@ -120,14 +120,6 @@ namespace Oscillator {
 	    inline void updatePhase(float frequency) {
 		    phase += phaseIncrement;
 		    if (phase >= twoPi) phase -= twoPi;
-	    }
-
-        private:
-	    inline float computeTriangle(float frequency) {
-		    auto value = computeSquare(frequency);
-		    value = phaseIncrement * value + (1.f - phaseIncrement) * lastValue;
-		    lastValue = value;
-		    return value;
 	    }
 
 	    private:

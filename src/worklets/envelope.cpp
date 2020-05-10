@@ -97,9 +97,9 @@ namespace Envelope {
         Stage nextStage;
     };
 
-    class Generator {
+    class Kernel {
         public:
-        Generator(float peakLevel, float sustainLevel, float attackTime, float decayTime, float releaseTime) :
+        Kernel(float peakLevel, float sustainLevel, float attackTime, float decayTime, float releaseTime) :
                         stage(Stage::OFF),
                         attackTimeLine(TimeLine(RampType::LINEAR, epsilonIfZero(attackTime) * sampleRate, 0.f, peakLevel, Stage::ATTACK, Stage::DECAY)),
                         // FIX ME (decayTimeLine fucks everything up when set to EXPONENTIAL)

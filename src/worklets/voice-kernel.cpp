@@ -4,31 +4,17 @@
 #include "envelope.cpp"
 #include "filter.cpp"
 #include "range.cpp"
+#include "oscillator.cpp"
 
 #include "emscripten/bind.h"
 #include <iostream>
 
 using namespace emscripten;
 
-constexpr unsigned kRenderQuantumFrames = 128.f;
-constexpr float sampleRate = 44100.f;
-constexpr float PI = 3.14159265358979f;
-constexpr float TWO_PI = 2.f * PI;
-constexpr float semiFactor = 1.0594630943592953f;
-constexpr float centFactor = 1.0005777895065548f;
-
-constexpr float attackRangeMin = 0.001f;
-constexpr float attackRangeMax = 1.f;
-
-enum class OscillatorMode {
-	SAW,
-	SINE,
-	SQUARE,
-	TRIANGLE
-};
+constexpr unsigned kRenderQuantumFrames = 128.f; // this value is fixed by the Web Audio API spec.
 
 enum class VoiceState {
-	STARTING,
+	DISPOSED,
 	STARTED,
 	STOPPING,
 	STOPPED
@@ -37,8 +23,8 @@ enum class VoiceState {
 class VoiceKernel {
 	public:
 	VoiceKernel(): 
-	amplitudeEnvelope(Envelope::Generator(1.f, 0.5f, 0.5f, 0.5f, 0.9f)),
-	cutoffEnvelope(Envelope::Generator(1.f, -0.5f, 0.01f, 2.f, 0.f)) {}
+	amplitudeEnvelope(Envelope::Kernel(1.f, 0.5f, 0.5f, 0.5f, 0.9f)),
+	cutoffEnvelope(Envelope::Kernel(1.f, -0.5f, 0.01f, 2.f, 0.f)) {}
 
 	public:
 	void process(uintptr_t outputPtr, unsigned channelCount, uintptr_t frequencyValuesPtr) {
@@ -53,26 +39,24 @@ class VoiceKernel {
 
 			for (auto i = 0; i < kRenderQuantumFrames; ++i) {
 				float frequency = hasConstantFrequency ? frequencyValues[0] : frequencyValues[i];
-				frequency = shiftFrequency(frequency);
-				startIfNecessary(frequency);
-				phaseIncrement = computePhaseIncrement(frequency);
+				startIfNecessary();
 				amplitudeMultiplier = amplitudeEnvelope.nextLevel();
-				float sample = computeSample(frequency) * amplitude * amplitudeMultiplier;
+				float sample = osc1.nextSample(frequency) * amplitudeMultiplier;
 				sample = filter.filter(sample, cutoff, resonance, cutoffEnvelopeAmount * cutoffEnvelope.nextLevel());
 				channelBuffer[i] = sample;
-				updatePhase(frequency);
 				stopIfNecessary();
 			}
 		}
 	}
 
 	public:
-	void setMode(OscillatorMode _mode) { mode = _mode; }
+	void setMode(Oscillator::Mode newMode) { 
+		osc1.setMode(newMode);
+	}
 
 	public:
 	void enterReleaseStage() {
 		state = VoiceState::STOPPING;
-
 		amplitudeEnvelope.enterReleaseStage();
 	}
 
@@ -127,65 +111,12 @@ class VoiceKernel {
 	}
 
 	private:
-	inline float computeSample(float frequency) {
-		switch (mode) {
-			case OscillatorMode::SINE:
-				return computeSine(frequency);
-			case OscillatorMode::SAW:
-				return computeSaw(frequency);
-			case OscillatorMode::SQUARE:
-				return computeSquare(frequency);
-			case OscillatorMode::TRIANGLE:
-				return computeTriangle(frequency);
-		}
-	}
-
-	private:
-	inline float computeSine(float frequency) { return std::sin(phase); }
-
-	private:
-	inline float computeSaw(float frequency) {
-		float value = 1.0 - (2.0 * phase / TWO_PI);
-		return value - computePolyBLEP(phase / TWO_PI, phaseIncrement / TWO_PI);
-	}
-
-	private:
-	inline float computeSquare(float frequency) {
-		auto value = phase <= PI ? 1 : -1;
-		value += computePolyBLEP(phase / TWO_PI, phaseIncrement / TWO_PI);
-		value -= computePolyBLEP(fmod(phase / TWO_PI + 0.5, 1.0), phaseIncrement / TWO_PI);
-		return value;
-	}
-
-	private:
-	inline float computeTriangle(float frequency) {
-		auto value = computeSquare(frequency);
-		value = phaseIncrement * value + (1.f - phaseIncrement) * lastValue;
-		lastValue = value;
-		return value;
-	}
-
-	private:
-	inline float shiftFrequency(float frequency) {
-		for (auto i = 1; i <= semiShift; ++i) frequency *= semiFactor;
-		for (auto i = 1; i <= centShift; ++i) frequency *= centFactor;
-		return frequency;
-	}
-
-	private:
-	inline void updatePhase(float frequency) {
-		phase += phaseIncrement;
-		if (phase >= TWO_PI) {
-			phase -= TWO_PI;
-		}
-	}
-
-	private:
-	inline void startIfNecessary(float frequency) {
-		if (state == VoiceState::STARTING) {
+	inline void startIfNecessary() {
+		if (state == VoiceState::DISPOSED) {
 			amplitudeEnvelope.enterAttackStage();
 			cutoffEnvelope.enterAttackStage();
 			state = VoiceState::STARTED;
+			std::cout << "started" << std::endl;
 		}
 	}
 
@@ -197,43 +128,22 @@ class VoiceKernel {
 	}
 
 	private:
-	inline float computePhaseIncrement(float frequency) {
-		return frequency * TWO_PI / sampleRate;
-	}
+	Oscillator::Kernel osc1;
+	Oscillator::Kernel osc2;
 
-	private:
-	inline float computePolyBLEP(float t, float dt) {
-		if (t < dt) {
-			t /= dt;
-			return t + t - t * t - 1.f;
-		} else if (t > 1.f - dt) {
-			t = (t - 1.f) / dt;
-			return t * t + t + t + 1.f;
-		} else {
-			return 0.f;
-		}
-	}
-
-	private:
-	float phase = 0.f;
-	float phaseIncrement = 0.f;
-	float lastValue = 0.f;
-
-	float amplitude = 0.5f;
+	Envelope::Kernel amplitudeEnvelope;
 	float amplitudeMultiplier = .1f;
 
-	float semiShift = 0.f;
-	float centShift = 0.f;
-
-	OscillatorMode mode = OscillatorMode::SINE;
-	VoiceState state = VoiceState::STARTING;
-	Envelope::Generator amplitudeEnvelope;
-
-	Filter filter;
-	Envelope::Generator cutoffEnvelope;
+	Filter::Kernel filter;
 	float cutoff = 0.75f;
 	float resonance = 0.f;
+
+	Envelope::Kernel cutoffEnvelope;
 	float cutoffEnvelopeAmount = 0.8f;
+
+	VoiceState state;
+
+	float sampleRate = 44100.f;
 };
 
 EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
@@ -255,16 +165,16 @@ EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
 }
 
 EMSCRIPTEN_BINDINGS(ENUM_OscillatorMode) {
-	enum_<OscillatorMode>("WaveForm")
-					.value("SINE", OscillatorMode::SINE)
-					.value("SAW", OscillatorMode::SAW)
-					.value("SQUARE", OscillatorMode::SQUARE)
-					.value("TRIANGLE", OscillatorMode::TRIANGLE);
+	enum_<Oscillator::Mode>("WaveForm")
+					.value("SINE", Oscillator::Mode::SINE)
+					.value("SAW", Oscillator::Mode::SAW)
+					.value("SQUARE", Oscillator::Mode::SQUARE)
+					.value("TRIANGLE", Oscillator::Mode::TRIANGLE);
 }
 
 EMSCRIPTEN_BINDINGS(ENUM_VoiceState) {
-	enum_<VoiceState>("State")
-					.value("STARTING", VoiceState::STARTING)
+	enum_<VoiceState>("VoiceState")
+					.value("DISPOSED", VoiceState::DISPOSED)
 					.value("STARTED", VoiceState::STARTED)
 					.value("STOPPING", VoiceState::STOPPING)
 					.value("STOPPED", VoiceState::STOPPED);
