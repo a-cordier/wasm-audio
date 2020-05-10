@@ -133,8 +133,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
         }
 
         if (this.#kernel.isStopped()) {
-            wasm._free(this.#kernel.$$.ptr);
-            console.log(this.#kernel);
+            this.#outputBuffer.free();
+            this.#frequencyBuffer.free();
             return false;
         }
 
