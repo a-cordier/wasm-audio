@@ -36,6 +36,16 @@ namespace Oscillator {
         }
 
         public:
+        void setSemiShift(float newSemiShift) {
+            semiShift = newSemiShift;
+        }
+
+        public:
+        void setCentShift(float newCentShift) {
+            centShift = newCentShift;
+        }
+
+        public:
         void setSampleRate(float newSampleRate) {
             sampleRate = newSampleRate;
         }
