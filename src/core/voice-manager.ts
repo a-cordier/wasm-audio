@@ -1,8 +1,8 @@
-import { WasmOscillatorNode } from "../worklets/oscillator-node";
+import { WasmVoiceNode } from "../worklets/voice-node";
 
 export function* createVoiceGenerator(audioContext: AudioContext, maxVoiceCount = 4096) {
-    for (let i = 0; ; ++i) {
-        yield new WasmOscillatorNode(audioContext);
+    for (; ;) {
+        yield new WasmVoiceNode(audioContext);
     }
 }
 
@@ -19,7 +19,7 @@ export class VoiceManager {
         this.voiceGenerator = createVoiceGenerator(audioContext);
     }
 
-    next({ frequency, type }): WasmOscillatorNode {
+    next({ frequency, type }): WasmVoiceNode {
         const osc = this.voiceGenerator.next().value;
         osc.frequency.value = frequency;
         osc.wave = type;

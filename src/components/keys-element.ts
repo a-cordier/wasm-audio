@@ -38,16 +38,21 @@ function initOctaves(lowerKey, higherKey) {
 @customElement('keys-element')
 export class Keys extends LitElement {
     @property({ type: Number })
-    public lowerKey = 36;
+    public lowerKey = 48;
 
     @property({ type: Number })
-    public higherKey = 95;
+    public higherKey = 59;
+
+    @property({ type: Number })
+    public octave = 0;
 
     @property({ type: Set })
     private pressedKeys = new Set();
 
     @property({ type: Array })
     private octaves = initOctaves(this.lowerKey, this.higherKey);
+
+    private availableOctaves = initOctaves(12, 127);
 
     @property({ type: Number })
     private midiChannel = 1;
@@ -101,6 +106,13 @@ export class Keys extends LitElement {
 
     findKey(midiValue) {
         for (const octave of this.octaves) {
+            for (const key of octave) {
+                if (key.midiValue === midiValue) {
+                    return key;
+                }
+            }
+        }
+        for (const octave of this.availableOctaves) {
             for (const key of octave) {
                 if (key.midiValue === midiValue) {
                     return key;

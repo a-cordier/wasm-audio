@@ -80,7 +80,7 @@ IndentWidth: 2
 # MacroBlockBegin: ''
 # MacroBlockEnd:   ''
 # MaxEmptyLinesToKeep: 1
-# NamespaceIndentation: None
+NamespaceIndentation: 2
 # PenaltyBreakAssignment: 2
 # PenaltyBreakBeforeFirstCallParameter: 19
 # PenaltyBreakComment: 300

@@ -1,14 +1,21 @@
 import { LitElement, html, css, customElement, property } from 'lit-element'
 
-import './keys-element';
-import './visualizer-element';
-import './knob-element';
-import './switch-element';
+import "./keys-element";
+import "./visualizer-element";
+import "./knob-element";
+import "./switch-element";
+import "./button-element";
+import "./sawtooth-wave-icon";
+import "./square-wave-icon";
+import "./sine-wave-icon";
+import "./triangle-wave-icon";
+import "./wave-selector-element";
 
 import { VoiceManager, createNativeVoiceGenerator, createVoiceGenerator } from "../core/voice-manager";
 import { MidiLearn } from "../stores/midi-learn";
 
-import { Oscillator } from "../types/oscillator";
+import { Voice } from "../types/voice";
+import { Envelope } from "../types/envelope";
 
 @customElement('child-element')
 export class Root extends LitElement {
@@ -26,14 +33,17 @@ export class Root extends LitElement {
     @property({ type: Boolean })
     private shouldMidiLearn = false;
 
+    private waveForm = "square";
+
     private voiceManager: VoiceManager;
 
-    private channels: Map<number, Oscillator>[] = Array.from({ length: 16 }).map(() => new Map<number, Oscillator>())
+    private channels: Map<number, Voice>[] = Array.from({ length: 16 }).map(() => new Map<number, Voice>())
 
-    private attack = 0;
-    private decay = 0;
-    private sustain = 0;
-    private release = 1;
+    private amplitudeEnvelope = { attack: 1, decay: 33, sustain: 70, release: 33 };
+
+    private cutoff = 127;
+    private resonance = 0;
+    private cutoffEnvelope = { attack: 1, decay: 25, amount: 0 };
 
     constructor() {
         super();
@@ -49,7 +59,9 @@ export class Root extends LitElement {
         this.analyzer.connect(this.audioContext.destination);
         this.voiceManager = new VoiceManager(this.audioContext, createVoiceGenerator);
 
-        await this.audioContext.audioWorklet.addModule('oscillator-processor.js');
+        await this.audioContext.audioWorklet.addModule('voice-processor.js');
+
+        this.gain.gain.value = 0.5;
 
         this.registerMidiLearners();
     }
@@ -67,17 +79,21 @@ export class Root extends LitElement {
             return; // avoid playing the same note twice (the note would hang forever)
         }
 
-        const osc = this.voiceManager.next({ type: "sawtooth", frequency });
-        this.gain.gain.value = notes.size > 1 ? 0.75 / notes.size : 0.5;
+        const voice = this.voiceManager.next({ type: this.waveForm, frequency });
 
-        osc.attack.value = this.attack;     // A
-        osc.decay.value = this.decay;       // D
-        osc.sustain.value = this.sustain;   // S
-        osc.release.value = this.release;   // R
+        voice.amplitudeAttack.value = this.amplitudeEnvelope.attack;
+        voice.amplitudeDecay.value = this.amplitudeEnvelope.decay;
+        voice.amplitudeSustain.value = this.amplitudeEnvelope.sustain;
+        voice.amplitudeRelease.value = this.amplitudeEnvelope.release;
+        voice.cutoff.value = this.cutoff;
+        voice.resonance.value = this.resonance;
+        voice.cutoffAttack.value = this.cutoffEnvelope.attack;
+        voice.cutoffDecay.value = this.cutoffEnvelope.decay;
+        voice.cutoffEnvelopeAmount.value = this.cutoffEnvelope.amount;
 
-        osc.connect(this.gain);
-        osc.start();
-        notes.set(midiValue, osc);
+        voice.connect(this.gain);
+        voice.start();
+        notes.set(midiValue, voice);
     }
 
     onKeyOff(event: CustomEvent) {
@@ -90,24 +106,49 @@ export class Root extends LitElement {
         }
     }
 
-    onAttackChange(event: CustomEvent) {
+    onAmplitudeAttackChange(event: CustomEvent) {
         const { value } = event.detail;
-        this.attack = value;
+        this.amplitudeEnvelope.attack = value;
     }
 
-    onDecayChange(event: CustomEvent) {
+    onAmplitudeDecayChange(event: CustomEvent) {
         const { value } = event.detail;
-        this.decay = value;
+        this.amplitudeEnvelope.decay = value;
     }
 
-    onSustainChange(event: CustomEvent) {
+    onAmplitudeSustainChange(event: CustomEvent) {
         const { value } = event.detail;
-        this.sustain = value;
+        this.amplitudeEnvelope.sustain = value;
     }
 
-    onReleaseChange(event: CustomEvent) {
+    onAmplitudeReleaseChange(event: CustomEvent) {
         const { value } = event.detail;
-        this.release = value;
+        this.amplitudeEnvelope.release = value;
+    }
+
+    onCutoffChange(event: CustomEvent) {
+        const { value } = event.detail;
+        this.cutoff = value;
+    }
+
+    onResonanceChange(event: CustomEvent) {
+        const { value } = event.detail;
+        this.resonance = value;
+    }
+
+    onCutoffAttackChange(event: CustomEvent) {
+        const { value } = event.detail;
+        this.cutoffEnvelope.attack = value;
+    }
+
+    onCutoffDecayChange(event: CustomEvent) {
+        const { value } = event.detail;
+        this.cutoffEnvelope.decay = value;
+    }
+
+    onCutoffEnvelopeAmountChange(event: CustomEvent) {
+        const { value } = event.detail;
+        this.cutoffEnvelope.amount = value;
     }
 
     notifyMidiLearners(event: CustomEvent) {
@@ -116,6 +157,10 @@ export class Root extends LitElement {
 
     registerMidiLearners() {
         MidiLearn.onMidiLearn((shouldLearn) => this.shouldMidiLearn = shouldLearn);
+    }
+
+    onWaveFormChange(event: CustomEvent) {
+        this.waveForm = event.detail.value;
     }
 
     render() {
@@ -128,24 +173,28 @@ export class Root extends LitElement {
                 <div class="menu">
                     <switch-element @change="${this.notifyMidiLearners}"></switch-element>
                 </div>
-
                 <div class="control-panel">
-                    <knob-element @change="${this.onAttackChange}" .shouldMidiLearn="${this.shouldMidiLearn}" .value="${this.attack}"></knob-element>
-                    <knob-element @change="${this.onDecayChange}" .shouldMidiLearn="${this.shouldMidiLearn}"></knob-element>
-                    <knob-element @change="${this.onSustainChange}" .shouldMidiLearn="${this.shouldMidiLearn}"></knob-element>
-                    <knob-element @change="${this.onReleaseChange}" .shouldMidiLearn="${this.shouldMidiLearn}"></knob-element>
+                    <knob-element label="attack" @change="${this.onAmplitudeAttackChange}" .shouldMidiLearn="${this.shouldMidiLearn}" .value="${this.amplitudeEnvelope.attack}"></knob-element>
+                    <knob-element label="decay" @change="${this.onAmplitudeDecayChange}" .shouldMidiLearn="${this.shouldMidiLearn}" .value="${this.amplitudeEnvelope.decay}"></knob-element>
+                    <knob-element label="sustain" @change="${this.onAmplitudeSustainChange}" .shouldMidiLearn="${this.shouldMidiLearn}" .value="${this.amplitudeEnvelope.sustain}"></knob-element>
+                    <knob-element label="release" @change="${this.onAmplitudeReleaseChange}" .shouldMidiLearn="${this.shouldMidiLearn}" .value="${this.amplitudeEnvelope.release}"></knob-element>
+                    <knob-element label="cutoff" @change="${this.onCutoffChange}" .shouldMidiLearn="${this.shouldMidiLearn}" .value="${this.cutoff}"></knob-element>
+                    <knob-element label="resonance" @change="${this.onResonanceChange}" .shouldMidiLearn="${this.shouldMidiLearn}" .value="${this.resonance}"></knob-element>
+                    <knob-element label="envelope" @change="${this.onCutoffEnvelopeAmountChange}" .shouldMidiLearn="${this.shouldMidiLearn}" .value="${this.cutoffEnvelope.amount}"></knob-element>
+                    <knob-element label="attack" @change="${this.onCutoffAttackChange}" .shouldMidiLearn="${this.shouldMidiLearn}" .value="${this.cutoffEnvelope.attack}"></knob-element>
+                    <knob-element label="decay" @change="${this.onCutoffDecayChange}" .shouldMidiLearn="${this.shouldMidiLearn}" .value="${this.cutoffEnvelope.decay}"></knob-element>
                 </div>
-                
-                <div class="keys">
-                    <keys-element 
-                        midiChannel="1"
-                        @keyOn=${this.onKeyOn}, 
-                        @keyOff=${this.onKeyOff}></keys-element>
-                        
-                    <keys-element 
-                        midiChannel="2"
-                        @keyOn=${this.onKeyOn}, 
-                        @keyOff=${this.onKeyOff}></keys-element>    
+
+
+                <div class="sequencer">
+                    <div class="keys">
+                        <keys-element 
+                            midiChannel="1"
+                            @keyOn=${this.onKeyOn}, 
+                            @keyOff=${this.onKeyOff}></keys-element>
+                    </div>
+                      
+                    <wave-selector-element .wave="${this.waveForm}" @change=${this.onWaveFormChange}></wave-selector-element>
                 </div>
             </div>          
 
@@ -172,19 +221,33 @@ export class Root extends LitElement {
             .control-panel {
                 margin: 20px 0;
                 display: flex;
-                width: 300px;
+                width: 100%;
                 justify-content: space-evenly;
             }
 
             .control-panel knob-element {
-                --knob-size: 60px;
+                --knob-size: 50px;
                         
             }
 
-            .keys {
+            .sequencer {
+                display: flex;
+            }
 
-                width: 100%;
+            .sequencer .keys {
+                width: 30%;
                 --key-height: 100px;
+            }
+
+            .sequencer .octave, .sequencer .step {
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .sequencer label {
+                color: var(--lighter-color);
             }
 
         `

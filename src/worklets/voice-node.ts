@@ -19,12 +19,12 @@ function createWaveformMessage(waveform) {
     }
 }
 
-export class WasmOscillatorNode extends AudioWorkletNode {
+export class WasmVoiceNode extends AudioWorkletNode {
 
     private params: Map<string, AudioParam>;
 
     constructor(audioContext: AudioContext) {
-        super(audioContext, 'oscillator');
+        super(audioContext, 'voice');
         this.params = this.parameters as Map<string, AudioParam>;
     }
 
@@ -44,20 +44,40 @@ export class WasmOscillatorNode extends AudioWorkletNode {
         return this.params.get('amplitude');
     }
 
-    get attack() {
-        return this.params.get('attack');
+    get amplitudeAttack() {
+        return this.params.get('amplitudeAttack');
     }
 
-    get decay() {
-        return this.params.get('decay');
+    get amplitudeDecay() {
+        return this.params.get('amplitudeDecay');
     }
 
-    get sustain() {
-        return this.params.get('sustain');
+    get amplitudeSustain() {
+        return this.params.get('amplitudeSustain');
     }
 
-    get release() {
-        return this.params.get('release');
+    get amplitudeRelease() {
+        return this.params.get('amplitudeRelease');
+    }
+
+    get cutoff() {
+        return this.params.get('cutoff');
+    }
+
+    get resonance() {
+        return this.params.get('resonance');
+    }
+
+    get cutoffEnvelopeAmount() {
+        return this.params.get('cutoffEnvelopeAmount');
+    }
+
+    get cutoffAttack() {
+        return this.params.get('cutoffAttack');
+    }
+
+    get cutoffDecay() {
+        return this.params.get('cutoffDecay');
     }
 
     set wave(type: string) {

@@ -1,4 +1,4 @@
-DEPS = src/worklets/oscillator-kernel.cpp
+DEPS = src/worklets/voice-kernel.cpp
 
 build: $(DEPS)
 	emcc --bind -O1 -g0 \
@@ -7,6 +7,6 @@ build: $(DEPS)
 	    -s TOTAL_MEMORY=64MB \
 		-s BINARYEN_ASYNC_COMPILATION=0 \
 		-s SINGLE_FILE=1 \
-		src/worklets/oscillator-kernel.cpp \
-		-o src/worklets/oscillator-kernel.wasmmodule.js \
+		src/worklets/voice-kernel.cpp \
+		-o src/worklets/voice-kernel.wasmmodule.js \
 		--post-js src/worklets/em-es6-module.js

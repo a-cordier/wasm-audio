@@ -41,6 +41,9 @@ export class Knob extends LitElement {
     @property({ type: Boolean })
     private shouldMidiLearn = false;
 
+    @property({ type: String })
+    private label: string;
+
     private isMidiLearning = false;
 
     private midiControl: number;
@@ -183,6 +186,7 @@ export class Knob extends LitElement {
                 <div class="midi-learn bottom-right-corner ${this.computeMidiLearnClasses()}"></div>
                 <div class="midi-learn bottom-left-corner ${this.computeMidiLearnClasses()}"></div>
                 <div class="midi-learn-label ${this.computeMidiLearnClasses()}">${this.midiLearnMessage}</div>
+                <div class="label">${this.label}</div>
             </div>
         `
     }
@@ -303,6 +307,13 @@ export class Knob extends LitElement {
                 align-items: center;
 
                 z-index: 1;
+            }
+
+            .label {
+                font-size: 0.8em;
+                color: var(--lighter-color);
+                display: flex;
+                justify-content: center;
             }
 
             @keyframes blink { 

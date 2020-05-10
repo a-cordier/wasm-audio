@@ -1,4 +1,4 @@
-import wasm from './oscillator-kernel.wasmmodule.js';
+import wasm from './voice-kernel.wasmmodule.js';
 
 import {
     RENDER_QUANTUM_FRAMES, // 128
@@ -6,19 +6,16 @@ import {
     HeapAudioBuffer,
     HeapParameterBuffer
 } from './wasm-audio-helper.js';
+import Module from './voice-kernel.wasmmodule.js';
 
 const waveforms = Object.freeze({
     "sine": wasm.WaveForm.SINE,
     "sawtooth": wasm.WaveForm.SAW,
-    "square": wasm.WaveForm.SQUARE
+    "square": wasm.WaveForm.SQUARE,
+    "triangle": wasm.WaveForm.TRIANGLE,
 });
 
-const OscillatorState = Object.freeze({
-    STOPPING: "STOPPING",
-    STOPPED: "STOPPED"
-});
-
-class OscillatorProcessor extends AudioWorkletProcessor {
+class VoiceProcessor extends AudioWorkletProcessor {
     #startTime = -1;
     #stopTime = undefined;
 
@@ -26,7 +23,7 @@ class OscillatorProcessor extends AudioWorkletProcessor {
     #frequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
 
     // noinspection JSUnresolvedFunction
-    #kernel = new wasm.OscillatorKernel();
+    #kernel = new wasm.VoiceKernel();
 
     // noinspection JSUnusedGlobalSymbols
     static get parameterDescriptors() {
@@ -46,33 +43,68 @@ class OscillatorProcessor extends AudioWorkletProcessor {
                 automationRate: "a-rate"
             },
             {
-                name: 'attack',
+                name: 'amplitudeAttack',
                 defaultValue: 0,
                 minValue: 0,
                 maxValue: 127,
                 automationRate: "k-rate"
             },
             {
-                name: 'decay',
+                name: 'amplitudeDecay',
                 defaultValue: 0,
                 minValue: 0,
                 maxValue: 127,
                 automationRate: "k-rate"
             },
             {
-                name: 'sustain',
+                name: 'amplitudeSustain',
                 defaultValue: 0.5,
                 minValue: 0,
                 maxValue: 127,
                 automationRate: "k-rate"
             },
             {
-                name: 'release',
+                name: 'amplitudeRelease',
                 defaultValue: 0.5,
                 minValue: 0,
                 maxValue: 127,
                 automationRate: "k-rate"
-            }
+            },
+            {
+                name: 'cutoff',
+                defaultValue: 0,
+                minValue: 0,
+                maxValue: 127,
+                automationRate: "k-rate"
+            },
+            {
+                name: 'resonance',
+                defaultValue: 0,
+                minValue: 0,
+                maxValue: 127,
+                automationRate: "k-rate"
+            },
+            {
+                name: 'cutoffAttack',
+                defaultValue: 0,
+                minValue: 0,
+                maxValue: 127,
+                automationRate: "k-rate"
+            },
+            {
+                name: 'cutoffDecay',
+                defaultValue: 0,
+                minValue: 0,
+                maxValue: 127,
+                automationRate: "k-rate"
+            },
+            {
+                name: 'cutoffEnvelopeAmount',
+                defaultValue: 0,
+                minValue: 0,
+                maxValue: 127,
+                automationRate: "k-rate"
+            },
         ];
     }
 
@@ -89,7 +121,7 @@ class OscillatorProcessor extends AudioWorkletProcessor {
                 case "STOP":
                     return this.#stopTime = event.data.time;
                 case "WAVEFORM":
-                    return this.#kernel.setMode(waveforms[event.data.waveform]);
+                    return this.#kernel.setMode(waveforms[event.data.waveform] || waveforms.sine);
             }
         }
     }
@@ -101,7 +133,8 @@ class OscillatorProcessor extends AudioWorkletProcessor {
         }
 
         if (this.#kernel.isStopped()) {
-            this.#kernel.reset();
+            wasm._free(this.#kernel.$$.ptr);
+            console.log(this.#kernel);
             return false;
         }
 
@@ -122,10 +155,18 @@ class OscillatorProcessor extends AudioWorkletProcessor {
             this.#frequencyBuffer.getHeapAddress(),
         ];
 
-        this.#kernel.setAttack(Number(parameters.attack));      // A
-        this.#kernel.setDecay(Number(parameters.decay));        // D
-        this.#kernel.setSustain(Number(parameters.sustain));    // S
-        this.#kernel.setRelease(Number(parameters.release));    // R
+        // Amplitude envelope parameters
+        this.#kernel.setAmplitudeAttack(Number(parameters.amplitudeAttack));
+        this.#kernel.setAmplitudeDecay(Number(parameters.amplitudeDecay));
+        this.#kernel.setAmplitudeSustain(Number(parameters.amplitudeSustain));
+        this.#kernel.setAmplitudeRelease(Number(parameters.amplitudeRelease));
+
+        // Filter parameters
+        this.#kernel.setCutoff(Number(parameters.cutoff));
+        this.#kernel.setResonance(Number(parameters.resonance));
+        this.#kernel.setCutoffEnvelopeAmount(Number(parameters.cutoffEnvelopeAmount));
+        this.#kernel.setCutoffEnvelopeAttack(Number(parameters.cutoffAttack));
+        this.#kernel.setCutoffEnvelopeDecay(Number(parameters.cutoffDecay));
 
         this.#kernel.process(outputPtr, channelCount, frequencyPtr);
 
@@ -139,4 +180,4 @@ class OscillatorProcessor extends AudioWorkletProcessor {
 
 
 // noinspection JSUnresolvedFunction
-registerProcessor('oscillator', OscillatorProcessor);
+registerProcessor('voice', VoiceProcessor);
