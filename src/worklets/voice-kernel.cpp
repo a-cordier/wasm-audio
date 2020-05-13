@@ -40,10 +40,7 @@ class VoiceKernel {
 			for (auto i = 0; i < kRenderQuantumFrames; ++i) {
 				float frequency = hasConstantFrequency ? frequencyValues[0] : frequencyValues[i];
 				startIfNecessary();
-				amplitudeMultiplier = amplitudeEnvelope.nextLevel();
-				float sample = computeRawSample(frequency) * amplitudeMultiplier;
-				sample = filter.filter(sample, cutoff, resonance, cutoffEnvelopeAmount * cutoffEnvelope.nextLevel());
-				channelBuffer[i] = sample;
+				channelBuffer[i] = computeSample(frequency);
 				stopIfNecessary();
 			}
 		}
@@ -111,9 +108,12 @@ class VoiceKernel {
 	}
 
 	private:
-	inline float computeRawSample(float frequency) {
-		osc1.setSemiShift(24);
-		return (osc1.nextSample(frequency));
+	inline float computeSample(float frequency) {
+		float osc1Sample = osc1.nextSample(frequency);
+		float osc2Sample = osc2.nextSample(frequency);
+		float rawSample = (osc1Sample + osc2Sample) * amplitudeEnvelope.nextLevel();
+		float cutoffMod = cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
+		return filter.filter(rawSample, cutoff, resonance, cutoffMod);
 	}
 
 	private:
