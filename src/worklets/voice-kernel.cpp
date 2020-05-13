@@ -41,7 +41,7 @@ class VoiceKernel {
 				float frequency = hasConstantFrequency ? frequencyValues[0] : frequencyValues[i];
 				startIfNecessary();
 				amplitudeMultiplier = amplitudeEnvelope.nextLevel();
-				float sample = osc1.nextSample(frequency) * amplitudeMultiplier;
+				float sample = computeRawSample(frequency) * amplitudeMultiplier;
 				sample = filter.filter(sample, cutoff, resonance, cutoffEnvelopeAmount * cutoffEnvelope.nextLevel());
 				channelBuffer[i] = sample;
 				stopIfNecessary();
@@ -111,6 +111,12 @@ class VoiceKernel {
 	}
 
 	private:
+	inline float computeRawSample(float frequency) {
+		osc1.setSemiShift(24);
+		return (osc1.nextSample(frequency));
+	}
+
+	private:
 	inline void startIfNecessary() {
 		if (state == VoiceState::DISPOSED) {
 			amplitudeEnvelope.enterAttackStage();
@@ -129,6 +135,8 @@ class VoiceKernel {
 	private:
 	Oscillator::Kernel osc1;
 	Oscillator::Kernel osc2;
+
+	float oscMix;
 
 	Envelope::Kernel amplitudeEnvelope;
 	float amplitudeMultiplier = .1f;

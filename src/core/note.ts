@@ -1,4 +1,4 @@
-type PitchClass = 'C'|'C#'|'D'|'D#'|'E'|'F'|'F#'|'G'|'G#'|'A'|'A#'|'B';
+type PitchClass = 'C' | 'C#' | 'D' | 'D#' | 'E' | 'F' | 'F#' | 'G' | 'G#' | 'A' | 'A#' | 'B';
 
 export interface Note {
 	pitchClass: PitchClass;
@@ -40,17 +40,37 @@ export function noteToMidi(pitchClass: PitchClass, octave: number): number {
 }
 
 /**
- * Computes the pitch class and octave for the given midi value
- * @param {number} midiValue - Octave value for note
+ * Computes the pitch class as a string representation and octave for the given midi value
+ * @param {number} midiValue - midi value for note
  * @returns {Note}
  */
-export function midiToNote(midiValue: number) {
+export function midiToNote(midiValue: number): Note {
 	const pitchClassIndex = (midiValue - (12 * 2)) % 12;
 	const octave = (midiValue - pitchClassIndex - 12) / 12;
 	return {
 		pitchClass: pitchClasses[pitchClassIndex],
 		octave,
+		frequency: midiToFrequency(midiValue),
+		midiValue
 	}
+}
+
+/**
+ * Computes the pitch class as a number from 0 to 11
+ * @param midiValue - midi value for note
+ * @returns {number}
+ */
+export function computePitchClassIndex(midiValue: number): number {
+	return (midiValue - (12 * 2)) % 12;
+}
+
+/**
+ * 
+ * @param midiValue - midi value for note
+ * @returns {number} the octave in which the pitchClass for this midi value lies
+ */
+export function computeOctave(midiValue: number): number {
+	return (midiValue - computePitchClassIndex(midiValue) - 12) / 12;
 }
 
 /**
@@ -60,7 +80,7 @@ export function midiToNote(midiValue: number) {
  * @param {number} tuning - The frequency associated to midi value 69 (A4)
  * @returns {number} The computed frequency
  */
-export function frequencyToMidi(frequency: number, tuning = 440): number|null {
+export function frequencyToMidi(frequency: number, tuning = 440): number | null {
 	if (frequency >= 8 && frequency < 3952) {
 		return 69 + (12 * Math.log2(frequency / tuning))
 	}
@@ -75,7 +95,7 @@ export function frequencyToMidi(frequency: number, tuning = 440): number|null {
  * @param {number} tuning - The frequency associated to midi value 69 (A4)
  */
 export function symbolToFrequency(pitchClass: PitchClass, octave: number, tuning = 440): number {
-	return 	midiToFrequency(noteToMidi(pitchClass, octave), tuning)
+	return midiToFrequency(noteToMidi(pitchClass, octave), tuning)
 }
 
 /**

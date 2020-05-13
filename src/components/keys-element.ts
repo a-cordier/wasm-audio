@@ -1,38 +1,26 @@
 import { LitElement, html, css, customElement, property } from 'lit-element';
 import { classMap } from "lit-html/directives/class-map";
-import { createMidiOctaves, midiToNote } from "../core/note";
+import { createMidiOctaves, computeOctave, computePitchClassIndex } from "../core/note";
 import { createMidiController } from "../core/midi-controller";
 import { MidiMessage, isNote, Status } from "../midi/midi-message";
 
-const octaves = createMidiOctaves(440);
+const octaves = createMidiOctaves(440).map(mapKeys);
 
-function initKeys(offset) {
-    return octaves[offset]
-        .map(note => {
-            const isSharp = note.pitchClass.endsWith('#');
-            const pitch = isSharp ? note.pitchClass.replace('#', '--sharp') : note.pitchClass;
+function mapKeys(octave) {
+    return octave.map(note => {
+        const isSharp = note.pitchClass.endsWith('#');
+        const pitch = isSharp ? note.pitchClass.replace('#', '--sharp') : note.pitchClass;
 
-            return {
-                ...note,
-                classes: {
-                    [pitch]: true,
-                    'key--sharp': isSharp,
-                    'key--whole': !isSharp,
-                    'key': true
-                }
+        return {
+            ...note,
+            classes: {
+                [pitch]: true,
+                'key--sharp': isSharp,
+                'key--whole': !isSharp,
+                'key': true
             }
-        })
-}
-
-function initOctaves(lowerKey, higherKey) {
-    const lowerOctave = midiToNote(lowerKey).octave;
-    const higherOctave = midiToNote(higherKey).octave;
-    const output = [];
-    for (let octave = lowerOctave; octave <= higherOctave; ++octave) {
-        const keys = initKeys(octave).filter(key => lowerKey <= key.midiValue && key.midiValue <= higherKey);
-        output.push(keys)
-    }
-    return output;
+        }
+    })
 }
 
 @customElement('keys-element')
@@ -43,21 +31,17 @@ export class Keys extends LitElement {
     @property({ type: Number })
     public higherKey = 59;
 
-    @property({ type: Number })
-    public octave = 0;
-
     @property({ type: Set })
     private pressedKeys = new Set();
-
-    @property({ type: Array })
-    private octaves = initOctaves(this.lowerKey, this.higherKey);
-
-    private availableOctaves = initOctaves(12, 127);
 
     @property({ type: Number })
     private midiChannel = 1;
 
     private mouseControlledKey = null;
+
+    get octaves() {
+        return octaves.slice(computeOctave(this.lowerKey), computeOctave(this.higherKey) + 1)
+    }
 
     constructor() {
         super();
@@ -105,20 +89,7 @@ export class Keys extends LitElement {
     }
 
     findKey(midiValue) {
-        for (const octave of this.octaves) {
-            for (const key of octave) {
-                if (key.midiValue === midiValue) {
-                    return key;
-                }
-            }
-        }
-        for (const octave of this.availableOctaves) {
-            for (const key of octave) {
-                if (key.midiValue === midiValue) {
-                    return key;
-                }
-            }
-        }
+        return octaves[computeOctave(midiValue)][computePitchClassIndex(midiValue)];
     }
 
     async onMidiMessage(message) {

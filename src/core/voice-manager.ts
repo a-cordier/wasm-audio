@@ -8,7 +8,7 @@ export function* createVoiceGenerator(audioContext: AudioContext, maxVoiceCount 
 
 export function* createNativeVoiceGenerator(audioContext: AudioContext) {
     for (; ;) {
-        yield Object.assign(new OscillatorNode(audioContext), { type: 'triangle' })
+        yield new OscillatorNode(audioContext)
     }
 }
 
