@@ -113,7 +113,7 @@ class VoiceKernel {
 		float osc2Sample = osc2.nextSample(frequency);
 		float rawSample = (osc1Sample + osc2Sample) * amplitudeEnvelope.nextLevel();
 		float cutoffMod = cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
-		return filter.filter(rawSample, cutoff, resonance, cutoffMod);
+		return filter.nextSample(rawSample, cutoff, resonance, cutoffMod);
 	}
 
 	private:

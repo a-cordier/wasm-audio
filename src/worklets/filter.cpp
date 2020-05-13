@@ -29,7 +29,7 @@ namespace Filter {
 		}
 
 		public:
-		float filter(float sample, float cutoff, float resonance, float cutoffMod) {
+		float nextSample(float sample, float cutoff, float resonance, float cutoffMod) {
 			float computedCutoff = computeCutoff(cutoff, cutoffMod);
 			float feedbackAmount = resonance + resonance / (1.0 - computedCutoff);
 			buf0 += computedCutoff * (sample - buf0 + feedbackAmount * (buf0 - buf1));
