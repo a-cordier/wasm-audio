@@ -11,11 +11,11 @@ export const Status = Object.freeze({
 
 
 export function isNote(message) {
-	return message.status === Status.NOTE_ON || message.status === Status.NOTE_OFF;
+	return message && (message.status === Status.NOTE_ON || message.status === Status.NOTE_OFF);
 }
 
 export function isControlChange(message) {
-	return message.status === Status.CONTROL_CHANGE;
+	return message && (message.status === Status.CONTROL_CHANGE);
 }
 
 export function Note(data, channel) {
