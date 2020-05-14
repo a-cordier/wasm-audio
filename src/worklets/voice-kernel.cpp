@@ -24,7 +24,8 @@ class VoiceKernel {
 	public:
 	VoiceKernel() :
 		amplitudeEnvelope(Envelope::Kernel(1.f, 0.5f, 0.5f, 0.5f, 0.9f)),
-		cutoffEnvelope(Envelope::Kernel(1.f, -0.5f, 0.01f, 2.f, 0.f)) {}
+		cutoffEnvelope(Envelope::Kernel(1.f, -0.5f, 0.01f, 2.f, 0.f)),
+		state(VoiceState::DISPOSED) {}
 
 	public:
 	void process(uintptr_t outputPtr, unsigned channelCount, uintptr_t frequencyValuesPtr) {
