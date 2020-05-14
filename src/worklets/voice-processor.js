@@ -121,7 +121,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
                 case "STOP":
                     return this.#stopTime = event.data.time;
                 case "WAVEFORM":
-                    return this.#kernel.setMode(waveforms[event.data.waveform] || waveforms.sine);
+                    if (event.data.destination === 'osc1') {
+                        return this.#kernel.setOsc1Mode(waveforms[event.data.waveform] || waveforms.sine);
+                    }
+                    return this.#kernel.setOsc2Mode(waveforms[event.data.waveform] || waveforms.sine);
             }
         }
     }

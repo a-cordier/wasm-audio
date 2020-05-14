@@ -48,8 +48,13 @@ class VoiceKernel {
 	}
 
 	public:
-	void setMode(Oscillator::Mode newMode) {
+	void setOsc1Mode(Oscillator::Mode newMode) {
 		osc1.setMode(newMode);
+	}
+
+	public:
+	void setOsc2Mode(Oscillator::Mode newMode) {
+		osc2.setMode(newMode);
 	}
 
 	public:
@@ -112,7 +117,7 @@ class VoiceKernel {
 	inline float computeSample(float frequency) {
 		float osc1Sample = osc1.nextSample(frequency);
 		float osc2Sample = osc2.nextSample(frequency);
-		float rawSample = (osc1Sample + osc2Sample) * amplitudeEnvelope.nextLevel();
+		float rawSample = (osc1Sample + osc2Sample) * 0.5f * amplitudeEnvelope.nextLevel();
 		float cutoffMod = cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
 		return filter.nextSample(rawSample, cutoff, resonance, cutoffMod);
 	}
@@ -128,7 +133,7 @@ class VoiceKernel {
 
 	private:
 	inline void stopIfNecessary() {
-		if (amplitudeEnvelope.isDone()) {
+		if (state == VoiceState::STOPPING && amplitudeEnvelope.isDone()) {
 			state = VoiceState::STOPPED;
 		}
 	}
@@ -158,7 +163,8 @@ EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
 	class_<VoiceKernel>("VoiceKernel")
 					.smart_ptr_constructor("VoiceKernel", &std::make_shared<VoiceKernel>)
 					.function("process", &VoiceKernel::process, allow_raw_pointers())
-					.function("setMode", &VoiceKernel::setMode)
+					.function("setOsc1Mode", &VoiceKernel::setOsc1Mode)
+					.function("setOsc2Mode", &VoiceKernel::setOsc2Mode)
 					.function("setAmplitudeAttack", &VoiceKernel::setAmplitudeAttack)
 					.function("setAmplitudeDecay", &VoiceKernel::setAmplitudeDecay)
 					.function("setAmplitudeSustain", &VoiceKernel::setAmplitudeSustain)

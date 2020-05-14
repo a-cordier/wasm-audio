@@ -33,7 +33,8 @@ export class Root extends LitElement {
     @property({ type: Boolean })
     private shouldMidiLearn = false;
 
-    private waveForm = "square";
+    private osc1 = "square";
+    private osc2 = "sawtooth"
 
     private voiceManager: VoiceManager;
 
@@ -79,7 +80,9 @@ export class Root extends LitElement {
             return; // avoid playing the same note twice (the note would hang forever)
         }
 
-        const voice = this.voiceManager.next({ type: this.waveForm, frequency });
+        const voice = this.voiceManager.next({ frequency });
+        voice.osc1 = this.osc1;
+        voice.osc2 = this.osc2;
 
         voice.amplitudeAttack.value = this.amplitudeEnvelope.attack;
         voice.amplitudeDecay.value = this.amplitudeEnvelope.decay;
@@ -159,8 +162,12 @@ export class Root extends LitElement {
         MidiLearn.onMidiLearn((shouldLearn) => this.shouldMidiLearn = shouldLearn);
     }
 
-    onWaveFormChange(event: CustomEvent) {
-        this.waveForm = event.detail.value;
+    onOsc1Change(event: CustomEvent) {
+        this.osc1 = event.detail.value;
+    }
+
+    onOsc2Change(event: CustomEvent) {
+        this.osc2 = event.detail.value;
     }
 
     render() {
@@ -194,7 +201,8 @@ export class Root extends LitElement {
                             @keyOff=${this.onKeyOff}></keys-element>
                     </div>
                       
-                    <wave-selector-element .wave="${this.waveForm}" @change=${this.onWaveFormChange}></wave-selector-element>
+                    <wave-selector-element .wave="${this.osc1}" @change=${this.onOsc1Change}></wave-selector-element>
+                    <wave-selector-element .wave="${this.osc2}" @change=${this.onOsc2Change}></wave-selector-element>
                 </div>
             </div>          
 

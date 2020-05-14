@@ -12,10 +12,11 @@ function createStopMessage(time) {
     }
 }
 
-function createWaveformMessage(waveform) {
+function createWaveformMessage(destination, waveform) {
     return {
         type: 'WAVEFORM',
-        waveform
+        waveform,
+        destination,
     }
 }
 
@@ -80,7 +81,11 @@ export class WasmVoiceNode extends AudioWorkletNode {
         return this.params.get('cutoffDecay');
     }
 
-    set wave(type: string) {
-        this.port.postMessage(createWaveformMessage(type));
+    set osc1(type: string) {
+        this.port.postMessage(createWaveformMessage('osc1', type));
+    }
+
+    set osc2(type: string) {
+        this.port.postMessage(createWaveformMessage('osc2', type));
     }
 }

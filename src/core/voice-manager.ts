@@ -19,10 +19,9 @@ export class VoiceManager {
         this.voiceGenerator = createVoiceGenerator(audioContext);
     }
 
-    next({ frequency, type }): WasmVoiceNode {
+    next({ frequency }): WasmVoiceNode {
         const osc = this.voiceGenerator.next().value;
         osc.frequency.value = frequency;
-        osc.wave = type;
         return osc;
     }
 }
