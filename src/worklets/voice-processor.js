@@ -1,186 +1,194 @@
-import wasm from './voice-kernel.wasmmodule.js';
+import wasm from "./voice-kernel.wasmmodule.js";
 
 import {
-    RENDER_QUANTUM_FRAMES, // 128
-    MAX_CHANNEL_COUNT, // 32
-    HeapAudioBuffer,
-    HeapParameterBuffer
-} from './wasm-audio-helper.js';
-import Module from './voice-kernel.wasmmodule.js';
+  RENDER_QUANTUM_FRAMES, // 128
+  MAX_CHANNEL_COUNT, // 32
+  HeapAudioBuffer,
+  HeapParameterBuffer,
+} from "./wasm-audio-helper.js";
+import Module from "./voice-kernel.wasmmodule.js";
 
 const waveforms = Object.freeze({
-    "sine": wasm.WaveForm.SINE,
-    "sawtooth": wasm.WaveForm.SAW,
-    "square": wasm.WaveForm.SQUARE,
-    "triangle": wasm.WaveForm.TRIANGLE,
+  sine: wasm.WaveForm.SINE,
+  sawtooth: wasm.WaveForm.SAW,
+  square: wasm.WaveForm.SQUARE,
+  triangle: wasm.WaveForm.TRIANGLE,
 });
 
 class VoiceProcessor extends AudioWorkletProcessor {
-    #startTime = -1;
-    #stopTime = undefined;
+  #startTime = -1;
+  #stopTime = undefined;
 
-    #outputBuffer = new HeapAudioBuffer(wasm, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);
-    #frequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
+  #outputBuffer = new HeapAudioBuffer(
+    wasm,
+    RENDER_QUANTUM_FRAMES,
+    2,
+    MAX_CHANNEL_COUNT
+  );
+  #frequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
 
-    // noinspection JSUnresolvedFunction
-    #kernel = new wasm.VoiceKernel();
+  // noinspection JSUnresolvedFunction
+  #kernel = new wasm.VoiceKernel();
 
-    // noinspection JSUnusedGlobalSymbols
-    static get parameterDescriptors() {
-        return [
-            {
-                name: 'frequency',
-                defaultValue: 440,
-                minValue: 0,
-                maxValue: 0.5 * sampleRate,
-                automationRate: "a-rate"
-            },
-            {
-                name: 'amplitude',
-                defaultValue: 0.5,
-                minValue: 0,
-                maxValue: 1,
-                automationRate: "a-rate"
-            },
-            {
-                name: 'amplitudeAttack',
-                defaultValue: 0,
-                minValue: 0,
-                maxValue: 127,
-                automationRate: "k-rate"
-            },
-            {
-                name: 'amplitudeDecay',
-                defaultValue: 0,
-                minValue: 0,
-                maxValue: 127,
-                automationRate: "k-rate"
-            },
-            {
-                name: 'amplitudeSustain',
-                defaultValue: 0.5,
-                minValue: 0,
-                maxValue: 127,
-                automationRate: "k-rate"
-            },
-            {
-                name: 'amplitudeRelease',
-                defaultValue: 0.5,
-                minValue: 0,
-                maxValue: 127,
-                automationRate: "k-rate"
-            },
-            {
-                name: 'cutoff',
-                defaultValue: 0,
-                minValue: 0,
-                maxValue: 127,
-                automationRate: "k-rate"
-            },
-            {
-                name: 'resonance',
-                defaultValue: 0,
-                minValue: 0,
-                maxValue: 127,
-                automationRate: "k-rate"
-            },
-            {
-                name: 'cutoffAttack',
-                defaultValue: 0,
-                minValue: 0,
-                maxValue: 127,
-                automationRate: "k-rate"
-            },
-            {
-                name: 'cutoffDecay',
-                defaultValue: 0,
-                minValue: 0,
-                maxValue: 127,
-                automationRate: "k-rate"
-            },
-            {
-                name: 'cutoffEnvelopeAmount',
-                defaultValue: 0,
-                minValue: 0,
-                maxValue: 127,
-                automationRate: "k-rate"
-            },
-        ];
+  // noinspection JSUnusedGlobalSymbols
+  static get parameterDescriptors() {
+    return [
+      {
+        name: "frequency",
+        defaultValue: 440,
+        minValue: 0,
+        maxValue: 0.5 * sampleRate,
+        automationRate: "a-rate",
+      },
+      {
+        name: "amplitude",
+        defaultValue: 0.5,
+        minValue: 0,
+        maxValue: 1,
+        automationRate: "a-rate",
+      },
+      {
+        name: "amplitudeAttack",
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "k-rate",
+      },
+      {
+        name: "amplitudeDecay",
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "k-rate",
+      },
+      {
+        name: "amplitudeSustain",
+        defaultValue: 0.5,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "k-rate",
+      },
+      {
+        name: "amplitudeRelease",
+        defaultValue: 0.5,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "k-rate",
+      },
+      {
+        name: "cutoff",
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "k-rate",
+      },
+      {
+        name: "resonance",
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "k-rate",
+      },
+      {
+        name: "cutoffAttack",
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "k-rate",
+      },
+      {
+        name: "cutoffDecay",
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "k-rate",
+      },
+      {
+        name: "cutoffEnvelopeAmount",
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "k-rate",
+      },
+    ];
+  }
+
+  constructor() {
+    super();
+    this.registerPortMessages();
+  }
+
+  registerPortMessages() {
+    this.port.onmessage = (event) => {
+      switch (event.data.type) {
+        case "START":
+          return (this.#startTime = event.data.time);
+        case "STOP":
+          return (this.#stopTime = event.data.time);
+        case "WAVEFORM":
+          if (event.data.destination === "osc1") {
+            return this.#kernel.setOsc1Mode(
+              waveforms[event.data.waveform] || waveforms.sine
+            );
+          }
+          return this.#kernel.setOsc2Mode(
+            waveforms[event.data.waveform] || waveforms.sine
+          );
+      }
+    };
+  }
+
+  process(inputs, outputs, parameters) {
+    if (this.#startTime > currentTime) {
+      return true;
     }
 
-    constructor() {
-        super();
-        this.registerPortMessages();
+    if (this.#kernel.isStopped()) {
+      this.#outputBuffer.free();
+      this.#frequencyBuffer.free();
+      return false;
     }
 
-    registerPortMessages() {
-        this.port.onmessage = (event) => {
-            switch (event.data.type) {
-                case "START":
-                    return this.#startTime = event.data.time;
-                case "STOP":
-                    return this.#stopTime = event.data.time;
-                case "WAVEFORM":
-                    if (event.data.destination === 'osc1') {
-                        return this.#kernel.setOsc1Mode(waveforms[event.data.waveform] || waveforms.sine);
-                    }
-                    return this.#kernel.setOsc2Mode(waveforms[event.data.waveform] || waveforms.sine);
-            }
-        }
+    if (this.#stopTime && this.#stopTime <= currentTime) {
+      this.#kernel.enterReleaseStage();
     }
 
+    let output = outputs[0];
 
-    process(inputs, outputs, parameters) {
-        if (this.#startTime > currentTime) {
-            return true;
-        }
+    let channelCount = output.length;
 
-        if (this.#kernel.isStopped()) {
-            this.#outputBuffer.free();
-            this.#frequencyBuffer.free();
-            return false;
-        }
+    this.#outputBuffer.adaptChannel(channelCount);
+    this.#frequencyBuffer.getData().set(parameters.frequency);
 
-        if (this.#stopTime && this.#stopTime <= currentTime) {
-            this.#kernel.enterReleaseStage();
-        }
+    const [outputPtr, frequencyPtr] = [
+      this.#outputBuffer.getHeapAddress(),
+      this.#frequencyBuffer.getHeapAddress(),
+    ];
 
-        let output = outputs[0];
+    // Amplitude envelope parameters
+    this.#kernel.setAmplitudeAttack(Number(parameters.amplitudeAttack));
+    this.#kernel.setAmplitudeDecay(Number(parameters.amplitudeDecay));
+    this.#kernel.setAmplitudeSustain(Number(parameters.amplitudeSustain));
+    this.#kernel.setAmplitudeRelease(Number(parameters.amplitudeRelease));
 
-        let channelCount = output.length;
+    // Filter parameters
+    this.#kernel.setCutoff(Number(parameters.cutoff));
+    this.#kernel.setResonance(Number(parameters.resonance));
+    this.#kernel.setCutoffEnvelopeAmount(
+      Number(parameters.cutoffEnvelopeAmount)
+    );
+    this.#kernel.setCutoffEnvelopeAttack(Number(parameters.cutoffAttack));
+    this.#kernel.setCutoffEnvelopeDecay(Number(parameters.cutoffDecay));
 
-        this.#outputBuffer.adaptChannel(channelCount);
-        this.#frequencyBuffer.getData().set(parameters.frequency);
+    this.#kernel.process(outputPtr, channelCount, frequencyPtr);
 
-
-        const [outputPtr, frequencyPtr] = [
-            this.#outputBuffer.getHeapAddress(),
-            this.#frequencyBuffer.getHeapAddress(),
-        ];
-
-        // Amplitude envelope parameters
-        this.#kernel.setAmplitudeAttack(Number(parameters.amplitudeAttack));
-        this.#kernel.setAmplitudeDecay(Number(parameters.amplitudeDecay));
-        this.#kernel.setAmplitudeSustain(Number(parameters.amplitudeSustain));
-        this.#kernel.setAmplitudeRelease(Number(parameters.amplitudeRelease));
-
-        // Filter parameters
-        this.#kernel.setCutoff(Number(parameters.cutoff));
-        this.#kernel.setResonance(Number(parameters.resonance));
-        this.#kernel.setCutoffEnvelopeAmount(Number(parameters.cutoffEnvelopeAmount));
-        this.#kernel.setCutoffEnvelopeAttack(Number(parameters.cutoffAttack));
-        this.#kernel.setCutoffEnvelopeDecay(Number(parameters.cutoffDecay));
-
-        this.#kernel.process(outputPtr, channelCount, frequencyPtr);
-
-        for (let channel = 0; channel < channelCount; ++channel) {
-            output[channel].set(this.#outputBuffer.getChannelData(channel)); // wasm to audio thread copy
-        }
-
-        return true;
+    for (let channel = 0; channel < channelCount; ++channel) {
+      output[channel].set(this.#outputBuffer.getChannelData(channel)); // wasm to audio thread copy
     }
+
+    return true;
+  }
 }
 
-
 // noinspection JSUnresolvedFunction
-registerProcessor('voice', VoiceProcessor);
+registerProcessor("voice", VoiceProcessor);

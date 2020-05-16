@@ -1,91 +1,90 @@
 function createStartMessage(time) {
-    return {
-        type: 'START',
-        time
-    }
+  return {
+    type: "START",
+    time,
+  };
 }
 
 function createStopMessage(time) {
-    return {
-        type: 'STOP',
-        time
-    }
+  return {
+    type: "STOP",
+    time,
+  };
 }
 
 function createWaveformMessage(destination, waveform) {
-    return {
-        type: 'WAVEFORM',
-        waveform,
-        destination,
-    }
+  return {
+    type: "WAVEFORM",
+    waveform,
+    destination,
+  };
 }
 
 export class WasmVoiceNode extends AudioWorkletNode {
+  private params: Map<string, AudioParam>;
 
-    private params: Map<string, AudioParam>;
+  constructor(audioContext: AudioContext) {
+    super(audioContext, "voice");
+    this.params = this.parameters as Map<string, AudioParam>;
+  }
 
-    constructor(audioContext: AudioContext) {
-        super(audioContext, 'voice');
-        this.params = this.parameters as Map<string, AudioParam>;
-    }
+  start(time = this.context.currentTime) {
+    this.port.postMessage(createStartMessage(time));
+  }
 
-    start(time = this.context.currentTime) {
-        this.port.postMessage(createStartMessage(time));
-    }
+  stop(time = this.context.currentTime) {
+    this.port.postMessage(createStopMessage(time));
+  }
 
-    stop(time = this.context.currentTime) {
-        this.port.postMessage(createStopMessage(time));
-    }
+  get frequency() {
+    return this.params.get("frequency");
+  }
 
-    get frequency() {
-        return this.params.get('frequency');
-    }
+  get amplitude() {
+    return this.params.get("amplitude");
+  }
 
-    get amplitude() {
-        return this.params.get('amplitude');
-    }
+  get amplitudeAttack() {
+    return this.params.get("amplitudeAttack");
+  }
 
-    get amplitudeAttack() {
-        return this.params.get('amplitudeAttack');
-    }
+  get amplitudeDecay() {
+    return this.params.get("amplitudeDecay");
+  }
 
-    get amplitudeDecay() {
-        return this.params.get('amplitudeDecay');
-    }
+  get amplitudeSustain() {
+    return this.params.get("amplitudeSustain");
+  }
 
-    get amplitudeSustain() {
-        return this.params.get('amplitudeSustain');
-    }
+  get amplitudeRelease() {
+    return this.params.get("amplitudeRelease");
+  }
 
-    get amplitudeRelease() {
-        return this.params.get('amplitudeRelease');
-    }
+  get cutoff() {
+    return this.params.get("cutoff");
+  }
 
-    get cutoff() {
-        return this.params.get('cutoff');
-    }
+  get resonance() {
+    return this.params.get("resonance");
+  }
 
-    get resonance() {
-        return this.params.get('resonance');
-    }
+  get cutoffEnvelopeAmount() {
+    return this.params.get("cutoffEnvelopeAmount");
+  }
 
-    get cutoffEnvelopeAmount() {
-        return this.params.get('cutoffEnvelopeAmount');
-    }
+  get cutoffAttack() {
+    return this.params.get("cutoffAttack");
+  }
 
-    get cutoffAttack() {
-        return this.params.get('cutoffAttack');
-    }
+  get cutoffDecay() {
+    return this.params.get("cutoffDecay");
+  }
 
-    get cutoffDecay() {
-        return this.params.get('cutoffDecay');
-    }
+  set osc1(type: string) {
+    this.port.postMessage(createWaveformMessage("osc1", type));
+  }
 
-    set osc1(type: string) {
-        this.port.postMessage(createWaveformMessage('osc1', type));
-    }
-
-    set osc2(type: string) {
-        this.port.postMessage(createWaveformMessage('osc2', type));
-    }
+  set osc2(type: string) {
+    this.port.postMessage(createWaveformMessage("osc2", type));
+  }
 }

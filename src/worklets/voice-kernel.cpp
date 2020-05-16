@@ -25,7 +25,9 @@ class VoiceKernel {
 	VoiceKernel() :
 		amplitudeEnvelope(Envelope::Kernel(1.f, 0.5f, 0.5f, 0.5f, 0.9f)),
 		cutoffEnvelope(Envelope::Kernel(1.f, -0.5f, 0.01f, 2.f, 0.f)),
-		state(VoiceState::DISPOSED) {}
+		state(VoiceState::DISPOSED) {
+		osc2.setSemiShift(12);
+	}
 
 	public:
 	void process(uintptr_t outputPtr, unsigned channelCount, uintptr_t frequencyValuesPtr) {

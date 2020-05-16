@@ -1,1 +1,1 @@
-import './components/root-element'
+import "./components/root-element";

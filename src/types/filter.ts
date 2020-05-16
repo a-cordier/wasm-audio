@@ -1,4 +1,4 @@
 export interface Filter {
-    cutoff: AudioParam;
-    resonance: AudioParam;
+  cutoff: AudioParam;
+  resonance: AudioParam;
 }
