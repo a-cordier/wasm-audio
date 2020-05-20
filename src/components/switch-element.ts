@@ -2,6 +2,9 @@ import { LitElement, html, css, customElement, property } from "lit-element";
 
 @customElement("switch-element")
 export class Switch extends LitElement {
+  @property({ type: String })
+  private label: string;
+
   constructor() {
     super();
   }
@@ -24,6 +27,7 @@ export class Switch extends LitElement {
         <input type="checkbox" @change="${this.onChange}" />
         <span class="slider"></span>
       </label>
+      <label>${this.label}</label>
     `;
   }
 
@@ -81,6 +85,13 @@ export class Switch extends LitElement {
         -webkit-transform: translateX(26px);
         -ms-transform: translateX(26px);
         transform: translateX(26px);
+      }
+
+      .label {
+        font-size: 0.8em;
+        color: var(--lighter-color);
+        display: flex;
+        justify-content: center;
       }
     `;
   }

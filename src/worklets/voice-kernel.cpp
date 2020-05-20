@@ -55,8 +55,33 @@ class VoiceKernel {
 	}
 
 	public:
+	void setOsc1SemiShift(float newSemiShift) {
+		osc1.setSemiShift(newSemiShift);
+	}
+
+	public:
+	void setOsc1CentShift(float newCentShift) {
+		osc1.setCentShift(newCentShift);
+	}
+
+	public:
 	void setOsc2Mode(Oscillator::Mode newMode) {
 		osc2.setMode(newMode);
+	}
+
+	public:
+	void setOsc2SemiShift(float newSemiShift) {
+		osc2.setSemiShift(newSemiShift);
+	}
+
+	public:
+	void setOsc2CentShift(float newCentShift) {
+		osc2.setCentShift(newCentShift);
+	}
+
+	public:
+	void setOsc2Amplitude(float newOsc2Amplitude) {
+		osc2Amplitude = zeroOneRange.map(newOsc2Amplitude, midiRange);
 	}
 
 	public:
@@ -66,48 +91,53 @@ class VoiceKernel {
 	}
 
 	public:
-	void setAmplitudeAttack(const float a) {
-		amplitudeEnvelope.setAttackTime(attackRange.map(a, midiRange));
+	void setAmplitudeAttack(const float newAmplitudeAttack) {
+		amplitudeEnvelope.setAttackTime(attackRange.map(newAmplitudeAttack, midiRange));
 	}
 
 	public:
-	void setAmplitudeDecay(float d) {
-		amplitudeEnvelope.setDecayTime(decayRange.map(d, midiRange));
+	void setAmplitudeDecay(float newAmplitudeDecay) {
+		amplitudeEnvelope.setDecayTime(decayRange.map(newAmplitudeDecay, midiRange));
 	}
 
 	public:
-	void setAmplitudeSustain(float s) {
-		amplitudeEnvelope.setSustainLevel(sustainRange.map(s, midiRange));
+	void setAmplitudeSustain(float newAmplitudeSustain) {
+		amplitudeEnvelope.setSustainLevel(sustainRange.map(newAmplitudeSustain, midiRange));
 	}
 
 	public:
-	void setAmplitudeRelease(float r) {
-		amplitudeEnvelope.setReleaseTime(releaseRange.map(r, midiRange));
+	void setAmplitudeRelease(float newAmplitudeRelease) {
+		amplitudeEnvelope.setReleaseTime(releaseRange.map(newAmplitudeRelease, midiRange));
 	}
 
 	public:
-	void setCutoff(float c) {
-		cutoff = cutoffRange.map(c, midiRange);
+	void setFilterMode(Filter::Mode newFilterMode) {
+		filter.setMode(newFilterMode);
 	}
 
 	public:
-	void setResonance(float r) {
-		resonance = resonanceRange.map(r, midiRange);
+	void setCutoff(float newCutoff) {
+		cutoff = cutoffRange.map(newCutoff, midiRange);
 	}
 
 	public:
-	void setCutoffEnvelopeAmount(float a) {
-		cutoffEnvelopeAmount = envelopeAmountRange.map(a, midiRange);
+	void setResonance(float newResonance) {
+		resonance = resonanceRange.map(newResonance, midiRange);
 	}
 
 	public:
-	void setCutoffEnvelopeAttack(float a) {
-		cutoffEnvelope.setAttackTime(attackRange.map(a, midiRange));
+	void setCutoffEnvelopeAmount(float newCutoffEnvelopeAmount) {
+		cutoffEnvelopeAmount = envelopeAmountRange.map(newCutoffEnvelopeAmount, midiRange);
 	}
 
 	public:
-	void setCutoffEnvelopeDecay(float d) {
-		cutoffEnvelope.setDecayTime(decayRange.map(d, midiRange));
+	void setCutoffEnvelopeAttack(float newCutoffEnvelopeAttack) {
+		cutoffEnvelope.setAttackTime(attackRange.map(newCutoffEnvelopeAttack, midiRange));
+	}
+
+	public:
+	void setCutoffEnvelopeDecay(float newCutoffEnvelopeDecay) {
+		cutoffEnvelope.setDecayTime(decayRange.map(newCutoffEnvelopeDecay, midiRange));
 	}
 
 	public:
@@ -117,9 +147,9 @@ class VoiceKernel {
 
 	private:
 	inline float computeSample(float frequency) {
-		float osc1Sample = osc1.nextSample(frequency);
-		float osc2Sample = osc2.nextSample(frequency);
-		float rawSample = (osc1Sample + osc2Sample) * 0.5f * amplitudeEnvelope.nextLevel();
+		float osc1Sample = osc1.nextSample(frequency) * (1.f - osc2Amplitude);
+		float osc2Sample = osc2.nextSample(frequency) * osc2Amplitude;
+		float rawSample = (osc1Sample + osc2Sample) * amplitudeEnvelope.nextLevel();
 		float cutoffMod = cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
 		return filter.nextSample(rawSample, cutoff, resonance, cutoffMod);
 	}
@@ -143,8 +173,7 @@ class VoiceKernel {
 	private:
 	Oscillator::Kernel osc1;
 	Oscillator::Kernel osc2;
-
-	float oscMix;
+	float osc2Amplitude = 0.5f;
 
 	Envelope::Kernel amplitudeEnvelope;
 	float amplitudeMultiplier = .1f;
@@ -166,11 +195,17 @@ EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
 					.smart_ptr_constructor("VoiceKernel", &std::make_shared<VoiceKernel>)
 					.function("process", &VoiceKernel::process, allow_raw_pointers())
 					.function("setOsc1Mode", &VoiceKernel::setOsc1Mode)
+					.function("setOsc1SemiShift", &VoiceKernel::setOsc1SemiShift)
+					.function("setOsc1CentShift", &VoiceKernel::setOsc1CentShift)
 					.function("setOsc2Mode", &VoiceKernel::setOsc2Mode)
+					.function("setOsc2SemiShift", &VoiceKernel::setOsc2SemiShift)
+					.function("setOsc2CentShift", &VoiceKernel::setOsc2CentShift)
+					.function("setOsc2Amplitude", &VoiceKernel::setOsc2Amplitude)
 					.function("setAmplitudeAttack", &VoiceKernel::setAmplitudeAttack)
 					.function("setAmplitudeDecay", &VoiceKernel::setAmplitudeDecay)
 					.function("setAmplitudeSustain", &VoiceKernel::setAmplitudeSustain)
 					.function("setAmplitudeRelease", &VoiceKernel::setAmplitudeRelease)
+					.function("setFilterMode", &VoiceKernel::setFilterMode)
 					.function("setCutoff", &VoiceKernel::setCutoff)
 					.function("setResonance", &VoiceKernel::setResonance)
 					.function("setCutoffEnvelopeAmount", &VoiceKernel::setCutoffEnvelopeAmount)
@@ -186,6 +221,14 @@ EMSCRIPTEN_BINDINGS(ENUM_OscillatorMode) {
 					.value("SAW", Oscillator::Mode::SAW)
 					.value("SQUARE", Oscillator::Mode::SQUARE)
 					.value("TRIANGLE", Oscillator::Mode::TRIANGLE);
+}
+
+EMSCRIPTEN_BINDINGS(ENUM_FilterMode) {
+	enum_<Filter::Mode>("FilterMode")
+					.value("LOWPASS", Filter::Mode::LOWPASS)
+					.value("LOWPASS_PLUS", Filter::Mode::LOWPASS_PLUS)
+					.value("BANDPASS", Filter::Mode::BANDPASS)
+					.value("HIGHPASS", Filter::Mode::HIGHPASS);
 }
 
 EMSCRIPTEN_BINDINGS(ENUM_VoiceState) {

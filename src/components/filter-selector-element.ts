@@ -1,22 +1,11 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
+import { FilterMode } from "../types/filter-mode";
 
-import "./sine-wave-icon";
-import "./square-wave-icon";
-import "./sawtooth-wave-icon";
-import "./triangle-wave-icon";
-
-const wave = Object.freeze({
-  sine: "sine",
-  sawtooth: "sawtooth",
-  square: "square",
-  triangle: "triangle",
-});
-
-@customElement("wave-selector-element")
-export class WaveSelector extends LitElement {
+@customElement("filter-selector-element")
+export class FilterSelector extends LitElement {
   @property({ type: String })
-  public value = wave.sine;
+  public value = FilterMode.LOWPASS;
 
   constructor() {
     super();
@@ -26,23 +15,23 @@ export class WaveSelector extends LitElement {
     super.connectedCallback();
   }
 
-  async onSawSelect() {
-    this.value = wave.sawtooth;
+  async onLpSelect() {
+    this.value = FilterMode.LOWPASS;
     this.dispatchSelect();
   }
 
-  async onSquareSelect() {
-    this.value = wave.square;
+  async onLpPlusSelect() {
+    this.value = FilterMode.LOWPASS_PLUS;
     this.dispatchSelect();
   }
 
-  async onSineSelect() {
-    this.value = wave.sine;
+  async onBpSelect() {
+    this.value = FilterMode.BANDPASS;
     this.dispatchSelect();
   }
 
-  async onTriangleSelect() {
-    this.value = wave.triangle;
+  async onHpSelect() {
+    this.value = FilterMode.HIGHPASS;
     this.dispatchSelect();
   }
 
@@ -54,38 +43,38 @@ export class WaveSelector extends LitElement {
 
   render() {
     return html`
-      <div class="wave-selector">
+      <div class="filter-selector">
         <button
-          class="${this.computeButtonClasses(wave.sawtooth)}"
-          @click=${this.onSawSelect}
+          class="${this.computeButtonClasses(FilterMode.LOWPASS_PLUS)}"
+          @click=${this.onLpPlusSelect}
         >
-          <saw-wave-icon class="icon"></saw-wave-icon>
+          L+
         </button>
         <button
-          class="${this.computeButtonClasses(wave.square)}"
-          @click=${this.onSquareSelect}
+          class="${this.computeButtonClasses(FilterMode.LOWPASS)}"
+          @click=${this.onLpSelect}
         >
-          <square-wave-icon class="icon"></square-wave-icon>
+          LP
         </button>
         <button
-          class="${this.computeButtonClasses(wave.triangle)}"
-          @click=${this.onTriangleSelect}
+          class="${this.computeButtonClasses(FilterMode.BANDPASS)}"
+          @click=${this.onBpSelect}
         >
-          <triangle-wave-icon class="icon"></triangle-wave-icon>
+          BP
         </button>
         <button
-          class="${this.computeButtonClasses(wave.sine)}"
-          @click=${this.onSineSelect}
+          class="${this.computeButtonClasses(FilterMode.HIGHPASS)}"
+          @click=${this.onHpSelect}
         >
-          <sine-wave-icon class="icon"></sine-wave-icon>
+          HP
         </button>
       </div>
     `;
   }
 
-  computeButtonClasses(wave) {
+  computeButtonClasses(mode) {
     return classMap({
-      active: wave === this.value,
+      active: mode === this.value,
     });
   }
 
@@ -94,9 +83,10 @@ export class WaveSelector extends LitElement {
     return css`
       :host {
         width: 100%;
+        font-size: 0.5em;
       }
 
-      .wave-selector {
+      .filter-selector {
         display: flex;
         align-items: center;
         justify-content: space-evenly;
@@ -106,6 +96,7 @@ export class WaveSelector extends LitElement {
       button {
         width: var(--button-width, 30px);
         height: var(--button-height, 30px);
+
         font-size: var(--button-font-size, 1.5em);
 
         background-color: var(--lighter-color);
@@ -119,11 +110,7 @@ export class WaveSelector extends LitElement {
 
         cursor: pointer;
 
-        --stroke-color: black;
-      }
-
-      button .icon {
-        margin-top: -2px;
+        color: black;
       }
 
       button:focus {
@@ -132,7 +119,7 @@ export class WaveSelector extends LitElement {
 
       button.active {
         background-color: var(--control-handle-color);
-        --stroke-color: white;
+        color: white;
         border-color: white;
       }
     `;

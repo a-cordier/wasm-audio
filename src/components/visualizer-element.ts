@@ -2,7 +2,7 @@ import { LitElement, html, customElement, property } from "lit-element";
 
 @customElement("visualizer-element")
 export class Visualizer extends LitElement {
-  @property({ type: AnalyserNode })
+  @property({ attribute: false })
   analyser;
 
   private canvas: HTMLCanvasElement;

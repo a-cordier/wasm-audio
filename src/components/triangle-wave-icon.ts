@@ -33,6 +33,7 @@ export class TriangleWaveIcon extends LitElement {
       svg {
         width: 12px;
         stroke: var(--stroke-color, #000);
+        margin-left: 1px;
       }
     `;
   }

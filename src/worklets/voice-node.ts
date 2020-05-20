@@ -1,3 +1,5 @@
+import { FilterMode } from "../types/filter-mode";
+
 function createStartMessage(time) {
   return {
     type: "START",
@@ -17,6 +19,13 @@ function createWaveformMessage(destination, waveform) {
     type: "WAVEFORM",
     waveform,
     destination,
+  };
+}
+
+function createFilterModeMessage(mode: FilterMode) {
+  return {
+    type: "FILTER_MODE",
+    mode,
   };
 }
 
@@ -80,11 +89,35 @@ export class WasmVoiceNode extends AudioWorkletNode {
     return this.params.get("cutoffDecay");
   }
 
+  get osc1SemiShift() {
+    return this.params.get("osc1SemiShift");
+  }
+
+  get osc1CentShift() {
+    return this.params.get("osc1CentShift");
+  }
+
+  get osc2SemiShift() {
+    return this.params.get("osc2SemiShift");
+  }
+
+  get osc2CentShift() {
+    return this.params.get("osc2CentShift");
+  }
+
+  get osc2Amplitude() {
+    return this.params.get("osc2Amplitude");
+  }
+
   set osc1(type: string) {
     this.port.postMessage(createWaveformMessage("osc1", type));
   }
 
   set osc2(type: string) {
     this.port.postMessage(createWaveformMessage("osc2", type));
+  }
+
+  set filterMode(mode: FilterMode) {
+    this.port.postMessage(createFilterModeMessage(mode));
   }
 }

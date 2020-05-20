@@ -9,6 +9,7 @@ constexpr float resonanceRangeMax = 0.98f;
 namespace Filter {
 	enum class Mode {
 		LOWPASS,
+		LOWPASS_PLUS,
 		HIGHPASS,
 		BANDPASS
 	};
@@ -37,8 +38,10 @@ namespace Filter {
 			buf2 += computedCutoff * (buf1 - buf2);
 			buf3 += computedCutoff * (buf2 - buf3);
 			switch (mode) {
-				case Mode::LOWPASS:
+				case Mode::LOWPASS_PLUS:
 					return buf3;
+				case Mode::LOWPASS:
+					return buf1;
 				case Mode::HIGHPASS:
 					return sample - buf3;
 				case Mode::BANDPASS:

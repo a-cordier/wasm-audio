@@ -15,6 +15,13 @@ const waveforms = Object.freeze({
   triangle: wasm.WaveForm.TRIANGLE,
 });
 
+const FilterMode = Object.freeze({
+  LOWPASS: wasm.FilterMode.LOWPASS,
+  LOWPASS_PLUS: wasm.FilterMode.LOWPASS_PLUS,
+  BANDPASS: wasm.FilterMode.BANDPASS,
+  HIGHPASS: wasm.FilterMode.HIGHPASS,
+});
+
 class VoiceProcessor extends AudioWorkletProcessor {
   #startTime = -1;
   #stopTime = undefined;
@@ -110,6 +117,41 @@ class VoiceProcessor extends AudioWorkletProcessor {
         maxValue: 127,
         automationRate: "k-rate",
       },
+      {
+        name: "osc1SemiShift",
+        defaultValue: 0,
+        minValue: -24,
+        maxValue: 24,
+        automationRate: "k-rate",
+      },
+      {
+        name: "osc1CentShift",
+        defaultValue: 0,
+        minValue: -50,
+        maxValue: 50,
+        automationRate: "k-rate",
+      },
+      {
+        name: "osc2SemiShift",
+        defaultValue: 0,
+        minValue: -24,
+        maxValue: 24,
+        automationRate: "k-rate",
+      },
+      {
+        name: "osc2CentShift",
+        defaultValue: 0,
+        minValue: -50,
+        maxValue: 50,
+        automationRate: "k-rate",
+      },
+      {
+        name: "osc2Amplitude",
+        defaultValue: 127 / 2,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "k-rate",
+      },
     ];
   }
 
@@ -127,13 +169,14 @@ class VoiceProcessor extends AudioWorkletProcessor {
           return (this.#stopTime = event.data.time);
         case "WAVEFORM":
           if (event.data.destination === "osc1") {
-            return this.#kernel.setOsc1Mode(
-              waveforms[event.data.waveform] || waveforms.sine
-            );
+            const oscillatorMode = waveforms[event.data.waveform];
+            return this.#kernel.setOsc1Mode(oscillatorMode);
           }
-          return this.#kernel.setOsc2Mode(
-            waveforms[event.data.waveform] || waveforms.sine
-          );
+          const oscillatorMode = waveforms[event.data.waveform];
+          return this.#kernel.setOsc2Mode(oscillatorMode);
+        case "FILTER_MODE":
+          const filterMode = FilterMode[event.data.mode];
+          return this.#kernel.setFilterMode(filterMode);
       }
     };
   }
@@ -170,6 +213,11 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.#kernel.setAmplitudeDecay(Number(parameters.amplitudeDecay));
     this.#kernel.setAmplitudeSustain(Number(parameters.amplitudeSustain));
     this.#kernel.setAmplitudeRelease(Number(parameters.amplitudeRelease));
+    this.#kernel.setOsc1SemiShift(Number(parameters.osc1SemiShift));
+    this.#kernel.setOsc1CentShift(Number(parameters.osc1CentShift));
+    this.#kernel.setOsc2SemiShift(Number(parameters.osc2SemiShift));
+    this.#kernel.setOsc2CentShift(Number(parameters.osc2CentShift));
+    this.#kernel.setOsc2Amplitude(Number(parameters.osc2Amplitude));
 
     // Filter parameters
     this.#kernel.setCutoff(Number(parameters.cutoff));

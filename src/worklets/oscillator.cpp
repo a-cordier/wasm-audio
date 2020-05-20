@@ -124,10 +124,16 @@ namespace Oscillator {
 
 		private:
 		inline float shiftFrequency(float frequency) {
-			for (auto i = 1; i <= semiShift; ++i)
+			for (auto i = 0; i < semiShift; ++i)
 				frequency *= semiFactor;
-			for (auto i = 1; i <= centShift; ++i)
+			for (auto i = 0; i < centShift; ++i)
 				frequency *= centFactor;
+			for (auto i = semiShift; i < 0; ++i) {
+				frequency /= semiFactor;
+			}
+			for (auto i = centShift; i < 0; ++i) {
+				frequency /= centFactor;
+			}
 			return frequency;
 		}
 
