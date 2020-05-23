@@ -94,7 +94,7 @@ export class Knob extends LitElement {
 
   onWheel(event: WheelEvent) {
     event.preventDefault();
-    this.updateValue(event.deltaY);
+    this.updateValue(this.computeStep(event.deltaY, event.altKey ? 0.25 : 1));
   }
 
   async onMidiMessage(message) {
@@ -118,10 +118,19 @@ export class Knob extends LitElement {
 
   updateValue(increment) {
     if (increment < 0 && this.value > this.range.min) {
-      this.value -= this.step;
+      this.value += increment;
     }
     if (increment > 0 && this.value < this.range.max) {
-      this.value += this.step;
+      this.value += increment;
+    }
+  }
+
+  computeStep(increment, multiplier = 1) {
+    if (increment < 0 && this.value > this.range.min) {
+      this.value -= this.step * multiplier;
+    }
+    if (increment > 0 && this.value < this.range.max) {
+      this.value += this.step * multiplier;
     }
   }
 
