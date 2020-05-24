@@ -8,6 +8,9 @@ export class OscillatorEnvelope extends LitElement {
   @property({ type: Boolean })
   private shouldMidiLearn = false;
 
+  @property({ type: String })
+  private label = "Envelope";
+
   @property({ type: Object })
   private state = {
     attack: 0,
@@ -46,7 +49,7 @@ export class OscillatorEnvelope extends LitElement {
 
   render() {
     return html`
-      <wrapper-element label="Envelope">
+      <wrapper-element .label=${this.label}>
         <div class="envelope-controls">
           <fader-element
             label="A"

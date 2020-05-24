@@ -31,56 +31,13 @@ import { OscillatorEnvelopeEvent } from "../types/oscillator-envelope-event";
 export class Root extends LitElement {
   private audioContext: AudioContext;
 
-  @property({ type: GainNode })
-  private gain: GainNode;
-
   @property({ type: AnalyserNode })
   private analyzer: AnalyserNode;
 
   @property({ type: Boolean })
   private shouldMidiLearn = false;
 
-  private state = {
-    osc1: {
-      mode: OscillatorMode.SAWTOOTH,
-      semiShift: 0,
-      centShift: 0,
-      envelope: {
-        attack: 0,
-        decay: 127 / 2,
-        sustain: 127,
-        release: 127 / 4,
-      },
-    },
-    osc2: {
-      mode: OscillatorMode.SAWTOOTH,
-      semiShift: 0,
-      centShift: 0,
-      envelope: {
-        attack: 0,
-        decay: 127 / 2,
-        sustain: 127,
-        release: 127 / 4,
-      },
-    },
-    osc2Amplitude: 127 / 2,
-    filter: {
-      mode: FilterMode.LOWPASS,
-      cutoff: 127,
-      resonance: 0,
-      envelope: {
-        attack: 0,
-        decay: 127 / 2,
-        amount: 0,
-      },
-    },
-  };
-
   private voiceManager: VoiceManager;
-
-  private channels: Map<number, Voice>[] = Array.from({ length: 16 }).map(
-    () => new Map<number, Voice>()
-  );
 
   constructor() {
     super();
@@ -88,21 +45,12 @@ export class Root extends LitElement {
 
   async connectedCallback() {
     super.connectedCallback();
-
     this.audioContext = new AudioContext();
-    this.gain = this.audioContext.createGain(); // first output in chain
     this.analyzer = this.audioContext.createAnalyser();
-    this.gain.connect(this.analyzer);
+    this.voiceManager = new VoiceManager(this.audioContext);
+    this.voiceManager.connect(this.analyzer);
     this.analyzer.connect(this.audioContext.destination);
-    this.voiceManager = new VoiceManager(
-      this.audioContext,
-      createVoiceGenerator
-    );
-
     await this.audioContext.audioWorklet.addModule("voice-processor.js");
-
-    this.gain.gain.value = 0.5;
-
     this.registerMidiLearners();
   }
 
@@ -110,47 +58,13 @@ export class Root extends LitElement {
     if (this.audioContext.state === "suspended") {
       await this.audioContext.resume();
     }
-
     const { frequency, midiValue, channel } = event.detail;
-
-    const notes = this.channels[channel - 1];
-
-    if (notes.has(midiValue)) {
-      return; // avoid playing the same note twice (the note would hang forever)
-    }
-
-    const voice = this.voiceManager.next({ frequency });
-    voice.osc1 = this.state.osc1.mode;
-    voice.osc1SemiShift.value = this.state.osc1.semiShift;
-    voice.osc1CentShift.value = this.state.osc1.centShift;
-    voice.osc2 = this.state.osc2.mode;
-    voice.osc2SemiShift.value = this.state.osc2.semiShift;
-    voice.osc2CentShift.value = this.state.osc2.centShift;
-    voice.osc2Amplitude.value = this.state.osc2Amplitude;
-    voice.amplitudeAttack.value = this.state.osc1.envelope.attack;
-    voice.amplitudeDecay.value = this.state.osc1.envelope.decay;
-    voice.amplitudeSustain.value = this.state.osc1.envelope.sustain;
-    voice.amplitudeRelease.value = this.state.osc1.envelope.release;
-    voice.filterMode = this.state.filter.mode;
-    voice.cutoff.value = this.state.filter.cutoff;
-    voice.resonance.value = this.state.filter.resonance;
-    voice.cutoffAttack.value = this.state.filter.envelope.attack;
-    voice.cutoffDecay.value = this.state.filter.envelope.decay;
-    voice.cutoffEnvelopeAmount.value = this.state.filter.envelope.amount;
-
-    voice.connect(this.gain);
-    voice.start();
-    notes.set(midiValue, voice);
+    this.voiceManager.next({ frequency, midiValue, channel });
   }
 
   onKeyOff(event: CustomEvent) {
     const { midiValue, channel } = event.detail;
-
-    const notes = this.channels[channel - 1];
-    if (notes.has(midiValue)) {
-      notes.get(midiValue).stop();
-      notes.delete(midiValue);
-    }
+    this.voiceManager.stop({ midiValue, channel });
   }
 
   notifyMidiLearners(event: CustomEvent) {
@@ -166,13 +80,13 @@ export class Root extends LitElement {
   onOsc1Change(event: CustomEvent) {
     switch (event.detail.type) {
       case OscillatorEvent.WAVE_FORM:
-        this.state.osc1.mode = event.detail.value;
+        this.voiceManager.setOsc1Mode(event.detail.value);
         break;
       case OscillatorEvent.SEMI_SHIFT:
-        this.state.osc1.semiShift = event.detail.value;
+        this.voiceManager.setOsc1SemiShift(event.detail.value);
         break;
       case OscillatorEvent.CENT_SHIFT:
-        this.state.osc1.centShift = event.detail.value;
+        this.voiceManager.setOsc1CentShift(event.detail.value);
         break;
     }
   }
@@ -180,35 +94,34 @@ export class Root extends LitElement {
   onOsc1EnvelopeChange(event: CustomEvent) {
     switch (event.detail.type) {
       case OscillatorEnvelopeEvent.ATTACK:
-        this.state.osc1.envelope.attack = event.detail.value;
+        this.voiceManager.setOsc1EnvelopeAttack(event.detail.value);
         break;
       case OscillatorEnvelopeEvent.DECAY:
-        this.state.osc1.envelope.decay = event.detail.value;
+        this.voiceManager.setOsc1EnvelopeDecay(event.detail.value);
         break;
       case OscillatorEnvelopeEvent.SUSTAIN:
-        this.state.osc1.envelope.sustain = event.detail.value;
+        this.voiceManager.setOsc1EnvelopeSustain(event.detail.value);
         break;
       case OscillatorEnvelopeEvent.RELEASE:
-        this.state.osc1.envelope.release = event.detail.value;
+        this.voiceManager.setOsc1EnvelopeRelease(event.detail.value);
         break;
     }
   }
 
   onOscMixChange(event: CustomEvent) {
-    this.state.osc2Amplitude = event.detail.value;
+    this.voiceManager.setOsc2Amplitude(event.detail.value);
   }
 
   onOsc2Change(event: CustomEvent) {
     switch (event.detail.type) {
       case OscillatorEvent.WAVE_FORM:
-        this.state.osc2.mode = event.detail.value;
+        this.voiceManager.setOsc2Mode(event.detail.value);
         break;
       case OscillatorEvent.SEMI_SHIFT:
-        console.log(event.detail.value);
-        this.state.osc2.semiShift = event.detail.value;
+        this.voiceManager.setOsc2SemiShift(event.detail.value);
         break;
       case OscillatorEvent.CENT_SHIFT:
-        this.state.osc2.centShift = event.detail.value;
+        this.voiceManager.setOsc2CentShift(event.detail.value);
         break;
     }
   }
@@ -216,13 +129,13 @@ export class Root extends LitElement {
   onFilterChange(event: CustomEvent) {
     switch (event.detail.type) {
       case FilterEvent.MODE:
-        this.state.filter.mode = event.detail.value;
+        this.voiceManager.setFilterMode(event.detail.value);
         break;
       case FilterEvent.CUTOFF:
-        this.state.filter.cutoff = event.detail.value;
+        this.voiceManager.setFilterCutoff(event.detail.value);
         break;
       case FilterEvent.RESONANCE:
-        this.state.filter.resonance = event.detail.value;
+        this.voiceManager.setFilterResonance(event.detail.value);
         break;
     }
   }
@@ -230,13 +143,13 @@ export class Root extends LitElement {
   onFilterEnvelopeChange(event: CustomEvent) {
     switch (event.detail.type) {
       case FilterEnvelopeEvent.ATTACK:
-        this.state.filter.envelope.attack = event.detail.value;
+        this.voiceManager.setCutoffEnvelopeAttack(event.detail.value);
         break;
       case FilterEnvelopeEvent.DECAY:
-        this.state.filter.envelope.decay = event.detail.value;
+        this.voiceManager.setCutoffEnvelopeDecay(event.detail.value);
         break;
       case FilterEnvelopeEvent.AMOUNT:
-        this.state.filter.envelope.amount = event.detail.value;
+        this.voiceManager.setCutoffEnvelopeAmount(event.detail.value);
         break;
     }
   }
@@ -260,30 +173,31 @@ export class Root extends LitElement {
           <div class="oscillators">
             <oscillator-element
               label="Osc 1"
-              .state=${this.state.osc1}
+              .state=${this.voiceManager.osc1}
               @change=${this.onOsc1Change}
               .shouldMidiLearn="${this.shouldMidiLearn}"
             ></oscillator-element>
             <knob-element
               label="Mix"
-              .value=${this.state.osc2Amplitude}
+              .value=${this.voiceManager.osc2Amplitude}
               @change=${this.onOscMixChange}
               .shouldMidiLearn="${this.shouldMidiLearn}"
             ></knob-element>
             <oscillator-element
               label="Osc 2"
-              .state=${this.state.osc1}
+              .state=${this.voiceManager.osc1}
               @change=${this.onOsc2Change}
               .shouldMidiLearn="${this.shouldMidiLearn}"
             ></oscillator-element>
             <filter-element
-              .state=${this.state.filter}
+              .state=${this.voiceManager.filter}
               @change=${this.onFilterChange}
             ></filter-element>
           </div>
           <div class="envelopes">
             <oscillator-envelope-element
-              .state=${this.state.osc1.envelope}
+              label="Amplitude"
+              .state=${this.voiceManager.osc1Envelope}
               @change=${this.onOsc1EnvelopeChange}
             ></oscillator-envelope-element>
             <switch-element
@@ -291,7 +205,7 @@ export class Root extends LitElement {
             ></switch-element>
             <oscillator-envelope-element></oscillator-envelope-element>
             <filter-envelope-element
-              .state=${this.state.filter.envelope}
+              .state=${this.voiceManager.cutoffEnvelope}
               @change=${this.onFilterEnvelopeChange}
             ></filter-envelope-element>
           </div>
