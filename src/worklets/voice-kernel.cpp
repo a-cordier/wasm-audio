@@ -20,33 +20,12 @@ enum class VoiceState {
 	STOPPED
 };
 
-class VoiceKernel {
+class SubOsc {
 	public:
-	VoiceKernel() :
-		amplitudeEnvelope(Envelope::Kernel(1.f, 0.5f, 0.5f, 0.5f, 0.9f)),
-		cutoffEnvelope(Envelope::Kernel(1.f, -0.5f, 0.01f, 2.f, 0.f)),
-		state(VoiceState::DISPOSED) {
-		osc2.setSemiShift(12);
-	}
-
-	public:
-	void process(uintptr_t outputPtr, unsigned channelCount, uintptr_t frequencyValuesPtr) {
-		float *outputBuffer = reinterpret_cast<float *>(outputPtr);
-		float *frequencyValues = reinterpret_cast<float *>(frequencyValuesPtr);
-
-		// frequency may have been automated (eg by an LFO)
-		bool hasConstantFrequency = sizeof(frequencyValues) == sizeof(frequencyValues[0]);
-
-		for (unsigned channel = 0; channel < channelCount; ++channel) {
-			float *channelBuffer = outputBuffer + channel * kRenderQuantumFrames;
-
-			for (auto i = 0; i < kRenderQuantumFrames; ++i) {
-				float frequency = hasConstantFrequency ? frequencyValues[0] : frequencyValues[i];
-				startIfNecessary();
-				channelBuffer[i] = computeSample(frequency);
-				stopIfNecessary();
-			}
-		}
+	float nextSample(float frequency) {
+		float osc1Sample = osc1.nextSample(frequency / 2) * (1.f - osc2Amplitude);
+		float osc2Sample = osc2.nextSample(frequency / 2) * osc2Amplitude;
+		return osc1Sample + osc2Sample;
 	}
 
 	public:
@@ -82,6 +61,83 @@ class VoiceKernel {
 	public:
 	void setOsc2Amplitude(float newOsc2Amplitude) {
 		osc2Amplitude = zeroOneRange.map(newOsc2Amplitude, midiRange);
+	}
+
+	private:
+	Oscillator::Kernel osc1;
+	Oscillator::Kernel osc2;
+
+	float osc2Amplitude;
+};
+
+class VoiceKernel {
+	public:
+	VoiceKernel() :
+		amplitudeEnvelope(Envelope::Kernel(1.f, 0.5f, 0.5f, 0.5f, 0.9f)),
+		cutoffEnvelope(Envelope::Kernel(1.f, -0.5f, 0.01f, 2.f, 0.f)),
+		state(VoiceState::DISPOSED) {
+	}
+
+	public:
+	void process(uintptr_t outputPtr, unsigned channelCount, uintptr_t frequencyValuesPtr) {
+		float *outputBuffer = reinterpret_cast<float *>(outputPtr);
+		float *frequencyValues = reinterpret_cast<float *>(frequencyValuesPtr);
+
+		// frequency may have been automated (eg by an LFO)
+		bool hasConstantFrequency = sizeof(frequencyValues) == sizeof(frequencyValues[0]);
+
+		for (unsigned channel = 0; channel < channelCount; ++channel) {
+			float *channelBuffer = outputBuffer + channel * kRenderQuantumFrames;
+
+			for (auto i = 0; i < kRenderQuantumFrames; ++i) {
+				float frequency = hasConstantFrequency ? frequencyValues[0] : frequencyValues[i];
+				startIfNecessary();
+				channelBuffer[i] = computeSample(frequency);
+				stopIfNecessary();
+			}
+		}
+	}
+
+	public:
+	void setOsc1Mode(Oscillator::Mode newMode) {
+		osc1.setMode(newMode);
+		subOsc.setOsc1Mode(newMode);
+	}
+
+	public:
+	void setOsc1SemiShift(float newSemiShift) {
+		osc1.setSemiShift(newSemiShift);
+		subOsc.setOsc1SemiShift(newSemiShift);
+	}
+
+	public:
+	void setOsc1CentShift(float newCentShift) {
+		osc1.setCentShift(newCentShift);
+		subOsc.setOsc1CentShift(newCentShift);
+	}
+
+	public:
+	void setOsc2Mode(Oscillator::Mode newMode) {
+		osc2.setMode(newMode);
+		subOsc.setOsc2Mode(newMode);
+	}
+
+	public:
+	void setOsc2SemiShift(float newSemiShift) {
+		osc2.setSemiShift(newSemiShift);
+		subOsc.setOsc2SemiShift(newSemiShift);
+	}
+
+	public:
+	void setOsc2CentShift(float newCentShift) {
+		osc2.setCentShift(newCentShift);
+		subOsc.setOsc2CentShift(newCentShift);
+	}
+
+	public:
+	void setOsc2Amplitude(float newOsc2Amplitude) {
+		osc2Amplitude = zeroOneRange.map(newOsc2Amplitude, midiRange);
+		subOsc.setOsc2Amplitude(newOsc2Amplitude);
 	}
 
 	public:
@@ -149,7 +205,8 @@ class VoiceKernel {
 	inline float computeSample(float frequency) {
 		float osc1Sample = osc1.nextSample(frequency) * (1.f - osc2Amplitude);
 		float osc2Sample = osc2.nextSample(frequency) * osc2Amplitude;
-		float rawSample = (osc1Sample + osc2Sample) * amplitudeEnvelope.nextLevel();
+		float subOscSample = subOsc.nextSample(frequency);
+		float rawSample = (0.5 * (osc1Sample + osc2Sample) + 0.5 * subOscSample) * amplitudeEnvelope.nextLevel() * 0.75;
 		float cutoffMod = cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
 		return filter.nextSample(rawSample, cutoff, resonance, cutoffMod);
 	}
@@ -173,6 +230,7 @@ class VoiceKernel {
 	private:
 	Oscillator::Kernel osc1;
 	Oscillator::Kernel osc2;
+	SubOsc subOsc;
 	float osc2Amplitude = 0.5f;
 
 	Envelope::Kernel amplitudeEnvelope;
