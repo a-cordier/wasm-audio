@@ -84,15 +84,24 @@ class VoiceKernel {
 		float *frequencyValues = reinterpret_cast<float *>(frequencyValuesPtr);
 
 		// frequency may have been automated (eg by an LFO)
-		bool hasConstantFrequency = sizeof(frequencyValues) == sizeof(frequencyValues[0]);
+		bool hasConstantFrequency = hasConstantValue(frequencyValues);
+		bool hasConstantOsc2Amplitude = hasConstantValue(osc2AmplitudeValues);
+		bool hasContantCutoff = hasConstantValue(cutoffValues);
+		bool hasContantResonance = hasConstantValue(resonanceValues);
 
 		for (unsigned channel = 0; channel < channelCount; ++channel) {
 			float *channelBuffer = outputBuffer + channel * kRenderQuantumFrames;
 
 			for (auto i = 0; i < kRenderQuantumFrames; ++i) {
-				float frequency = hasConstantFrequency ? frequencyValues[0] : frequencyValues[i];
+				float frequency = getCurrentValue(frequencyValues, i);
+				float osc2Amplitude = getCurrentValue(osc2AmplitudeValues, i);
+				float cutoff = getCurrentValue(cutoffValues, i);
+				float resonance = getCurrentValue(resonanceValues, i);
+				osc2Amplitude = zeroOneRange.map(osc2Amplitude, midiRange);
+				cutoff = cutoffRange.map(cutoff, midiRange);
+				resonance = resonanceRange.map(resonance, midiRange);
 				startIfNecessary();
-				channelBuffer[i] = computeSample(frequency);
+				channelBuffer[i] = computeSample(frequency, osc2Amplitude, cutoff, resonance);
 				stopIfNecessary();
 			}
 		}
@@ -135,9 +144,8 @@ class VoiceKernel {
 	}
 
 	public:
-	void setOsc2Amplitude(float newOsc2Amplitude) {
-		osc2Amplitude = zeroOneRange.map(newOsc2Amplitude, midiRange);
-		subOsc.setOsc2Amplitude(newOsc2Amplitude);
+	void setOsc2Amplitude(uintptr_t osc2AmplitudeValuesPtr) {
+		osc2AmplitudeValues = reinterpret_cast<float *>(osc2AmplitudeValuesPtr);
 	}
 
 	public:
@@ -172,13 +180,13 @@ class VoiceKernel {
 	}
 
 	public:
-	void setCutoff(float newCutoff) {
-		cutoff = cutoffRange.map(newCutoff, midiRange);
+	void setCutoff(uintptr_t cutoffValuesPtr) {
+		cutoffValues = reinterpret_cast<float *>(cutoffValuesPtr);
 	}
 
 	public:
-	void setResonance(float newResonance) {
-		resonance = resonanceRange.map(newResonance, midiRange);
+	void setResonance(uintptr_t resonanceValuesPtr) {
+		resonanceValues = reinterpret_cast<float *>(resonanceValuesPtr);
 	}
 
 	public:
@@ -202,9 +210,10 @@ class VoiceKernel {
 	}
 
 	private:
-	inline float computeSample(float frequency) {
+	inline float computeSample(float frequency, float osc2Amplitude, float cutoff, float resonance) {
 		float osc1Sample = osc1.nextSample(frequency) * (1.f - osc2Amplitude);
 		float osc2Sample = osc2.nextSample(frequency) * osc2Amplitude;
+		subOsc.setOsc2Amplitude(osc2Amplitude);
 		float subOscSample = subOsc.nextSample(frequency);
 		float rawSample = (0.5 * (osc1Sample + osc2Sample) + 0.5 * subOscSample) * amplitudeEnvelope.nextLevel() * 0.75;
 		float cutoffMod = cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
@@ -228,17 +237,27 @@ class VoiceKernel {
 	}
 
 	private:
+	inline float getCurrentValue(float *valuesPtr, unsigned int i) {
+		return hasConstantValue(valuesPtr) ? valuesPtr[0] : valuesPtr[i];
+	}
+
+	private:
+	inline bool hasConstantValue(float *valuesPtr) {
+		return sizeof(valuesPtr) == sizeof(valuesPtr[0]);
+	}
+
+	private:
 	Oscillator::Kernel osc1;
 	Oscillator::Kernel osc2;
 	SubOsc subOsc;
-	float osc2Amplitude = 0.5f;
+	float *osc2AmplitudeValues;
 
 	Envelope::Kernel amplitudeEnvelope;
 	float amplitudeMultiplier = .1f;
 
 	Filter::Kernel filter;
-	float cutoff = 0.75f;
-	float resonance = 0.f;
+	float *cutoffValues;
+	float *resonanceValues;
 
 	Envelope::Kernel cutoffEnvelope;
 	float cutoffEnvelopeAmount = 0.8f;
@@ -258,14 +277,14 @@ EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
 					.function("setOsc2Mode", &VoiceKernel::setOsc2Mode)
 					.function("setOsc2SemiShift", &VoiceKernel::setOsc2SemiShift)
 					.function("setOsc2CentShift", &VoiceKernel::setOsc2CentShift)
-					.function("setOsc2Amplitude", &VoiceKernel::setOsc2Amplitude)
+					.function("setOsc2Amplitude", &VoiceKernel::setOsc2Amplitude, allow_raw_pointers())
 					.function("setAmplitudeAttack", &VoiceKernel::setAmplitudeAttack)
 					.function("setAmplitudeDecay", &VoiceKernel::setAmplitudeDecay)
 					.function("setAmplitudeSustain", &VoiceKernel::setAmplitudeSustain)
 					.function("setAmplitudeRelease", &VoiceKernel::setAmplitudeRelease)
 					.function("setFilterMode", &VoiceKernel::setFilterMode)
-					.function("setCutoff", &VoiceKernel::setCutoff)
-					.function("setResonance", &VoiceKernel::setResonance)
+					.function("setCutoff", &VoiceKernel::setCutoff, allow_raw_pointers())
+					.function("setResonance", &VoiceKernel::setResonance, allow_raw_pointers())
 					.function("setCutoffEnvelopeAmount", &VoiceKernel::setCutoffEnvelopeAmount)
 					.function("setCutoffEnvelopeAttack", &VoiceKernel::setCutoffEnvelopeAttack)
 					.function("setCutoffEnvelopeDecay", &VoiceKernel::setCutoffEnvelopeDecay)

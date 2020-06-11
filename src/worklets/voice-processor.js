@@ -33,6 +33,9 @@ class VoiceProcessor extends AudioWorkletProcessor {
     MAX_CHANNEL_COUNT
   );
   #frequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
+  #oscillatorMixBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
+  #cutoffBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
+  #resonanceBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
 
   // noinspection JSUnresolvedFunction
   #kernel = new wasm.VoiceKernel();
@@ -87,14 +90,14 @@ class VoiceProcessor extends AudioWorkletProcessor {
         defaultValue: 0,
         minValue: 0,
         maxValue: 127,
-        automationRate: "k-rate",
+        automationRate: "a-rate",
       },
       {
         name: "resonance",
         defaultValue: 0,
         minValue: 0,
         maxValue: 127,
-        automationRate: "k-rate",
+        automationRate: "a-rate",
       },
       {
         name: "cutoffAttack",
@@ -150,7 +153,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
         defaultValue: 127 / 2,
         minValue: 0,
         maxValue: 127,
-        automationRate: "k-rate",
+        automationRate: "a-rate",
       },
     ];
   }
@@ -189,6 +192,9 @@ class VoiceProcessor extends AudioWorkletProcessor {
     if (this.#kernel.isStopped()) {
       this.#outputBuffer.free();
       this.#frequencyBuffer.free();
+      this.#oscillatorMixBuffer.free();
+      this.#cutoffBuffer.free();
+      this.resonanceBuffer.free();
       return false;
     }
 
@@ -202,13 +208,25 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
     this.#outputBuffer.adaptChannel(channelCount);
     this.#frequencyBuffer.getData().set(parameters.frequency);
+    this.#oscillatorMixBuffer.getData().set(parameters.osc2Amplitude);
+    this.#cutoffBuffer.getData().set(parameters.cutoff);
+    this.#resonanceBuffer.getData().set(parameters.resonance);
 
-    const [outputPtr, frequencyPtr] = [
+    const [
+      outputPtr,
+      frequencyPtr,
+      oscillatorMixPtr,
+      cutoffPtr,
+      resonancePtr,
+    ] = [
       this.#outputBuffer.getHeapAddress(),
       this.#frequencyBuffer.getHeapAddress(),
+      this.#oscillatorMixBuffer.getHeapAddress(),
+      this.#cutoffBuffer.getHeapAddress(),
+      this.#resonanceBuffer.getHeapAddress(),
     ];
 
-    // Amplitude envelope parameters
+    // Oscillators parameters
     this.#kernel.setAmplitudeAttack(Number(parameters.amplitudeAttack));
     this.#kernel.setAmplitudeDecay(Number(parameters.amplitudeDecay));
     this.#kernel.setAmplitudeSustain(Number(parameters.amplitudeSustain));
@@ -217,11 +235,11 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.#kernel.setOsc1CentShift(Number(parameters.osc1CentShift));
     this.#kernel.setOsc2SemiShift(Number(parameters.osc2SemiShift));
     this.#kernel.setOsc2CentShift(Number(parameters.osc2CentShift));
-    this.#kernel.setOsc2Amplitude(Number(parameters.osc2Amplitude));
+    this.#kernel.setOsc2Amplitude(oscillatorMixPtr);
 
     // Filter parameters
-    this.#kernel.setCutoff(Number(parameters.cutoff));
-    this.#kernel.setResonance(Number(parameters.resonance));
+    this.#kernel.setCutoff(cutoffPtr);
+    this.#kernel.setResonance(resonancePtr);
     this.#kernel.setCutoffEnvelopeAmount(
       Number(parameters.cutoffEnvelopeAmount)
     );
