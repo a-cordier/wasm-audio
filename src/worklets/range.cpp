@@ -10,6 +10,12 @@ struct Range {
 	float map(float value, Range const &range) {
 		return min + ((value - range.min) * (max - min) / (range.max - range.min));
 	}
+
+	float clamp(float value) {
+		if (value < min) return min;
+		if (value > max) return max;
+		return value;
+	}
 };
 
 Range midiRange{ 0, 127.f };

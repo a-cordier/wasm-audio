@@ -1,11 +1,5 @@
 #include "range.cpp"
 
-constexpr float cutoffRangeMin = 0.03f;
-constexpr float cutoffRangeMax = 0.99f;
-
-constexpr float resonanceRangeMin = 0.f;
-constexpr float resonanceRangeMax = 0.98f;
-
 namespace Filter {
 	enum class Mode {
 		LOWPASS,
@@ -31,7 +25,7 @@ namespace Filter {
 
 		public:
 		float nextSample(float sample, float cutoff, float resonance, float cutoffMod) {
-			float computedCutoff = computeCutoff(cutoff, cutoffMod);
+			float computedCutoff = cutoffRange.clamp(cutoff + cutoffMod);
 			float feedbackAmount = resonance + resonance / (1.0 - computedCutoff);
 			buf0 += computedCutoff * (sample - buf0 + feedbackAmount * (buf0 - buf1));
 			buf1 += computedCutoff * (buf0 - buf1);
@@ -49,14 +43,6 @@ namespace Filter {
 				default:
 					return 0.0;
 			}
-		}
-
-		private:
-		inline float computeCutoff(float cutoff, float cutoffMod) {
-			auto computedCutoff = cutoff + cutoffMod;
-			if (computedCutoff >= cutoffRange.max) return cutoffRangeMax;
-			if (computedCutoff <= cutoffRange.min) return cutoffRangeMin;
-			return computedCutoff;
 		}
 
 		private:
