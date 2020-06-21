@@ -59,7 +59,7 @@ export class Root extends LitElement {
 
     // TODO remove when LFO destination has a UI
     this.voiceManager.toggleLfoDestination({
-      value: LfoDestination.FREQUENCY,
+      value: LfoDestination.OSCILLATOR_MIX,
       isEnabled: true,
     });
   }
@@ -226,10 +226,14 @@ export class Root extends LitElement {
             <switch-element
               @change="${this.notifyMidiLearners}"
             ></switch-element>
-            <lfo-element @change=${this.onLfoChange}></lfo-element>
+            <lfo-element
+              @change=${this.onLfoChange}
+              .shouldMidiLearn="${this.shouldMidiLearn}"
+            ></lfo-element>
             <filter-envelope-element
               .state=${this.voiceManager.cutoffEnvelope}
               @change=${this.onFilterEnvelopeChange}
+              .shouldMidiLearn="${this.shouldMidiLearn}"
             ></filter-envelope-element>
           </div>
 

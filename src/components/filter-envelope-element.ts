@@ -59,6 +59,7 @@ export class FilterEnvelope extends LitElement {
             label="mod."
             .value=${this.state.amount}
             @change=${this.onAmountChange}
+            .shouldMidiLearn="${this.shouldMidiLearn}"
           ></knob-element>
         </div>
       </wrapper-element>
