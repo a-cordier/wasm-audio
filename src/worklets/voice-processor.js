@@ -194,7 +194,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.#frequencyBuffer.free();
       this.#oscillatorMixBuffer.free();
       this.#cutoffBuffer.free();
-      this.resonanceBuffer.free();
+      this.#resonanceBuffer.free();
       return false;
     }
 
