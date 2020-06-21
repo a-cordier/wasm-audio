@@ -1,4 +1,5 @@
 import { FilterMode } from "../types/filter-mode";
+import { LfoDestination } from "../types/lfo-destination";
 
 function createStartMessage(time) {
   return {
@@ -26,6 +27,17 @@ function createFilterModeMessage(mode: FilterMode) {
   return {
     type: "FILTER_MODE",
     mode,
+  };
+}
+
+function createLfoDestinationMdessage(
+  destination: LfoDestination,
+  isEnabled = true
+) {
+  return {
+    type: "LFO_DESTINATION",
+    destination,
+    isEnabled,
   };
 }
 
@@ -109,6 +121,14 @@ export class WasmVoiceNode extends AudioWorkletNode {
     return this.params.get("osc2Amplitude");
   }
 
+  get lfoFrequency() {
+    return this.params.get("lfoFrequency");
+  }
+
+  get lfoModAmount() {
+    return this.params.get("lfoModAmount");
+  }
+
   set osc1(type: string) {
     this.port.postMessage(createWaveformMessage("osc1", type));
   }
@@ -119,5 +139,13 @@ export class WasmVoiceNode extends AudioWorkletNode {
 
   set filterMode(mode: FilterMode) {
     this.port.postMessage(createFilterModeMessage(mode));
+  }
+
+  set lfoMode(mode: string) {
+    this.port.postMessage(createWaveformMessage("lfo", mode));
+  }
+
+  toggleLfoDestination(destination: LfoDestination, isEnabled: boolean) {
+    this.port.postMessage(createLfoDestinationMdessage(destination, isEnabled));
   }
 }

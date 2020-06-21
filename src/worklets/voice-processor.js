@@ -199,14 +199,19 @@ class VoiceProcessor extends AudioWorkletProcessor {
             const oscillatorMode = waveforms[event.data.waveform];
             return this.#kernel.setOsc1Mode(oscillatorMode);
           }
+          if (event.data.destination === "osc2") {
+            const oscillatorMode = waveforms[event.data.waveform];
+            return this.#kernel.setOsc2Mode(oscillatorMode);
+          }
+          // lfo waveform
           const oscillatorMode = waveforms[event.data.waveform];
-          return this.#kernel.setOsc2Mode(oscillatorMode);
+          return this.#kernel.setLfoMode(oscillatorMode);
         case "FILTER_MODE":
           const filterMode = FilterMode[event.data.mode];
           return this.#kernel.setFilterMode(filterMode);
         case "LFO_DESTINATION":
           const lfoDestination = LfoDestination[event.data.destination];
-          if (!event.data.set) {
+          if (!event.data.isEnabled) {
             return this.#kernel.unsetLfoDestination(lfoDestination);
           }
           this.#kernel.setLfoDestination(lfoDestination);

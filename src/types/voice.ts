@@ -1,5 +1,6 @@
 import { FilterMode } from "./filter-mode";
 import { OscillatorMode } from "./oscillator-mode";
+import { LfoDestination } from "./lfo-destination";
 
 export interface Voice extends AudioNode {
   osc1: OscillatorMode | string;
@@ -20,6 +21,10 @@ export interface Voice extends AudioNode {
   cutoffDecay: AudioParam;
   cutoffEnvelopeAmount: AudioParam;
   osc2Amplitude: AudioParam;
+  lfoFrequency: AudioParam;
+  lfoModAmount: AudioParam;
+  lfoMode: OscillatorMode | string;
   start(time?: number): void;
   stop(time?: number): void;
+  toggleLfoDestination(destination: LfoDestination, isEnabled: boolean);
 }

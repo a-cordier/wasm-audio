@@ -2,6 +2,7 @@ import { WasmVoiceNode } from "../worklets/voice-node";
 import { Voice } from "../types/voice";
 import { OscillatorMode } from "../types/oscillator-mode";
 import { FilterMode } from "../types/filter-mode";
+import { LfoDestination } from "../types/lfo-destination";
 
 export function* createVoiceGenerator(
   audioContext: AudioContext
@@ -50,6 +51,18 @@ export class VoiceManager {
       decay: 127 / 2,
       amount: 0,
     },
+    lfo: {
+      mode: OscillatorMode.SINE,
+      frequency: 127 / 2,
+      modAmount: 0,
+      destinations: new Set<LfoDestination>(),
+      toggleDestination(destination: LfoDestination, isEnabled: boolean) {
+        if (isEnabled) {
+          return this.destinations.add(destination);
+        }
+        this.destinations.delete(destination);
+      },
+    },
   };
 
   constructor(audioContext: AudioContext) {
@@ -82,6 +95,12 @@ export class VoiceManager {
     voice.cutoffAttack.value = this.state.cutoffEnvelope.attack;
     voice.cutoffDecay.value = this.state.cutoffEnvelope.decay;
     voice.cutoffEnvelopeAmount.value = this.state.cutoffEnvelope.amount;
+    voice.lfoFrequency.value = this.state.lfo.frequency;
+    voice.lfoModAmount.value = this.state.lfo.modAmount;
+    voice.lfoMode = this.state.lfo.mode;
+    this.state.lfo.destinations.forEach((dest) =>
+      voice.toggleLfoDestination(dest, this.state.lfo.destinations.has(dest))
+    );
     voiceMap.set(midiValue, voice);
     voice.connect(this.output);
     voice.start();
@@ -203,6 +222,36 @@ export class VoiceManager {
 
   setCutoffEnvelopeDecay(newDecayTime: number) {
     this.state.cutoffEnvelope.decay = newDecayTime;
+  }
+
+  setLfoMode(newMode: OscillatorMode) {
+    this.state.lfo.mode = newMode;
+    this.dispatchUpdate((voice) => (voice.lfoMode = newMode));
+  }
+
+  toggleLfoDestination({
+    value,
+    isEnabled,
+  }: {
+    value: LfoDestination;
+    isEnabled: boolean;
+  }) {
+    this.state.lfo.toggleDestination(value, isEnabled);
+    this.dispatchUpdate((voice) => {
+      Object.values(LfoDestination).forEach((dest) => {
+        voice.toggleLfoDestination(dest, this.state.lfo.destinations.has(dest));
+      });
+    });
+  }
+
+  setLfoFrequency(newFrequency: number) {
+    this.state.lfo.frequency = newFrequency;
+    this.dispatchUpdate((voice) => (voice.lfoFrequency.value = newFrequency));
+  }
+
+  setLfoModAmount(newAmount: number) {
+    this.state.lfo.modAmount = newAmount;
+    this.dispatchUpdate((voice) => (voice.lfoModAmount.value = newAmount));
   }
 
   get cutoffEnvelope() {

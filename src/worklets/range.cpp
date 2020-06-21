@@ -29,4 +29,4 @@ Range resonanceRange{ 0.f, 0.97f };
 Range envelopeAmountRange{ 0.f, 1.f };
 Range semiShiftRange{ -24.f, 24.f };
 Range centShiftRange{ -50.f, 50.f };
-Range lfoFrequencyRange{ 0.1f, 25.F };
+Range lfoFrequencyRange{ 0.1f, 25.f };

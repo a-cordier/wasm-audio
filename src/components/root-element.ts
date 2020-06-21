@@ -14,6 +14,7 @@ import "./oscillator-element";
 import "./filter-element";
 import "./oscillator-envelope-element";
 import "./filter-envelope-element";
+import "./lfo-element";
 
 import { VoiceManager, createVoiceGenerator } from "../core/voice-manager";
 import { MidiLearn } from "../stores/midi-learn";
@@ -26,6 +27,9 @@ import { FilterMode } from "../types/filter-mode";
 import { FilterEvent } from "../types/filter-event";
 import { FilterEnvelopeEvent } from "../types/filter-envelope-event";
 import { OscillatorEnvelopeEvent } from "../types/oscillator-envelope-event";
+import { LfoEvent } from "../types/lfo-event";
+import { LfoDestination } from "../types/lfo-destination";
+import { Lfo } from "./lfo-element";
 
 @customElement("child-element")
 export class Root extends LitElement {
@@ -52,6 +56,12 @@ export class Root extends LitElement {
     this.analyzer.connect(this.audioContext.destination);
     await this.audioContext.audioWorklet.addModule("voice-processor.js");
     this.registerMidiLearners();
+
+    // TODO remove when LFO destination has a UI
+    this.voiceManager.toggleLfoDestination({
+      value: LfoDestination.FREQUENCY,
+      isEnabled: true,
+    });
   }
 
   async onKeyOn(event: CustomEvent) {
@@ -154,6 +164,22 @@ export class Root extends LitElement {
     }
   }
 
+  onLfoChange(event: CustomEvent) {
+    switch (event.detail.type) {
+      case LfoEvent.WAVE_FORM:
+        this.voiceManager.setLfoMode(event.detail.value);
+        break;
+      case LfoEvent.FREQUENCY:
+        this.voiceManager.setLfoFrequency(event.detail.value);
+        break;
+      case LfoEvent.MOD_AMOUNT:
+        this.voiceManager.setLfoModAmount(event.detail.value);
+        break;
+      case LfoEvent.DESTINATION:
+        this.voiceManager.toggleLfoDestination(event.detail);
+    }
+  }
+
   render() {
     return html`
       <div class="content">
@@ -200,7 +226,7 @@ export class Root extends LitElement {
             <switch-element
               @change="${this.notifyMidiLearners}"
             ></switch-element>
-            <oscillator-envelope-element></oscillator-envelope-element>
+            <lfo-element @change=${this.onLfoChange}></lfo-element>
             <filter-envelope-element
               .state=${this.voiceManager.cutoffEnvelope}
               @change=${this.onFilterEnvelopeChange}
