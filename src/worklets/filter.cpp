@@ -24,13 +24,12 @@ namespace Filter {
 		}
 
 		public:
-		float nextSample(float sample, float cutoff, float resonance, float cutoffMod) {
-			float computedCutoff = cutoffRange.clamp(cutoff + cutoffMod);
-			float feedbackAmount = resonance + resonance / (1.0 - computedCutoff);
-			buf0 += computedCutoff * (sample - buf0 + feedbackAmount * (buf0 - buf1));
-			buf1 += computedCutoff * (buf0 - buf1);
-			buf2 += computedCutoff * (buf1 - buf2);
-			buf3 += computedCutoff * (buf2 - buf3);
+		float nextSample(float sample, float cutoff, float resonance) {
+			float feedbackAmount = resonance + resonance / (1.0 - cutoff);
+			buf0 += cutoff * (sample - buf0 + feedbackAmount * (buf0 - buf1));
+			buf1 += cutoff * (buf0 - buf1);
+			buf2 += cutoff * (buf1 - buf2);
+			buf3 += cutoff * (buf2 - buf3);
 			switch (mode) {
 				case Mode::LOWPASS_PLUS:
 					return buf3;

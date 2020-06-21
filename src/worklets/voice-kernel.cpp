@@ -3,6 +3,7 @@
 #include "oscillator.cpp"
 #include "range.cpp"
 #include <algorithm>
+#include <bitset>
 #include <cmath>
 #include <memory>
 
@@ -70,6 +71,60 @@ class SubOsc {
 	float osc2Amplitude;
 };
 
+struct SampleParameters {
+	float frequency;
+	float osc2Amplitude;
+	float cutoff;
+	float resonance;
+
+	float lfoFrequency;
+	float lfoModAmount;
+
+	SampleParameters &setFrequency(float newFrequency) {
+		frequency = newFrequency;
+		return *this;
+	}
+
+	SampleParameters &setOsc2Amplitude(float newOsc2Amplitude) {
+		osc2Amplitude = newOsc2Amplitude;
+		return *this;
+	}
+
+	SampleParameters &setCutoff(float newCutoff) {
+		cutoff = newCutoff;
+		return *this;
+	}
+
+	SampleParameters &setResonance(float newResonance) {
+		resonance = newResonance;
+		return *this;
+	}
+
+	SampleParameters &setLfoFrequency(float newFrequency) {
+		lfoFrequency = newFrequency;
+		return *this;
+	}
+
+	SampleParameters &setLfoModAmount(float newModAmount) {
+		lfoModAmount = newModAmount;
+		return *this;
+	}
+
+	float osc1Amplitude() {
+		return 1.f - osc2Amplitude;
+	}
+};
+
+enum class LfoDestination {
+	FREQUENCY = 0,
+	OSCILLATOR_MIX = 1,
+	CUTOFF = 2,
+	RESONANCE = 3,
+	INVERSED_RESONANCE = 4,
+
+	VALUES_COUNT = INVERSED_RESONANCE + 1
+};
+
 class VoiceKernel {
 	public:
 	VoiceKernel() :
@@ -83,25 +138,19 @@ class VoiceKernel {
 		float *outputBuffer = reinterpret_cast<float *>(outputPtr);
 		float *frequencyValues = reinterpret_cast<float *>(frequencyValuesPtr);
 
-		// frequency may have been automated (eg by an LFO)
-		bool hasConstantFrequency = hasConstantValue(frequencyValues);
-		bool hasConstantOsc2Amplitude = hasConstantValue(osc2AmplitudeValues);
-		bool hasContantCutoff = hasConstantValue(cutoffValues);
-		bool hasContantResonance = hasConstantValue(resonanceValues);
-
 		for (unsigned channel = 0; channel < channelCount; ++channel) {
 			float *channelBuffer = outputBuffer + channel * kRenderQuantumFrames;
 
 			for (auto i = 0; i < kRenderQuantumFrames; ++i) {
-				float frequency = getCurrentValue(frequencyValues, i);
-				float osc2Amplitude = getCurrentValue(osc2AmplitudeValues, i);
-				float cutoff = getCurrentValue(cutoffValues, i);
-				float resonance = getCurrentValue(resonanceValues, i);
-				osc2Amplitude = zeroOneRange.map(osc2Amplitude, midiRange);
-				cutoff = cutoffRange.map(cutoff, midiRange);
-				resonance = resonanceRange.map(resonance, midiRange);
+				sampleParameters.setFrequency(getCurrentValue(frequencyValues, i))
+								.setOsc2Amplitude(getCurrentValue(osc2AmplitudeValues, i, midiRange, zeroOneRange))
+								.setCutoff(getCurrentValue(cutoffValues, i, midiRange, cutoffRange))
+								.setResonance(getCurrentValue(resonanceValues, i, midiRange, resonanceRange))
+								.setLfoFrequency(getCurrentValue(lfoFrequencyValues, i, midiRange, lfoFrequencyRange))
+								.setLfoModAmount(getCurrentValue(lfoModAmountValues, i, midiRange, zeroOneRange));
+
 				startIfNecessary();
-				channelBuffer[i] = computeSample(frequency, osc2Amplitude, cutoff, resonance);
+				channelBuffer[i] = computeSample(sampleParameters);
 				stopIfNecessary();
 			}
 		}
@@ -205,22 +254,80 @@ class VoiceKernel {
 	}
 
 	public:
+	void setLfoMode(Oscillator::Mode newMode) {
+		lfo.setMode(newMode);
+	}
+
+	public:
+	void setLfoModAmount(uintptr_t lfoModAmountValuesPtr) {
+		lfoModAmountValues = reinterpret_cast<float *>(lfoModAmountValuesPtr);
+	}
+
+	public:
+	void setLfoFrequency(uintptr_t lfoFrequencyValuesPtr) {
+		lfoFrequencyValues = reinterpret_cast<float *>(lfoFrequencyValuesPtr);
+	}
+
+	public:
+	void setLfoDestination(LfoDestination destination) {
+		lfoDestinations.set(static_cast<size_t>(destination));
+	}
+
+	public:
+	void unsetLfoDestination(LfoDestination destination) {
+		lfoDestinations.reset(static_cast<size_t>(destination));
+	}
+
+	public:
 	bool isStopped() {
 		return state == VoiceState::STOPPED;
 	}
 
 	private:
-	inline float computeSample(float frequency, float osc2Amplitude, float cutoff, float resonance) {
+	inline float computeSample(SampleParameters &parameters) {
+		applyModulations(parameters);
+		float rawSample = computeRawSample(parameters);
+		return filter.nextSample(rawSample, parameters.cutoff, parameters.resonance);
+	}
+
+	private:
+	inline float computeRawSample(SampleParameters &parameters) {
 		static constexpr float subOscPresence = 0.5f;
 		static constexpr float finalAmplitude = 0.8f;
-		float osc1Sample = osc1.nextSample(frequency) * (1.f - osc2Amplitude);
-		float osc2Sample = osc2.nextSample(frequency) * osc2Amplitude;
-		subOsc.setOsc2Amplitude(osc2Amplitude);
-		float subOscSample = subOsc.nextSample(frequency);
+
+		subOsc.setOsc2Amplitude(parameters.osc2Amplitude);
+		float osc1Sample = osc1.nextSample(parameters.frequency) * parameters.osc1Amplitude();
+		float osc2Sample = osc2.nextSample(parameters.frequency) * parameters.osc2Amplitude;
+		float subOscSample = subOsc.nextSample(parameters.frequency);
 		float rawSample = (1 - subOscPresence) * (osc1Sample + osc2Sample) + subOscPresence * subOscSample;
-		rawSample *= amplitudeEnvelope.nextLevel() * finalAmplitude;
+		return rawSample * amplitudeEnvelope.nextLevel() * finalAmplitude;
+	}
+
+	private:
+	inline void applyModulations(SampleParameters &parameters) {
+		float lfoMod = parameters.lfoModAmount * lfo.nextSample(parameters.lfoFrequency);
 		float cutoffMod = cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
-		return filter.nextSample(rawSample, cutoff, resonance, cutoffMod);
+		parameters.cutoff = cutoffRange.clamp(parameters.cutoff + cutoffMod);
+
+		if (isSet(LfoDestination::FREQUENCY)) {
+			parameters.frequency += lfoMod * 100;
+		}
+		if (isSet(LfoDestination::CUTOFF)) {
+			parameters.cutoff = cutoffRange.clamp(parameters.cutoff + lfoMod);
+		}
+		if (isSet(LfoDestination::RESONANCE)) {
+			parameters.resonance = resonanceRange.clamp(parameters.resonance + lfoMod);
+		} else if (isSet(LfoDestination::INVERSED_RESONANCE)) {
+			parameters.resonance = resonanceRange.clamp(parameters.resonance - lfoMod);
+		}
+		if (isSet(LfoDestination::OSCILLATOR_MIX)) {
+			parameters.osc2Amplitude = zeroOneRange.clamp(parameters.osc2Amplitude + lfoMod);
+		}
+	}
+
+	private:
+	inline bool isSet(LfoDestination LfoDestination) {
+		return lfoDestinations.test(static_cast<size_t>(LfoDestination));
 	}
 
 	private:
@@ -245,6 +352,12 @@ class VoiceKernel {
 	}
 
 	private:
+	inline float getCurrentValue(float *valuesPtr, unsigned int i, Range sourceRange, Range targetRange) {
+		auto value = hasConstantValue(valuesPtr) ? valuesPtr[0] : valuesPtr[i];
+		return targetRange.map(value, sourceRange);
+	}
+
+	private:
 	inline bool hasConstantValue(float *valuesPtr) {
 		return sizeof(valuesPtr) == sizeof(valuesPtr[0]);
 	}
@@ -255,8 +368,13 @@ class VoiceKernel {
 	SubOsc subOsc;
 	float *osc2AmplitudeValues;
 
+	Oscillator::Kernel lfo;
+	float *lfoFrequencyValues;
+	float *lfoModAmountValues;
+
+	std::bitset<static_cast<size_t>(LfoDestination::VALUES_COUNT)> lfoDestinations;
+
 	Envelope::Kernel amplitudeEnvelope;
-	float amplitudeMultiplier = .1f;
 
 	Filter::Kernel filter;
 	float *cutoffValues;
@@ -266,6 +384,8 @@ class VoiceKernel {
 	float cutoffEnvelopeAmount = 0.8f;
 
 	VoiceState state;
+
+	SampleParameters sampleParameters;
 
 	float sampleRate = 44100.f;
 };
@@ -291,6 +411,11 @@ EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
 					.function("setCutoffEnvelopeAmount", &VoiceKernel::setCutoffEnvelopeAmount)
 					.function("setCutoffEnvelopeAttack", &VoiceKernel::setCutoffEnvelopeAttack)
 					.function("setCutoffEnvelopeDecay", &VoiceKernel::setCutoffEnvelopeDecay)
+					.function("setLfoFrequency", &VoiceKernel::setLfoFrequency)
+					.function("setLfoModAmount", &VoiceKernel::setLfoModAmount)
+					.function("setLfoMode", &VoiceKernel::setLfoMode)
+					.function("setLfoDestination", &VoiceKernel::setLfoDestination)
+					.function("unsetLfoDestination", &VoiceKernel::unsetLfoDestination)
 					.function("isStopped", &VoiceKernel::isStopped)
 					.function("enterReleaseStage", &VoiceKernel::enterReleaseStage);
 }
@@ -317,4 +442,13 @@ EMSCRIPTEN_BINDINGS(ENUM_VoiceState) {
 					.value("STARTED", VoiceState::STARTED)
 					.value("STOPPING", VoiceState::STOPPING)
 					.value("STOPPED", VoiceState::STOPPED);
+}
+
+EMSCRIPTEN_BINDINGS(ENUM_LfoDestination) {
+	enum_<LfoDestination>("LfoDestination")
+					.value("FREQUENCY", LfoDestination::FREQUENCY)
+					.value("OSCILLATOR_MIX", LfoDestination::OSCILLATOR_MIX)
+					.value("CUTOFF", LfoDestination::CUTOFF)
+					.value("INVERSED_RESONANCE", LfoDestination::INVERSED_RESONANCE)
+					.value("RESONANCE", LfoDestination::RESONANCE);
 }

@@ -22,6 +22,14 @@ const FilterMode = Object.freeze({
   HIGHPASS: wasm.FilterMode.HIGHPASS,
 });
 
+const LfoDestination = Object.freeze({
+  FREQUENCY: wasm.LfoDestination.FREQUENCY,
+  OSCILLATOR_MIX: wasm.LfoDestination.OSCILLATOR_MIX,
+  CUTOFF: wasm.LfoDestination.CUTOFF,
+  RESONANCE: wasm.LfoDestination.RESONANCE,
+  INVERSED_RESONANCE: wasm.LfoDestination.INVERSED_RESONANCE,
+});
+
 class VoiceProcessor extends AudioWorkletProcessor {
   #startTime = -1;
   #stopTime = undefined;
@@ -36,6 +44,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
   #oscillatorMixBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
   #cutoffBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
   #resonanceBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
+  #lfoFrequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
+  #lfoModAmountBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
 
   // noinspection JSUnresolvedFunction
   #kernel = new wasm.VoiceKernel();
@@ -155,6 +165,20 @@ class VoiceProcessor extends AudioWorkletProcessor {
         maxValue: 127,
         automationRate: "a-rate",
       },
+      {
+        name: "lfoFrequency",
+        defaultValue: 127,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "a-rate",
+      },
+      {
+        name: "lfoModAmount",
+        defaultValue: 127,
+        minValue: 1,
+        maxValue: 127,
+        automationRate: "a-rate",
+      },
     ];
   }
 
@@ -180,6 +204,12 @@ class VoiceProcessor extends AudioWorkletProcessor {
         case "FILTER_MODE":
           const filterMode = FilterMode[event.data.mode];
           return this.#kernel.setFilterMode(filterMode);
+        case "LFO_DESTINATION":
+          const lfoDestination = LfoDestination[event.data.destination];
+          if (!event.data.set) {
+            return this.#kernel.unsetLfoDestination(lfoDestination);
+          }
+          this.#kernel.setLfoDestination(lfoDestination);
       }
     };
   }
@@ -195,6 +225,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.#oscillatorMixBuffer.free();
       this.#cutoffBuffer.free();
       this.#resonanceBuffer.free();
+      this.#lfoFrequencyBuffer.free();
+      this.#lfoModAmountBuffer.free();
       return false;
     }
 
@@ -211,6 +243,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.#oscillatorMixBuffer.getData().set(parameters.osc2Amplitude);
     this.#cutoffBuffer.getData().set(parameters.cutoff);
     this.#resonanceBuffer.getData().set(parameters.resonance);
+    this.#lfoFrequencyBuffer.getData().set(parameters.lfoFrequency);
+    this.#lfoModAmountBuffer.getData().set(parameters.lfoModAmount);
 
     const [
       outputPtr,
@@ -218,12 +252,16 @@ class VoiceProcessor extends AudioWorkletProcessor {
       oscillatorMixPtr,
       cutoffPtr,
       resonancePtr,
+      lfoFrequencyPtr,
+      lfoModAmountptr,
     ] = [
       this.#outputBuffer.getHeapAddress(),
       this.#frequencyBuffer.getHeapAddress(),
       this.#oscillatorMixBuffer.getHeapAddress(),
       this.#cutoffBuffer.getHeapAddress(),
       this.#resonanceBuffer.getHeapAddress(),
+      this.#lfoFrequencyBuffer.getHeapAddress(),
+      this.#lfoModAmountBuffer.getHeapAddress(),
     ];
 
     // Oscillators parameters
@@ -245,6 +283,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
     );
     this.#kernel.setCutoffEnvelopeAttack(Number(parameters.cutoffAttack));
     this.#kernel.setCutoffEnvelopeDecay(Number(parameters.cutoffDecay));
+    this.#kernel.setLfoFrequency(lfoFrequencyPtr);
+    this.#kernel.setLfoModAmount(lfoModAmountptr);
 
     this.#kernel.process(outputPtr, channelCount, frequencyPtr);
 
