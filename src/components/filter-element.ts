@@ -63,6 +63,7 @@ export class Filter extends LitElement {
                 <knob-element
                   .value=${this.state.cutoff}
                   @change=${this.onCutoffChange}
+                  .shouldMidiLearn="${this.shouldMidiLearn}"
                 ></knob-element>
               </div>
               <label>cutoff</label>
@@ -72,6 +73,7 @@ export class Filter extends LitElement {
                 <knob-element
                   .value=${this.state.resonance}
                   @change=${this.onResonanceChange}
+                  .shouldMidiLearn="${this.shouldMidiLearn}"
                 ></knob-element>
               </div>
               <label>reson.</label>

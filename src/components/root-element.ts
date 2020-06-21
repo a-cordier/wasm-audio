@@ -192,6 +192,7 @@ export class Root extends LitElement {
             <filter-element
               .state=${this.voiceManager.filter}
               @change=${this.onFilterChange}
+              .shouldMidiLearn="${this.shouldMidiLearn}"
             ></filter-element>
           </div>
           <div class="envelopes">
