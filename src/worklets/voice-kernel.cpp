@@ -211,11 +211,14 @@ class VoiceKernel {
 
 	private:
 	inline float computeSample(float frequency, float osc2Amplitude, float cutoff, float resonance) {
+		static constexpr float subOscPresence = 0.5f;
+		static constexpr float finalAmplitude = 0.8f;
 		float osc1Sample = osc1.nextSample(frequency) * (1.f - osc2Amplitude);
 		float osc2Sample = osc2.nextSample(frequency) * osc2Amplitude;
 		subOsc.setOsc2Amplitude(osc2Amplitude);
 		float subOscSample = subOsc.nextSample(frequency);
-		float rawSample = (0.5 * (osc1Sample + osc2Sample) + 0.5 * subOscSample) * amplitudeEnvelope.nextLevel() * 0.75;
+		float rawSample = (1 - subOscPresence) * (osc1Sample + osc2Sample) + subOscPresence * subOscSample;
+		rawSample *= amplitudeEnvelope.nextLevel() * finalAmplitude;
 		float cutoffMod = cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
 		return filter.nextSample(rawSample, cutoff, resonance, cutoffMod);
 	}
