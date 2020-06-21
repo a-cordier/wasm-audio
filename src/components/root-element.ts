@@ -165,10 +165,6 @@ export class Root extends LitElement {
           ></visualizer-element>
         </div>
 
-        <div class="menu">
-          <switch-element @change="${this.notifyMidiLearners}"></switch-element>
-        </div>
-
         <div class="synth">
           <div class="oscillators">
             <oscillator-element
