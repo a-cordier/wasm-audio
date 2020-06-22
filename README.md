@@ -8,5 +8,5 @@ Assemble a simple synth using in house (read "stolen here and there on the web")
 
 ## Project Requirements
 
- - Except for development dependency, the only required external JS library will be the [LitElement](https://lit-element.polymer-project.org/)
+ - Except for development dependency, the only required external JS library will be the [LitElement](https://lit-element.polymer-project.org/) library
  - All C++ code will be written using the standard library (and emscripten bindings, of course)
