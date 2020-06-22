@@ -353,7 +353,7 @@ class VoiceKernel {
 
 	private:
 	inline float getCurrentValue(float *valuesPtr, unsigned int i, Range sourceRange, Range targetRange) {
-		auto value = hasConstantValue(valuesPtr) ? valuesPtr[0] : valuesPtr[i];
+		auto value = getCurrentValue(valuesPtr, i);
 		return targetRange.map(value, sourceRange);
 	}
 
