@@ -56,12 +56,6 @@ export class Root extends LitElement {
     this.analyzer.connect(this.audioContext.destination);
     await this.audioContext.audioWorklet.addModule("voice-processor.js");
     this.registerMidiLearners();
-
-    // TODO remove when LFO destination has a UI
-    this.voiceManager.toggleLfoDestination({
-      value: LfoDestination.OSCILLATOR_MIX,
-      isEnabled: true,
-    });
   }
 
   async onKeyOn(event: CustomEvent) {
@@ -176,7 +170,7 @@ export class Root extends LitElement {
         this.voiceManager.setLfoModAmount(event.detail.value);
         break;
       case LfoEvent.DESTINATION:
-        this.voiceManager.toggleLfoDestination(event.detail);
+        this.voiceManager.setLfoDestination(event.detail.value);
     }
   }
 

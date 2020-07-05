@@ -30,14 +30,10 @@ function createFilterModeMessage(mode: FilterMode) {
   };
 }
 
-function createLfoDestinationMdessage(
-  destination: LfoDestination,
-  isEnabled = true
-) {
+function createLfoDestinationMessage(destination: LfoDestination) {
   return {
     type: "LFO_DESTINATION",
     destination,
-    isEnabled,
   };
 }
 
@@ -145,7 +141,7 @@ export class WasmVoiceNode extends AudioWorkletNode {
     this.port.postMessage(createWaveformMessage("lfo", mode));
   }
 
-  toggleLfoDestination(destination: LfoDestination, isEnabled: boolean) {
-    this.port.postMessage(createLfoDestinationMdessage(destination, isEnabled));
+  set lfoDestination(destination: LfoDestination) {
+    this.port.postMessage(createLfoDestinationMessage(destination));
   }
 }

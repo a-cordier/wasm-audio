@@ -211,10 +211,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
           return this.#kernel.setFilterMode(filterMode);
         case "LFO_DESTINATION":
           const lfoDestination = LfoDestination[event.data.destination];
-          if (!event.data.isEnabled) {
-            return this.#kernel.unsetLfoDestination(lfoDestination);
-          }
-          this.#kernel.setLfoDestination(lfoDestination);
+          return this.#kernel.setLfoDestination(lfoDestination);
       }
     };
   }

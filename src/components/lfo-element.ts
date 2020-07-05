@@ -5,9 +5,13 @@ import { OscillatorMode } from "../types/oscillator-mode";
 import "./wave-selector-element";
 import "./knob-element";
 import "./wrapper-element";
+import "./lcd-selector-element";
+import { LfoDestination, lfoDestinations } from "../types/lfo-destination";
+import { SelectOptions } from "../types/select-option";
 
 interface LfoState {
   mode: OscillatorMode;
+  destinations: SelectOptions;
   frequency: number;
   modAmount: number;
 }
@@ -20,6 +24,7 @@ export class Lfo extends LitElement {
   @property({ type: Object })
   private state: LfoState = {
     mode: OscillatorMode.SAWTOOTH,
+    destinations: lfoDestinations,
     frequency: 127 / 2,
     modAmount: 0,
   };
@@ -36,6 +41,8 @@ export class Lfo extends LitElement {
   }
 
   onFrequencyChange(event: CustomEvent) {
+    this.state.destinations.next();
+    this.requestUpdate();
     this.dispatchChange(LfoEvent.FREQUENCY, event.detail.value);
   }
 
@@ -47,6 +54,10 @@ export class Lfo extends LitElement {
     this.dispatchChange(LfoEvent.WAVE_FORM, event.detail.value);
   }
 
+  onDestinationChange(event: CustomEvent) {
+    this.dispatchChange(LfoEvent.DESTINATION, event.detail.value);
+  }
+
   dispatchChange(type: LfoEvent, value: number | string) {
     this.dispatchEvent(new CustomEvent("change", { detail: { type, value } }));
   }
@@ -54,12 +65,18 @@ export class Lfo extends LitElement {
   render() {
     return html`
       <wrapper-element label=${this.label}>
-        <div class="oscillator-controls">
+        <div class="lfo-controls">
           <div class="wave-control">
             <wave-selector-element
               .value=${this.state.mode}
               @change=${this.onWaveFormChange}
             ></wave-selector-element>
+          </div>
+          <div class="destination-control">
+            <lcd-selector-element
+              .options=${this.state.destinations}
+              @change=${this.onDestinationChange}
+            ></lcd-selector-element>
           </div>
           <div class="modulation-controls">
             <div class="modulation-control">
@@ -98,21 +115,25 @@ export class Lfo extends LitElement {
         height: 150px;
       }
 
-      .oscillator-controls .modulation-controls {
+      .lfo-controls .destination-control {
+        margin-top: 10px;
+      }
+
+      .lfo-controls .modulation-controls {
         display: flex;
         justify-content: space-around;
         width: 100%;
         margin-top: 1em;
       }
 
-      .oscillator-controls .modulation-controls .modulation-control {
+      .lfo-controls .modulation-controls .modulation-control {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
       }
 
-      .oscillator-controls .modulation-controls .frequency-control {
+      .lfo-controls .modulation-controls .frequency-control {
         display: flex;
         flex-direction: row;
         align-items: center;
@@ -123,7 +144,7 @@ export class Lfo extends LitElement {
         --knob-size: 40px;
       }
 
-      .oscillator-controls .modulation-controls .mod-amount-control {
+      .lfo-controls .modulation-controls .mod-amount-control {
         display: flex;
         align-items: center;
         justify-content: center;

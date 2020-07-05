@@ -24,7 +24,7 @@ export interface Voice extends AudioNode {
   lfoFrequency: AudioParam;
   lfoModAmount: AudioParam;
   lfoMode: OscillatorMode | string;
+  lfoDestination: LfoDestination | string;
   start(time?: number): void;
   stop(time?: number): void;
-  toggleLfoDestination(destination: LfoDestination, isEnabled: boolean);
 }
