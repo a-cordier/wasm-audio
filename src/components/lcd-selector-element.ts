@@ -12,7 +12,7 @@ export class LCDSelector extends LitElement {
     return html`
       <div class="lcd-selector">
         <button @click=${this.previousOption}>◀</button>
-        <lcd-element .text=${this.options.getCurrent().value}></lcd-element>
+        <lcd-element .text=${this.options.getCurrent().name}></lcd-element>
         <button @click=${this.nextOption}>▶</button>
       </div>
     `;

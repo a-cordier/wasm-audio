@@ -55,13 +55,7 @@ export class VoiceManager {
       mode: OscillatorMode.SINE,
       frequency: 127 / 2,
       modAmount: 0,
-      destinations: new Set<LfoDestination>(),
-      toggleDestination(destination: LfoDestination, isEnabled: boolean) {
-        if (isEnabled) {
-          return this.destinations.add(destination);
-        }
-        this.destinations.delete(destination);
-      },
+      destination: LfoDestination.OSCILLATOR_MIX,
     },
   };
 
@@ -98,9 +92,7 @@ export class VoiceManager {
     voice.lfoFrequency.value = this.state.lfo.frequency;
     voice.lfoModAmount.value = this.state.lfo.modAmount;
     voice.lfoMode = this.state.lfo.mode;
-    this.state.lfo.destinations.forEach((dest) =>
-      voice.toggleLfoDestination(dest, this.state.lfo.destinations.has(dest))
-    );
+    voice.lfoDestination = this.state.lfo.destination;
     voiceMap.set(midiValue, voice);
     voice.connect(this.output);
     voice.start();
@@ -229,19 +221,9 @@ export class VoiceManager {
     this.dispatchUpdate((voice) => (voice.lfoMode = newMode));
   }
 
-  toggleLfoDestination({
-    value,
-    isEnabled,
-  }: {
-    value: LfoDestination;
-    isEnabled: boolean;
-  }) {
-    this.state.lfo.toggleDestination(value, isEnabled);
-    this.dispatchUpdate((voice) => {
-      Object.values(LfoDestination).forEach((dest) => {
-        voice.toggleLfoDestination(dest, this.state.lfo.destinations.has(dest));
-      });
-    });
+  setLfoDestination(newDestination: LfoDestination) {
+    this.state.lfo.destination = newDestination;
+    this.dispatchUpdate((voice) => (voice.lfoDestination = newDestination));
   }
 
   setLfoFrequency(newFrequency: number) {
