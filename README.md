@@ -13,7 +13,6 @@ Assemble a simple synth using in house (read "stolen here and there on the web")
 
 ## :construction: Work in progress
 
-- Add LFO destinations UI
 - Polish UI
 - Implement Flux pattern properly (currently broken)
 - Polish DSP algorithms
