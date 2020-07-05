@@ -4,20 +4,12 @@
     "module": "node",
     "isolatedModules": false,
     "moduleResolution": "node",
-    "lib": [
-      "es2017",
-      "dom"
-    ],
+    "lib": ["es2017", "dom"],
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "sourceMap": true,
     "outDir": "./dist/js/"
   },
-  "include": [
-    "./src/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "**/*.spec.ts"
-  ]
+  "include": ["./src/**/*.ts", "src/components/lcd-chars.ts"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
 }
