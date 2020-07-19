@@ -14,7 +14,6 @@ Assemble a simple synth using in house (read "stolen here and there on the web")
 ## :construction: Work in progress
 
 - Polish UI
-- Implement Flux pattern properly (currently broken)
 - Polish DSP algorithms
 - Add a keyboard handler (currently only mouse and midi keyboards are available)
 - Add a MIDI device selector
