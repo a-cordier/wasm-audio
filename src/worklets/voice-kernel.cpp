@@ -77,8 +77,11 @@ struct SampleParameters {
 	float cutoff;
 	float resonance;
 
-	float lfoFrequency;
-	float lfoModAmount;
+	float lfo1Frequency;
+	float lfo1ModAmount;
+
+	float lfo2Frequency;
+	float lfo2ModAmount;
 
 	SampleParameters &setFrequency(float newFrequency) {
 		frequency = newFrequency;
@@ -100,13 +103,23 @@ struct SampleParameters {
 		return *this;
 	}
 
-	SampleParameters &setLfoFrequency(float newFrequency) {
-		lfoFrequency = newFrequency;
+	SampleParameters &setLfo1Frequency(float newFrequency) {
+		lfo1Frequency = newFrequency;
 		return *this;
 	}
 
-	SampleParameters &setLfoModAmount(float newModAmount) {
-		lfoModAmount = newModAmount;
+	SampleParameters &setLfo1ModAmount(float newModAmount) {
+		lfo1ModAmount = newModAmount;
+		return *this;
+	}
+
+	SampleParameters &setLfo2Frequency(float newFrequency) {
+		lfo2Frequency = newFrequency;
+		return *this;
+	}
+
+	SampleParameters &setLfo2ModAmount(float newModAmount) {
+		lfo2ModAmount = newModAmount;
 		return *this;
 	}
 
@@ -144,8 +157,10 @@ class VoiceKernel {
 								.setOsc2Amplitude(getCurrentValue(osc2AmplitudeValues, i, midiRange, zeroOneRange))
 								.setCutoff(getCurrentValue(cutoffValues, i, midiRange, cutoffRange))
 								.setResonance(getCurrentValue(resonanceValues, i, midiRange, resonanceRange))
-								.setLfoFrequency(getCurrentValue(lfoFrequencyValues, i, midiRange, lfoFrequencyRange))
-								.setLfoModAmount(getCurrentValue(lfoModAmountValues, i, midiRange, zeroOneRange));
+								.setLfo1Frequency(getCurrentValue(lfo1FrequencyValues, i, midiRange, lfoFrequencyRange))
+								.setLfo1ModAmount(getCurrentValue(lfo1ModAmountValues, i, midiRange, zeroOneRange))
+								.setLfo2Frequency(getCurrentValue(lfo2FrequencyValues, i, midiRange, lfoFrequencyRange))
+								.setLfo2ModAmount(getCurrentValue(lfo2ModAmountValues, i, midiRange, zeroOneRange));
 
 				startIfNecessary();
 				channelBuffer[i] = computeSample(sampleParameters);
@@ -252,23 +267,43 @@ class VoiceKernel {
 	}
 
 	public:
-	void setLfoMode(Oscillator::Mode newMode) {
-		lfo.setMode(newMode);
+	void setLfo1Mode(Oscillator::Mode newMode) {
+		lfo1.setMode(newMode);
 	}
 
 	public:
-	void setLfoModAmount(uintptr_t lfoModAmountValuesPtr) {
-		lfoModAmountValues = reinterpret_cast<float *>(lfoModAmountValuesPtr);
+	void setLfo1ModAmount(uintptr_t lfoModAmountValuesPtr) {
+		lfo1ModAmountValues = reinterpret_cast<float *>(lfoModAmountValuesPtr);
 	}
 
 	public:
-	void setLfoFrequency(uintptr_t lfoFrequencyValuesPtr) {
-		lfoFrequencyValues = reinterpret_cast<float *>(lfoFrequencyValuesPtr);
+	void setLfo1Frequency(uintptr_t lfoFrequencyValuesPtr) {
+		lfo1FrequencyValues = reinterpret_cast<float *>(lfoFrequencyValuesPtr);
 	}
 
 	public:
-	void setLfoDestination(LfoDestination newLfoDestination) {
-		LfoDestination = newLfoDestination;
+	void setLfo1Destination(LfoDestination newLfoDestination) {
+		lfo1Destination = newLfoDestination;
+	}
+
+	public:
+	void setLfo2Mode(Oscillator::Mode newMode) {
+		lfo2.setMode(newMode);
+	}
+
+	public:
+	void setLfo2ModAmount(uintptr_t lfoModAmountValuesPtr) {
+		lfo2ModAmountValues = reinterpret_cast<float *>(lfoModAmountValuesPtr);
+	}
+
+	public:
+	void setLfo2Frequency(uintptr_t lfoFrequencyValuesPtr) {
+		lfo2FrequencyValues = reinterpret_cast<float *>(lfoFrequencyValuesPtr);
+	}
+
+	public:
+	void setLfo2Destination(LfoDestination newLfoDestination) {
+		lfo2Destination = newLfoDestination;
 	}
 
 	public:
@@ -298,22 +333,29 @@ class VoiceKernel {
 
 	private:
 	inline void applyModulations(SampleParameters &parameters) {
-		float lfoMod = parameters.lfoModAmount * lfo.nextSample(parameters.lfoFrequency);
+		float lfo1Mod = parameters.lfo1ModAmount * lfo1.nextSample(parameters.lfo1Frequency);
+		float lfo2Mod = parameters.lfo2ModAmount * lfo2.nextSample(parameters.lfo2Frequency);
 		float cutoffMod = cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
-		parameters.cutoff = cutoffRange.clamp(parameters.cutoff + cutoffMod);
 
-		switch (LfoDestination) {
+		applyLFO(parameters, lfo1Destination, lfo1Mod);
+		applyLFO(parameters, lfo2Destination, lfo2Mod);
+		parameters.cutoff = cutoffRange.clamp(parameters.cutoff + cutoffMod);
+	}
+
+	private:
+	void applyLFO(SampleParameters &parameters, LfoDestination destination, float mod) {
+		switch (destination) {
 			case LfoDestination::FREQUENCY:
-				parameters.frequency += lfoMod * parameters.frequency;
+				parameters.frequency += mod * parameters.frequency;
 				break;
 			case LfoDestination::CUTOFF:
-				parameters.cutoff = cutoffRange.clamp(parameters.cutoff + lfoMod);
+				parameters.cutoff = cutoffRange.clamp(parameters.cutoff + mod);
 				break;
 			case LfoDestination::RESONANCE:
-				parameters.resonance = resonanceRange.clamp(parameters.resonance + lfoMod);
+				parameters.resonance = resonanceRange.clamp(parameters.resonance + mod);
 				break;
 			case LfoDestination::OSCILLATOR_MIX:
-				parameters.osc2Amplitude = zeroOneRange.clamp(parameters.osc2Amplitude + lfoMod);
+				parameters.osc2Amplitude = zeroOneRange.clamp(parameters.osc2Amplitude + mod);
 				break;
 		}
 	}
@@ -356,10 +398,15 @@ class VoiceKernel {
 	SubOsc subOsc;
 	float *osc2AmplitudeValues;
 
-	Oscillator::Kernel lfo;
-	LfoDestination LfoDestination;
-	float *lfoFrequencyValues;
-	float *lfoModAmountValues;
+	Oscillator::Kernel lfo1;
+	LfoDestination lfo1Destination;
+	float *lfo1FrequencyValues;
+	float *lfo1ModAmountValues;
+
+	Oscillator::Kernel lfo2;
+	LfoDestination lfo2Destination;
+	float *lfo2FrequencyValues;
+	float *lfo2ModAmountValues;
 
 	Envelope::Kernel amplitudeEnvelope;
 
@@ -398,10 +445,14 @@ EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
 					.function("setCutoffEnvelopeAmount", &VoiceKernel::setCutoffEnvelopeAmount)
 					.function("setCutoffEnvelopeAttack", &VoiceKernel::setCutoffEnvelopeAttack)
 					.function("setCutoffEnvelopeDecay", &VoiceKernel::setCutoffEnvelopeDecay)
-					.function("setLfoFrequency", &VoiceKernel::setLfoFrequency)
-					.function("setLfoModAmount", &VoiceKernel::setLfoModAmount)
-					.function("setLfoMode", &VoiceKernel::setLfoMode)
-					.function("setLfoDestination", &VoiceKernel::setLfoDestination)
+					.function("setLfo1Frequency", &VoiceKernel::setLfo1Frequency)
+					.function("setLfo1ModAmount", &VoiceKernel::setLfo1ModAmount)
+					.function("setLfo1Mode", &VoiceKernel::setLfo1Mode)
+					.function("setLfo1Destination", &VoiceKernel::setLfo1Destination)
+					.function("setLfo2Frequency", &VoiceKernel::setLfo2Frequency)
+					.function("setLfo2ModAmount", &VoiceKernel::setLfo2ModAmount)
+					.function("setLfo2Mode", &VoiceKernel::setLfo2Mode)
+					.function("setLfo2Destination", &VoiceKernel::setLfo2Destination)
 					.function("isStopped", &VoiceKernel::isStopped)
 					.function("enterReleaseStage", &VoiceKernel::enterReleaseStage);
 }

@@ -21,10 +21,14 @@ export interface Voice extends AudioNode {
   cutoffDecay: AudioParam;
   cutoffEnvelopeAmount: AudioParam;
   osc2Amplitude: AudioParam;
-  lfoFrequency: AudioParam;
-  lfoModAmount: AudioParam;
-  lfoMode: OscillatorMode | string;
-  lfoDestination: LfoDestination | string;
+  lfo1Frequency: AudioParam;
+  lfo1ModAmount: AudioParam;
+  lfo1Mode: OscillatorMode | string;
+  lfo1Destination: LfoDestination | string;
+  lfo2Frequency: AudioParam;
+  lfo2ModAmount: AudioParam;
+  lfo2Mode: OscillatorMode | string;
+  lfo2Destination: LfoDestination | string;
   start(time?: number): void;
   stop(time?: number): void;
 }

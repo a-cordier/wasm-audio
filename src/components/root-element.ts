@@ -155,19 +155,35 @@ export class Root extends LitElement {
     }
   }
 
-  onLfoChange(event: CustomEvent) {
+  onLfo1Change(event: CustomEvent) {
     switch (event.detail.type) {
       case LfoEvent.WAVE_FORM:
-        this.voiceManager.setLfoMode(event.detail.value);
+        this.voiceManager.setLfo1Mode(event.detail.value);
         break;
       case LfoEvent.FREQUENCY:
-        this.voiceManager.setLfoFrequency(event.detail.value);
+        this.voiceManager.setLfo1Frequency(event.detail.value);
         break;
       case LfoEvent.MOD_AMOUNT:
-        this.voiceManager.setLfoModAmount(event.detail.value);
+        this.voiceManager.setLfo1ModAmount(event.detail.value);
         break;
       case LfoEvent.DESTINATION:
-        this.voiceManager.setLfoDestination(event.detail.value);
+        this.voiceManager.setLfo1Destination(event.detail.value);
+    }
+  }
+
+  onLfo2Change(event: CustomEvent) {
+    switch (event.detail.type) {
+      case LfoEvent.WAVE_FORM:
+        this.voiceManager.setLfo2Mode(event.detail.value);
+        break;
+      case LfoEvent.FREQUENCY:
+        this.voiceManager.setLfo2Frequency(event.detail.value);
+        break;
+      case LfoEvent.MOD_AMOUNT:
+        this.voiceManager.setLfo2ModAmount(event.detail.value);
+        break;
+      case LfoEvent.DESTINATION:
+        this.voiceManager.setLfo2Destination(event.detail.value);
     }
   }
 
@@ -222,12 +238,12 @@ export class Root extends LitElement {
             ></oscillator-envelope-element>
             <lfo-element
               label="lfo 1"
-              @change=${this.onLfoChange}
+              @change=${this.onLfo1Change}
               .shouldMidiLearn="${this.shouldMidiLearn}"
             ></lfo-element>
             <lfo-element
               label="lfo 2"
-              @change=${this.onLfoChange}
+              @change=${this.onLfo2Change}
               .shouldMidiLearn="${this.shouldMidiLearn}"
             ></lfo-element>
             <filter-envelope-element

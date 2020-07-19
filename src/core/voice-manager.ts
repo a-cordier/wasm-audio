@@ -51,7 +51,13 @@ export class VoiceManager {
       decay: 127 / 2,
       amount: 0,
     },
-    lfo: {
+    lfo1: {
+      mode: OscillatorMode.SINE,
+      frequency: 127 / 2,
+      modAmount: 0,
+      destination: LfoDestination.OSCILLATOR_MIX,
+    },
+    lfo2: {
       mode: OscillatorMode.SINE,
       frequency: 127 / 2,
       modAmount: 0,
@@ -89,10 +95,14 @@ export class VoiceManager {
     voice.cutoffAttack.value = this.state.cutoffEnvelope.attack;
     voice.cutoffDecay.value = this.state.cutoffEnvelope.decay;
     voice.cutoffEnvelopeAmount.value = this.state.cutoffEnvelope.amount;
-    voice.lfoFrequency.value = this.state.lfo.frequency;
-    voice.lfoModAmount.value = this.state.lfo.modAmount;
-    voice.lfoMode = this.state.lfo.mode;
-    voice.lfoDestination = this.state.lfo.destination;
+    voice.lfo1Frequency.value = this.state.lfo1.frequency;
+    voice.lfo1ModAmount.value = this.state.lfo1.modAmount;
+    voice.lfo1Mode = this.state.lfo1.mode;
+    voice.lfo1Destination = this.state.lfo1.destination;
+    voice.lfo2Frequency.value = this.state.lfo2.frequency;
+    voice.lfo2ModAmount.value = this.state.lfo2.modAmount;
+    voice.lfo2Mode = this.state.lfo2.mode;
+    voice.lfo2Destination = this.state.lfo2.destination;
     voiceMap.set(midiValue, voice);
     voice.connect(this.output);
     voice.start();
@@ -216,24 +226,44 @@ export class VoiceManager {
     this.state.cutoffEnvelope.decay = newDecayTime;
   }
 
-  setLfoMode(newMode: OscillatorMode) {
-    this.state.lfo.mode = newMode;
-    this.dispatchUpdate((voice) => (voice.lfoMode = newMode));
+  setLfo1Mode(newMode: OscillatorMode) {
+    this.state.lfo1.mode = newMode;
+    this.dispatchUpdate((voice) => (voice.lfo1Mode = newMode));
   }
 
-  setLfoDestination(newDestination: LfoDestination) {
-    this.state.lfo.destination = newDestination;
-    this.dispatchUpdate((voice) => (voice.lfoDestination = newDestination));
+  setLfo1Destination(newDestination: LfoDestination) {
+    this.state.lfo1.destination = newDestination;
+    this.dispatchUpdate((voice) => (voice.lfo1Destination = newDestination));
   }
 
-  setLfoFrequency(newFrequency: number) {
-    this.state.lfo.frequency = newFrequency;
-    this.dispatchUpdate((voice) => (voice.lfoFrequency.value = newFrequency));
+  setLfo1Frequency(newFrequency: number) {
+    this.state.lfo1.frequency = newFrequency;
+    this.dispatchUpdate((voice) => (voice.lfo1Frequency.value = newFrequency));
   }
 
-  setLfoModAmount(newAmount: number) {
-    this.state.lfo.modAmount = newAmount;
-    this.dispatchUpdate((voice) => (voice.lfoModAmount.value = newAmount));
+  setLfo1ModAmount(newAmount: number) {
+    this.state.lfo1.modAmount = newAmount;
+    this.dispatchUpdate((voice) => (voice.lfo1ModAmount.value = newAmount));
+  }
+
+  setLfo2Mode(newMode: OscillatorMode) {
+    this.state.lfo2.mode = newMode;
+    this.dispatchUpdate((voice) => (voice.lfo2Mode = newMode));
+  }
+
+  setLfo2Destination(newDestination: LfoDestination) {
+    this.state.lfo2.destination = newDestination;
+    this.dispatchUpdate((voice) => (voice.lfo2Destination = newDestination));
+  }
+
+  setLfo2Frequency(newFrequency: number) {
+    this.state.lfo2.frequency = newFrequency;
+    this.dispatchUpdate((voice) => (voice.lfo2Frequency.value = newFrequency));
+  }
+
+  setLfo2ModAmount(newAmount: number) {
+    this.state.lfo2.modAmount = newAmount;
+    this.dispatchUpdate((voice) => (voice.lfo2ModAmount.value = newAmount));
   }
 
   get cutoffEnvelope() {

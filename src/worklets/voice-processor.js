@@ -44,8 +44,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
   #oscillatorMixBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
   #cutoffBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
   #resonanceBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
-  #lfoFrequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
-  #lfoModAmountBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
+  #lfo1FrequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
+  #lfo1ModAmountBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
+  #lfo2FrequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
+  #lfo2ModAmountBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
 
   // noinspection JSUnresolvedFunction
   #kernel = new wasm.VoiceKernel();
@@ -166,14 +168,28 @@ class VoiceProcessor extends AudioWorkletProcessor {
         automationRate: "a-rate",
       },
       {
-        name: "lfoFrequency",
+        name: "lfo1Frequency",
         defaultValue: 127,
         minValue: 0,
         maxValue: 127,
         automationRate: "a-rate",
       },
       {
-        name: "lfoModAmount",
+        name: "lfo1ModAmount",
+        defaultValue: 127,
+        minValue: 1,
+        maxValue: 127,
+        automationRate: "a-rate",
+      },
+      {
+        name: "lfo2Frequency",
+        defaultValue: 127,
+        minValue: 0,
+        maxValue: 127,
+        automationRate: "a-rate",
+      },
+      {
+        name: "lfo2ModAmount",
         defaultValue: 127,
         minValue: 1,
         maxValue: 127,
@@ -195,23 +211,34 @@ class VoiceProcessor extends AudioWorkletProcessor {
         case "STOP":
           return (this.#stopTime = event.data.time);
         case "WAVEFORM":
-          if (event.data.destination === "osc1") {
+          if (event.data.target === "osc1") {
             const oscillatorMode = waveforms[event.data.waveform];
             return this.#kernel.setOsc1Mode(oscillatorMode);
           }
-          if (event.data.destination === "osc2") {
+          if (event.data.target === "osc2") {
             const oscillatorMode = waveforms[event.data.waveform];
             return this.#kernel.setOsc2Mode(oscillatorMode);
           }
-          // lfo waveform
-          const oscillatorMode = waveforms[event.data.waveform];
-          return this.#kernel.setLfoMode(oscillatorMode);
+          if (event.data.target === "lfo1") {
+            const oscillatorMode = waveforms[event.data.waveform];
+            return this.#kernel.setLfo1Mode(oscillatorMode);
+          }
+          if (event.data.target === "lfo2") {
+            const oscillatorMode = waveforms[event.data.waveform];
+            return this.#kernel.setLfo2Mode(oscillatorMode);
+          }
         case "FILTER_MODE":
           const filterMode = FilterMode[event.data.mode];
           return this.#kernel.setFilterMode(filterMode);
         case "LFO_DESTINATION":
-          const lfoDestination = LfoDestination[event.data.destination];
-          return this.#kernel.setLfoDestination(lfoDestination);
+          if (event.data.target === "lfo1") {
+            const lfoDestination = LfoDestination[event.data.destination];
+            return this.#kernel.setLfo1Destination(lfoDestination);
+          }
+          if (event.data.target === "lfo2") {
+            const lfoDestination = LfoDestination[event.data.destination];
+            return this.#kernel.setLfo2Destination(lfoDestination);
+          }
       }
     };
   }
@@ -227,8 +254,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.#oscillatorMixBuffer.free();
       this.#cutoffBuffer.free();
       this.#resonanceBuffer.free();
-      this.#lfoFrequencyBuffer.free();
-      this.#lfoModAmountBuffer.free();
+      this.#lfo1FrequencyBuffer.free();
+      this.#lfo1ModAmountBuffer.free();
+      this.#lfo2FrequencyBuffer.free();
+      this.#lfo2ModAmountBuffer.free();
       return false;
     }
 
@@ -245,8 +274,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.#oscillatorMixBuffer.getData().set(parameters.osc2Amplitude);
     this.#cutoffBuffer.getData().set(parameters.cutoff);
     this.#resonanceBuffer.getData().set(parameters.resonance);
-    this.#lfoFrequencyBuffer.getData().set(parameters.lfoFrequency);
-    this.#lfoModAmountBuffer.getData().set(parameters.lfoModAmount);
+    this.#lfo1FrequencyBuffer.getData().set(parameters.lfo1Frequency);
+    this.#lfo1ModAmountBuffer.getData().set(parameters.lfo1ModAmount);
+    this.#lfo2FrequencyBuffer.getData().set(parameters.lfo2Frequency);
+    this.#lfo2ModAmountBuffer.getData().set(parameters.lfo2ModAmount);
 
     const [
       outputPtr,
@@ -254,16 +285,20 @@ class VoiceProcessor extends AudioWorkletProcessor {
       oscillatorMixPtr,
       cutoffPtr,
       resonancePtr,
-      lfoFrequencyPtr,
-      lfoModAmountptr,
+      lfo1FrequencyPtr,
+      lfo1ModAmountptr,
+      lfo2FrequencyPtr,
+      lfo2ModAmountptr,
     ] = [
       this.#outputBuffer.getHeapAddress(),
       this.#frequencyBuffer.getHeapAddress(),
       this.#oscillatorMixBuffer.getHeapAddress(),
       this.#cutoffBuffer.getHeapAddress(),
       this.#resonanceBuffer.getHeapAddress(),
-      this.#lfoFrequencyBuffer.getHeapAddress(),
-      this.#lfoModAmountBuffer.getHeapAddress(),
+      this.#lfo1FrequencyBuffer.getHeapAddress(),
+      this.#lfo1ModAmountBuffer.getHeapAddress(),
+      this.#lfo2FrequencyBuffer.getHeapAddress(),
+      this.#lfo2ModAmountBuffer.getHeapAddress(),
     ];
 
     // Oscillators parameters
@@ -285,8 +320,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
     );
     this.#kernel.setCutoffEnvelopeAttack(Number(parameters.cutoffAttack));
     this.#kernel.setCutoffEnvelopeDecay(Number(parameters.cutoffDecay));
-    this.#kernel.setLfoFrequency(lfoFrequencyPtr);
-    this.#kernel.setLfoModAmount(lfoModAmountptr);
+    this.#kernel.setLfo1Frequency(lfo1FrequencyPtr);
+    this.#kernel.setLfo1ModAmount(lfo1ModAmountptr);
+    this.#kernel.setLfo2Frequency(lfo2FrequencyPtr);
+    this.#kernel.setLfo2ModAmount(lfo2ModAmountptr);
 
     this.#kernel.process(outputPtr, channelCount, frequencyPtr);
 

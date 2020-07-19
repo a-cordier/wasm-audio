@@ -21,9 +21,9 @@ struct Range {
 const Range midiRange{ 0, 127.f };
 const Range zeroOneRange{ 0.f, 1.f };
 const Range attackRange{ 0.0001f, 1.f };
-const Range decayRange{ 0.001f, 1.f };
+const Range decayRange{ 0.001f, 4.f };
 const Range sustainRange{ 0.2f, 0.9f };
-const Range releaseRange{ 0.2f, 1.f };
+const Range releaseRange{ 0.2f, 4.f };
 const Range cutoffRange{ 0.03f, .99f };
 const Range resonanceRange{ 0.f, 1.5f };
 const Range envelopeAmountRange{ 0.f, 1.f };
