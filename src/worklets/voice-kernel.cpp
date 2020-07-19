@@ -304,7 +304,7 @@ class VoiceKernel {
 
 		switch (LfoDestination) {
 			case LfoDestination::FREQUENCY:
-				parameters.frequency += lfoMod * 100;
+				parameters.frequency += lfoMod * parameters.frequency;
 				break;
 			case LfoDestination::CUTOFF:
 				parameters.cutoff = cutoffRange.clamp(parameters.cutoff + lfoMod);
@@ -435,6 +435,5 @@ EMSCRIPTEN_BINDINGS(ENUM_LfoDestination) {
 					.value("FREQUENCY", LfoDestination::FREQUENCY)
 					.value("OSCILLATOR_MIX", LfoDestination::OSCILLATOR_MIX)
 					.value("CUTOFF", LfoDestination::CUTOFF)
-					.value("INVERSED_RESONANCE", LfoDestination::INVERSED_RESONANCE)
 					.value("RESONANCE", LfoDestination::RESONANCE);
 }
