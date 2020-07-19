@@ -28,14 +28,16 @@ export class LCD extends LitElement {
     // noinspection CssUnresolvedCustomProperty
     return css`
       .lcd {
-        width: var(--screen-width, 120px);
-        height: var(--screen-height, 12px);
+        width: var(--lcd-screen-width, 120px);
+        height: var(--lcd-screen-height, 12px);
 
         display: grid;
-        grid-template-columns: repeat(10, 1fr);
+        grid-template-columns: repeat(12, 1fr);
         grid-auto-flow: columns;
 
         border: 1px solid gray;
+
+        background-color: var(--lcd-screen-height, darkslategray);
 
         padding: 5px;
       }

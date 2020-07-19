@@ -1,7 +1,7 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { FilterMode } from "../types/filter-mode";
 import { FilterEvent } from "../types/filter-event";
-import "./wrapper-element";
+import "./panel-wrapper-element";
 import "./knob-element";
 import "./filter-selector-element";
 
@@ -23,14 +23,6 @@ export class Filter extends LitElement {
     resonance: 0,
   };
 
-  constructor() {
-    super();
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-  }
-
   onCutoffChange(event: CustomEvent) {
     this.dispatchChange(FilterEvent.CUTOFF, event.detail.value);
   }
@@ -49,7 +41,7 @@ export class Filter extends LitElement {
 
   render() {
     return html`
-      <wrapper-element label="Filter">
+      <panel-wrapper-element label="Filter">
         <div class="filter-controls">
           <div class="mode-control">
             <filter-selector-element
@@ -80,20 +72,20 @@ export class Filter extends LitElement {
             </div>
           </div>
         </div>
-      </wrapper-element>
+      </panel-wrapper-element>
     `;
   }
 
   static get styles() {
     // noinspection CssUnresolvedCustomProperty
     return css`
-      .filter-controls {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+      :host {
+        --panel-wrapper-background-color: #334452;
+      }
 
-        width: 100%;
+      .filter-controls {
+        width: 160px;
+        height: 130px;
       }
 
       .filter-controls .mode-control {

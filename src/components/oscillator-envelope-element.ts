@@ -1,6 +1,6 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { OscillatorEnvelopeEvent } from "../types/oscillator-envelope-event";
-import "./wrapper-element";
+import "./panel-wrapper-element";
 import "./fader-element";
 
 @customElement("oscillator-envelope-element")
@@ -18,14 +18,6 @@ export class OscillatorEnvelope extends LitElement {
     sustain: 100,
     release: 12,
   };
-
-  constructor() {
-    super();
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-  }
 
   onAttackChange(event: CustomEvent) {
     this.dispatchChange(OscillatorEnvelopeEvent.ATTACK, event.detail.value);
@@ -49,7 +41,7 @@ export class OscillatorEnvelope extends LitElement {
 
   render() {
     return html`
-      <wrapper-element .label=${this.label}>
+      <panel-wrapper-element .label=${this.label}>
         <div class="envelope-controls">
           <fader-element
             label="A"
@@ -72,18 +64,25 @@ export class OscillatorEnvelope extends LitElement {
             @change=${this.onReleaseChange}
           ></fader-element>
         </div>
-      </wrapper-element>
+      </panel-wrapper-element>
     `;
   }
 
   static get styles() {
     // noinspection CssUnresolvedCustomProperty
     return css`
+      :host {
+        --panel-wrapper-background-color: #7a1621;
+        --fader-height: 120px;
+      }
+
       .envelope-controls {
         display: flex;
         align-items: center;
         justify-content: space-evenly;
-        width: 100%;
+
+        width: 160px;
+        height: 160px;
       }
     `;
   }

@@ -104,14 +104,14 @@ export class WaveSelector extends LitElement {
       }
 
       button {
-        width: var(--button-width, 30px);
-        height: var(--button-height, 30px);
+        width: var(--button-width, 25px);
+        height: var(--button-height, 25px);
         font-size: var(--button-font-size, 1.5em);
 
         background-color: var(--lighter-color);
-        border: 1px solid var(--light-color, #ccc);
+        border: 1px solid #ccc;
         border-radius: 50%;
-        box-shadow: 0px 1px 1px 1px var(--control-background-color, #ccc);
+        box-shadow: 0px 1px 1px 1px 1 #ccc;
         transition: all 0.1s ease-in-out;
 
         display: inline-flex;

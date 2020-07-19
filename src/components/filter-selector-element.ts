@@ -7,14 +7,6 @@ export class FilterSelector extends LitElement {
   @property({ type: String })
   public value = FilterMode.LOWPASS;
 
-  constructor() {
-    super();
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-  }
-
   async onLpSelect() {
     this.value = FilterMode.LOWPASS;
     this.dispatchSelect();
@@ -94,8 +86,8 @@ export class FilterSelector extends LitElement {
       }
 
       button {
-        width: var(--button-width, 30px);
-        height: var(--button-height, 30px);
+        width: var(--button-width, 25px);
+        height: var(--button-height, 25px);
 
         font-size: var(--button-font-size, 1.5em);
 

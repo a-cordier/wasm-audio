@@ -1,4 +1,5 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
+import { classMap } from "lit-html/directives/class-map";
 
 import "./lcd-element";
 import { SelectOptions, SelectOption } from "../types/select-option";
@@ -11,11 +12,37 @@ export class LCDSelector extends LitElement {
   render() {
     return html`
       <div class="lcd-selector">
-        <button @click=${this.previousOption}>◀</button>
         <lcd-element .text=${this.options.getCurrent().name}></lcd-element>
-        <button @click=${this.nextOption}>▶</button>
+        <div class="options">
+          ${this.options.map(this.createOptionSelector.bind(this))}
+        </div>
       </div>
     `;
+  }
+
+  createOptionSelector(_: never, index: number) {
+    return html`
+      <button
+        @click=${this.createOptionHandler(index)}
+        class="${this.computeButtonClasses(index)}"
+      >
+        ${index}
+      </button>
+    `;
+  }
+
+  computeButtonClasses(index: number) {
+    return classMap({
+      active: this.options.index === index,
+    });
+  }
+
+  createOptionHandler(index) {
+    return () => {
+      this.options.index = index;
+      this.requestUpdate();
+      this.dispatchChange(this.options.getCurrent());
+    };
   }
 
   nextOption() {
@@ -38,21 +65,22 @@ export class LCDSelector extends LitElement {
     // noinspection CssUnresolvedCustomProperty
     return css`
       .lcd-selector {
+        margin: auto;
+      }
+
+      .lcd-selector .options {
         display: flex;
-        align-items: center;
         justify-content: space-between;
-        width: 100%;
+        margin: 0.5rem auto 0.5rem auto;
+
+        width: 80%;
       }
 
       button {
-        width: var(--button-width, 20px);
-        height: var(--button-height, 20px);
-
         font-size: var(--button-font-size, 0.5em);
 
         background-color: var(--lighter-color);
         border: 1px solid var(--light-color, #ccc);
-        border-radius: 50%;
         box-shadow: 0px 1px 1px 1px var(--control-background-color, #ccc);
         transition: all 0.1s ease-in-out;
 
@@ -73,6 +101,9 @@ export class LCDSelector extends LitElement {
         background-color: var(--control-handle-color);
         color: white;
         border-color: white;
+        box-shadow: none;
+
+        cursor: auto;
       }
     `;
   }

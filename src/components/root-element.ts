@@ -15,9 +15,10 @@ import "./filter-element";
 import "./oscillator-envelope-element";
 import "./filter-envelope-element";
 import "./lfo-element";
+import "./panel-wrapper-element";
 
 import { VoiceManager, createVoiceGenerator } from "../core/voice-manager";
-import { MidiLearn } from "../stores/midi-learn";
+import { GlobalDispatcher, DispatcherEvent } from "../core/dispatcher";
 
 import { Voice } from "../types/voice";
 import { Envelope } from "../types/envelope";
@@ -35,17 +36,13 @@ import { Lfo } from "./lfo-element";
 export class Root extends LitElement {
   private audioContext: AudioContext;
 
-  @property({ type: AnalyserNode })
+  @property({ type: Object })
   private analyzer: AnalyserNode;
 
   @property({ type: Boolean })
   private shouldMidiLearn = false;
 
   private voiceManager: VoiceManager;
-
-  constructor() {
-    super();
-  }
 
   async connectedCallback() {
     super.connectedCallback();
@@ -72,13 +69,13 @@ export class Root extends LitElement {
   }
 
   notifyMidiLearners(event: CustomEvent) {
-    MidiLearn.notifyMidiLearners(event.detail.active);
+    GlobalDispatcher.dispatch(DispatcherEvent.SHOULD_MIDI_LEARN, event.detail);
   }
 
   registerMidiLearners() {
-    MidiLearn.onMidiLearn(
-      (shouldLearn) => (this.shouldMidiLearn = shouldLearn)
-    );
+    GlobalDispatcher.subscribe(DispatcherEvent.SHOULD_MIDI_LEARN, (event) => {
+      this.shouldMidiLearn = event.detail.value;
+    });
   }
 
   onOsc1Change(event: CustomEvent) {
@@ -184,7 +181,7 @@ export class Root extends LitElement {
             height="300"
           ></visualizer-element>
         </div>
-
+        <switch-element @change="${this.notifyMidiLearners}"></switch-element>
         <div class="synth">
           <div class="oscillators">
             <oscillator-element
@@ -193,12 +190,18 @@ export class Root extends LitElement {
               @change=${this.onOsc1Change}
               .shouldMidiLearn="${this.shouldMidiLearn}"
             ></oscillator-element>
-            <knob-element
-              label="Mix"
-              .value=${this.voiceManager.osc2Amplitude}
-              @change=${this.onOscMixChange}
-              .shouldMidiLearn="${this.shouldMidiLearn}"
-            ></knob-element>
+            <div class="oscillator-mix">
+              <panel-wrapper-element class="oscillator-mix-wrapper">
+                <div class="oscillator-mix-control">
+                  <knob-element
+                    label="osc mix"
+                    .value=${this.voiceManager.osc2Amplitude}
+                    @change=${this.onOscMixChange}
+                    .shouldMidiLearn="${this.shouldMidiLearn}"
+                  ></knob-element>
+                </div>
+              </panel-wrapper-element>
+            </div>
             <oscillator-element
               label="Osc 2"
               .state=${this.voiceManager.osc1}
@@ -213,14 +216,17 @@ export class Root extends LitElement {
           </div>
           <div class="envelopes">
             <oscillator-envelope-element
-              label="Amplitude"
+              label="envelope"
               .state=${this.voiceManager.osc1Envelope}
               @change=${this.onOsc1EnvelopeChange}
             ></oscillator-envelope-element>
-            <switch-element
-              @change="${this.notifyMidiLearners}"
-            ></switch-element>
             <lfo-element
+              label="lfo 1"
+              @change=${this.onLfoChange}
+              .shouldMidiLearn="${this.shouldMidiLearn}"
+            ></lfo-element>
+            <lfo-element
+              label="lfo 2"
               @change=${this.onLfoChange}
               .shouldMidiLearn="${this.shouldMidiLearn}"
             ></lfo-element>
@@ -230,15 +236,14 @@ export class Root extends LitElement {
               .shouldMidiLearn="${this.shouldMidiLearn}"
             ></filter-envelope-element>
           </div>
-
-          <div class="sequencer">
-            <div class="keys">
-              <keys-element
-                midiChannel="1"
-                @keyOn="${this.onKeyOn},"
-                @keyOff=${this.onKeyOff}
-              ></keys-element>
-            </div>
+        </div>
+        <div class="sequencer">
+          <div class="keys">
+            <keys-element
+              midiChannel="1"
+              @keyOn="${this.onKeyOn},"
+              @keyOff=${this.onKeyOff}
+            ></keys-element>
           </div>
         </div>
       </div>
@@ -252,6 +257,7 @@ export class Root extends LitElement {
         margin: auto;
         display: flex;
         flex-direction: column;
+        align-items: center;
       }
 
       .visualizer {
@@ -265,6 +271,11 @@ export class Root extends LitElement {
       .synth {
         margin: 20px auto;
         width: 650px;
+
+        background-color: #d7893b;
+
+        border-radius: 0.5rem;
+        padding: 1rem;
       }
 
       .synth .oscillators {
@@ -272,7 +283,21 @@ export class Root extends LitElement {
 
         justify-content: space-between;
         align-items: center;
+      }
+
+      .synth .oscillator-mix {
         --knob-size: 60px;
+        --panel-wrapper-background-color: #7a1621;
+
+        display: inline-flex;
+        justify-content: center;
+      }
+
+      .synth .oscillator-mix .oscillator-mix-control {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
       }
 
       .synth .envelopes {
@@ -284,9 +309,9 @@ export class Root extends LitElement {
       }
 
       .sequencer {
-        width: 40%;
-        margin: 2em auto;
-        --key-height: 60px;
+        width: 30%;
+        margin: 1em auto;
+        --key-height: 100px;
       }
     `;
   }

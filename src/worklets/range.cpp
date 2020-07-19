@@ -25,7 +25,7 @@ const Range decayRange{ 0.001f, 1.f };
 const Range sustainRange{ 0.2f, 0.9f };
 const Range releaseRange{ 0.2f, 1.f };
 const Range cutoffRange{ 0.03f, .99f };
-const Range resonanceRange{ 0.f, 0.97f };
+const Range resonanceRange{ 0.f, 1.5f };
 const Range envelopeAmountRange{ 0.f, 1.f };
 const Range semiShiftRange{ -24.f, 24.f };
 const Range centShiftRange{ -50.f, 50.f };

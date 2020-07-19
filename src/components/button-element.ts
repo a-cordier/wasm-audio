@@ -5,14 +5,6 @@ export class Button extends LitElement {
   @property({ type: String })
   public text = String();
 
-  constructor() {
-    super();
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-  }
-
   async onChange(event) {
     this.dispatchEvent(
       new CustomEvent("change", {

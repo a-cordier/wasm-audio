@@ -4,7 +4,7 @@ import { OscillatorMode } from "../types/oscillator-mode";
 
 import "./wave-selector-element";
 import "./knob-element";
-import "./wrapper-element";
+import "./panel-wrapper-element";
 import "./lcd-selector-element";
 import { LfoDestination, lfoDestinations } from "../types/lfo-destination";
 import { SelectOptions } from "../types/select-option";
@@ -64,7 +64,7 @@ export class Lfo extends LitElement {
 
   render() {
     return html`
-      <wrapper-element label=${this.label}>
+      <panel-wrapper-element label=${this.label}>
         <div class="lfo-controls">
           <div class="wave-control">
             <wave-selector-element
@@ -87,7 +87,7 @@ export class Lfo extends LitElement {
                   .shouldMidiLearn=${this.shouldMidiLearn}
                 ></knob-element>
               </div>
-              <label>frequency</label>
+              <label>freq.</label>
             </div>
             <div class="modulation-control">
               <div class="mod-amount-control">
@@ -101,22 +101,25 @@ export class Lfo extends LitElement {
             </div>
           </div>
         </div>
-      </wrapper-element>
+      </panel-wrapper-element>
     `;
   }
 
   static get styles() {
     // noinspection CssUnresolvedCustomProperty
     return css`
-      .oscillator-controls {
-        position: relative;
+      :host {
+        --panel-wrapper-background-color: #b13f1a;
+      }
 
-        width: 180px;
-        height: 150px;
+      .lfo-controls {
+        position: relative;
+        width: 130px;
+        height: 160px;
       }
 
       .lfo-controls .destination-control {
-        margin-top: 10px;
+        margin: 10px auto 10px auto;
       }
 
       .lfo-controls .modulation-controls {

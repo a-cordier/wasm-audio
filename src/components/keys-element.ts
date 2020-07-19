@@ -4,8 +4,8 @@ import {
   createMidiOctaves,
   computeOctave,
   computePitchClassIndex,
-} from "../core/note";
-import { createMidiController } from "../core/midi-controller";
+} from "../midi/note";
+import { createMidiController } from "../midi/midi-controller";
 import { MidiMessage, isNote, Status } from "../midi/midi-message";
 
 const octaves = createMidiOctaves(440).map(mapKeys);
@@ -50,10 +50,6 @@ export class Keys extends LitElement {
       computeOctave(this.lowerKey),
       computeOctave(this.higherKey) + 1
     );
-  }
-
-  constructor() {
-    super();
   }
 
   async connectedCallback() {

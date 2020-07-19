@@ -4,7 +4,7 @@ import { OscillatorMode } from "../types/oscillator-mode";
 
 import "./wave-selector-element";
 import "./knob-element";
-import "./wrapper-element";
+import "./panel-wrapper-element";
 
 interface OscillatorState {
   mode: OscillatorMode;
@@ -15,7 +15,7 @@ interface OscillatorState {
 @customElement("oscillator-element")
 export class Oscillator extends LitElement {
   @property({ type: String })
-  private label = "Osc 1";
+  private label = "Osc";
 
   @property({ type: Object })
   private state: OscillatorState = {
@@ -69,7 +69,7 @@ export class Oscillator extends LitElement {
 
   render() {
     return html`
-      <wrapper-element label=${this.label}>
+      <panel-wrapper-element label=${this.label}>
         <div class="oscillator-controls">
           <div class="wave-control">
             <wave-selector-element
@@ -100,18 +100,22 @@ export class Oscillator extends LitElement {
             </div>
           </div>
         </div>
-      </wrapper-element>
+      </panel-wrapper-element>
     `;
   }
 
   static get styles() {
     // noinspection CssUnresolvedCustomProperty
     return css`
+      :host {
+        --panel-wrapper-background-color: #7a1621;
+      }
+
       .oscillator-controls {
         position: relative;
 
-        width: 180px;
-        height: 150px;
+        width: 160px;
+        height: 130px;
       }
 
       .oscillator-controls .tone-controls {

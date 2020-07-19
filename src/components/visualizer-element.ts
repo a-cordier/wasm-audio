@@ -16,10 +16,6 @@ export class Visualizer extends LitElement {
   @property({ type: Number })
   private height = 512;
 
-  constructor() {
-    super();
-  }
-
   firstUpdated() {
     this.canvas = this.shadowRoot.getElementById(
       "visualizer"

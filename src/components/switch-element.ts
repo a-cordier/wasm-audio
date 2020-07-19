@@ -5,18 +5,10 @@ export class Switch extends LitElement {
   @property({ type: String })
   private label: string;
 
-  constructor() {
-    super();
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-  }
-
   async onChange(event) {
     this.dispatchEvent(
       new CustomEvent("change", {
-        detail: { active: event.currentTarget.checked },
+        detail: { value: event.currentTarget.checked },
       })
     );
   }

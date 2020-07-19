@@ -12,10 +12,6 @@ export class Fader extends LitElement {
 
   private cursorElements = [];
 
-  constructor() {
-    super();
-  }
-
   async onChange(event) {
     this.dispatchEvent(new CustomEvent("change", {}));
   }
@@ -63,7 +59,7 @@ export class Fader extends LitElement {
 
   computeFaderCursorStyle() {
     return styleMap({
-      height: `${(this.value / 128) * 100}%`,
+      height: `${(this.value / 127) * 100}%`,
     });
   }
 
@@ -101,15 +97,16 @@ export class Fader extends LitElement {
       }
 
       .fader-wrapper {
-        width: var(--fader-width, 25px);
+        width: var(--fader-width, 20px);
         height: var(--fader-height, 100px);
         border: 1px solid var(--lighter-color, white);
         border-radius: 2px;
+        padding: 1px;
       }
 
       .cursor-wrapper {
-        width: 85%;
-        height: 99%;
+        width: 100%;
+        height: 100%;
         margin: 0 auto;
 
         position: relative;

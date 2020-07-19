@@ -50,7 +50,7 @@ export class LCDChar extends LitElement {
       }
 
       .led.on {
-        background-color: #b4d455;
+        background-color: var(--lcd-led-on-color, #b4d455);
       }
     `;
   }

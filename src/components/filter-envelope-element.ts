@@ -1,7 +1,7 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { FilterMode } from "../types/filter-mode";
 import { FilterEnvelopeEvent } from "../types/filter-envelope-event";
-import "./wrapper-element";
+import "./panel-wrapper-element";
 import "./fader-element";
 import "./knob-element";
 
@@ -16,14 +16,6 @@ export class FilterEnvelope extends LitElement {
     decay: 127 / 2,
     amount: 0,
   };
-
-  constructor() {
-    super();
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-  }
 
   onAttackChange(event: CustomEvent) {
     this.dispatchChange(FilterEnvelopeEvent.ATTACK, event.detail.value);
@@ -43,39 +35,56 @@ export class FilterEnvelope extends LitElement {
 
   render() {
     return html`
-      <wrapper-element label="Envelope">
+      <panel-wrapper-element label="Filter mod">
         <div class="envelope-controls">
-          <fader-element
-            label="A"
-            .value=${this.state.attack}
-            @change=${this.onAttackChange}
-          ></fader-element>
-          <fader-element
-            label="D"
-            .value=${this.state.decay}
-            @change=${this.onDecayChange}
-          ></fader-element>
-          <knob-element
-            label="mod."
-            .value=${this.state.amount}
-            @change=${this.onAmountChange}
-            .shouldMidiLearn="${this.shouldMidiLearn}"
-          ></knob-element>
+          <div class="time-controls">
+            <fader-element
+              label="A"
+              .value=${this.state.attack}
+              @change=${this.onAttackChange}
+            ></fader-element>
+            <fader-element
+              label="D"
+              .value=${this.state.decay}
+              @change=${this.onDecayChange}
+            ></fader-element>
+          </div>
+          <div class="mod-control">
+            <knob-element
+              label="mod."
+              .value=${this.state.amount}
+              @change=${this.onAmountChange}
+              .shouldMidiLearn="${this.shouldMidiLearn}"
+            ></knob-element>
+          </div>
         </div>
-      </wrapper-element>
+      </panel-wrapper-element>
     `;
   }
 
   static get styles() {
     // noinspection CssUnresolvedCustomProperty
     return css`
+      :host {
+        --panel-wrapper-background-color: #334452;
+        --fader-height: 120px;
+        --knob-size: 50px;
+      }
+
       .envelope-controls {
         display: flex;
         align-items: center;
         justify-content: space-evenly;
-        width: 100%;
+        width: 130px;
+        height: 160px;
+      }
 
-        --knob-size: 50px;
+      .envelope-controls .time-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-evenly;
+
+        width: 60%;
       }
     `;
   }

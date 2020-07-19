@@ -1,9 +1,9 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
 
-import { createMidiController } from "../core/midi-controller";
+import { createMidiController } from "../midi/midi-controller";
 import { MidiMessage, isControlChange } from "../midi/midi-message";
-import { MidiLearn } from "../stores/midi-learn";
+import { GlobalDispatcher, DispatcherEvent } from "../core/dispatcher";
 
 function scale(value: number, range: ValueRange, newRange: ValueRange): number {
   return Math.round(
@@ -52,14 +52,28 @@ export class Knob extends LitElement {
 
   private midiControl: number;
 
-  constructor() {
-    super();
-  }
-
   async connectedCallback() {
     super.connectedCallback();
     this.updateAngle();
     await this.registerMidiHandler();
+    await this.registerDispatchHandlers();
+  }
+
+  async registerDispatchHandlers() {
+    GlobalDispatcher.subscribe(DispatcherEvent.NEW_MIDI_LEARNER, (event) => {
+      if (event.detail.value === this) {
+        this.isMidiLearning = true;
+        this.requestUpdate();
+      }
+      //this.shouldMidiLearn = false;
+    });
+    GlobalDispatcher.subscribe(DispatcherEvent.SHOULD_MIDI_LEARN, (event) => {
+      this.shouldMidiLearn = event.detail.value;
+      if (!this.shouldMidiLearn) {
+        this.isMidiLearning = false;
+        this.requestUpdate();
+      }
+    });
   }
 
   async registerMidiHandler() {
@@ -83,8 +97,9 @@ export class Knob extends LitElement {
 
   toggleMidiLearn() {
     if (this.shouldMidiLearn) {
-      this.shouldMidiLearn = false;
-      this.isMidiLearning = true;
+      GlobalDispatcher.dispatch(DispatcherEvent.NEW_MIDI_LEARNER, {
+        value: this,
+      });
     }
   }
 
@@ -104,7 +119,6 @@ export class Knob extends LitElement {
       if (this.isMidiLearning) {
         this.midiControl = midiMessage.data.control;
         this.isMidiLearning = false;
-        this.shouldMidiLearn = true;
       }
       if (this.midiControl === midiMessage.data.control) {
         this.value = midiMessage.data.value;
@@ -240,7 +254,7 @@ export class Knob extends LitElement {
       }
 
       .knob__background {
-        fill: var(--control-background-color, #ccc);
+        fill: transparent;
       }
 
       .knob__handle {

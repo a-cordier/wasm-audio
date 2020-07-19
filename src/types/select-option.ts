@@ -7,8 +7,24 @@ export class SelectOptions {
   private options: SelectOption[];
   private currentOption = 0;
 
+  public map: Function;
+
   constructor(options: SelectOption[]) {
     this.options = options;
+    this.map = options.map.bind(options);
+  }
+
+  get size() {
+    return this.options.length;
+  }
+
+  set index(index: number) {
+    this.currentOption = index - 1;
+    this.next();
+  }
+
+  get index() {
+    return this.currentOption;
   }
 
   select(index: number): SelectOptions {
