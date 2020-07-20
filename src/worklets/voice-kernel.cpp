@@ -343,7 +343,7 @@ class VoiceKernel {
 	}
 
 	private:
-	void applyLFO(SampleParameters &parameters, LfoDestination destination, float mod) {
+	inline void applyLFO(SampleParameters &parameters, LfoDestination destination, float mod) {
 		switch (destination) {
 			case LfoDestination::FREQUENCY:
 				parameters.frequency += mod * parameters.frequency;
