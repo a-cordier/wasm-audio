@@ -22,11 +22,25 @@
     </div>
     <script>
       function isChrome() {
-        const runtimeWindow = window;
+        var runtimeWindow = window;
         return (
           !!runtimeWindow.chrome &&
           (!!runtimeWindow.chrome.webstore || !!runtimeWindow.chrome.runtime)
         );
+      }
+
+      var _wasmTestedVersion = 84;
+
+      function isUpToDate() {
+        var version = navigator.userAgent.match(
+          /Chrom(?:e|ium)\/([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)/
+        );
+        if (version == null || version.length != 5) {
+          return false;
+        }
+        version = version.map((v) => parseInt(v, 10));
+        var majorVersion = version[1];
+        return majorVersion >= _wasmTestedVersion;
       }
 
       if (!isChrome()) {
@@ -35,7 +49,18 @@
             "WARNING!",
             "This application uses Web API that have not been properly standardized yet.",
             "For now it has been succesfully tested in Chromium browsers only.",
-            "You are adviced to switch to a Chromium browser beforer going further.",
+            "You are adviced to switch to a Chromium browser before going further.",
+          ].join("\n")
+        );
+      } else if (!isUpToDate()) {
+        alert(
+          [
+            "WARNING!",
+            "This application uses recent Web API and should be run in an up to date Chromium browser.",
+            "For now it has been succesfully tested in major version " +
+              _wasmTestedVersion +
+              " only.",
+            "You are adviced to update your browser before going further.",
           ].join("\n")
         );
       }
