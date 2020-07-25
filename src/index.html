@@ -22,15 +22,19 @@
     </div>
     <script>
       function forceHttps() {
-        var host = "a-cordier.github.io";
-        if (
-          host == window.location.host &&
-          window.location.protocol != "https:"
-        )
+        var hosting = "a-cordier.github.io";
+        var isDeployed = window.location.host === hosting;
+        var isHttps = window.location.protocol !== "https:";
+        if (isDeployed && !isHttps) {
           window.location.protocol = "https";
+          return true;
+        }
+        return false;
       }
 
-      forceHttps();
+      if (forceHttps()) {
+        return;
+      }
 
       function isChrome() {
         var runtimeWindow = window;
