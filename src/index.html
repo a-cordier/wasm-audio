@@ -13,7 +13,7 @@
       href="https://fonts.googleapis.com/css?family=Roboto&display=swap"
       rel="stylesheet"
     />
-    <script defer src="index.js"></script>
+    <script src="index.js"></script>
   </head>
 
   <body>
@@ -21,64 +21,70 @@
       <child-element></child-element>
     </div>
     <script>
-      function forceHttps() {
+      (function () {
         var hosting = "a-cordier.github.io";
+        var wasmTestedVersion = 84;
         var isDeployed = window.location.host === hosting;
-        var isHttps = window.location.protocol !== "https:";
-        if (isDeployed && !isHttps) {
-          window.location.protocol = "https";
-          return true;
+        var isHttps = window.location.protocol === "https:";
+
+        if (!isDeployed) {
+          return;
         }
-        return false;
-      }
 
-      if (forceHttps()) {
-        return;
-      }
+        if (forceHttps()) {
+          return;
+        }
 
-      function isChrome() {
-        var runtimeWindow = window;
-        return (
-          !!runtimeWindow.chrome &&
-          (!!runtimeWindow.chrome.webstore || !!runtimeWindow.chrome.runtime)
-        );
-      }
-
-      var _wasmTestedVersion = 84;
-
-      function isUpToDate() {
-        var version = navigator.userAgent.match(
-          /Chrom(?:e|ium)\/([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)/
-        );
-        if (version == null || version.length != 5) {
+        function forceHttps() {
+          if (isDeployed && !isHttps) {
+            window.location.protocol = "https";
+            return true;
+          }
           return false;
         }
-        version = version.map((v) => parseInt(v, 10));
-        var majorVersion = version[1];
-        return majorVersion >= _wasmTestedVersion;
-      }
 
-      if (!isChrome()) {
-        alert(
-          [
-            "WARNING!",
-            "This application uses Web API that have not been properly standardized yet.",
-            "For now it has been succesfully tested in Chromium browsers only.",
-            "You are adviced to switch to a Chromium browser before going further.",
-          ].join("\n")
-        );
-      } else if (!isUpToDate()) {
-        alert(
-          [
-            "WARNING!",
-            "This application uses recent Web API and should be run in an up to date Chromium browser.",
-            "For now it has been succesfully tested in major version " +
-              _wasmTestedVersion +
-              " only.",
-            "You are adviced to update your browser before going further.",
-          ].join("\n")
-        );
-      }
+        function isChrome() {
+          var runtimeWindow = window;
+          return (
+            !!runtimeWindow.chrome &&
+            (!!runtimeWindow.chrome.webstore || !!runtimeWindow.chrome.runtime)
+          );
+        }
+
+        function isUpToDate() {
+          var version = navigator.userAgent.match(
+            /Chrom(?:e|ium)\/([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)/
+          );
+          if (version == null || version.length != 5) {
+            return false;
+          }
+          version = version.map((v) => parseInt(v, 10));
+          var majorVersion = version[1];
+          return majorVersion >= wasmTestedVersion;
+        }
+
+        if (!isChrome()) {
+          alert(
+            [
+              "WARNING!",
+              "This application uses Web API that have not been properly standardized yet.",
+              "For now it has been succesfully tested in Chromium browsers only.",
+              "You are adviced to switch to a Chromium browser before going further.",
+            ].join("\n")
+          );
+        } else if (!isUpToDate()) {
+          alert(
+            [
+              "WARNING!",
+              "This application uses recent Web API and should be run in an up to date Chromium browser.",
+              "For now it has been succesfully tested in major version " +
+                wasmTestedVersion +
+                " only.",
+              "You are adviced to update your browser before going further.",
+            ].join("\n")
+          );
+        }
+      })();
     </script>
   </body>
 
