@@ -6,7 +6,8 @@
   "scripts": {
     "prestart": "make",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "gulp"
+    "start": "gulp",
+    "build": "gulp --type=production build"
   },
   "author": "",
   "license": "ISC",
@@ -19,6 +20,7 @@
     "gulp": "^4.0.0",
     "gulp-clean": "^0.4.0",
     "gulp-cli": "^2.2.0",
+    "gulp-util": "^3.0.8",
     "rollup": "^1.26.5",
     "rollup-plugin-babel": "^4.3.3",
     "rollup-plugin-node-resolve": "^5.2.0",

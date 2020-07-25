@@ -4,9 +4,8 @@ const clean = require("gulp-clean");
 const rollup = require("rollup");
 const resolve = require("rollup-plugin-node-resolve");
 const typescript = require("rollup-plugin-typescript");
-
-const util = require("util");
-const exec = util.promisify(require("child_process").exec);
+const exec = require("util").promisify(require("child_process").exec);
+const gutil = require("gulp-util");
 
 gulp.task("copy-html", () => {
   return gulp.src(["src/index.html"]).pipe(gulp.dest("dist"));
@@ -23,12 +22,14 @@ gulp.task("clean", () => {
 gulp.task("compile", async () => await exec("make"));
 
 gulp.task("build", async () => {
+  const sourcemap = gutil.env.type !== "production";
+
   const bundle = await rollup.rollup({
     input: ["src/main.ts"],
     output: {
       file: "dist/index.js",
       format: "es",
-      sourcemap: true,
+      sourcemap,
     },
     plugins: [resolve(), typescript()],
   });
@@ -37,7 +38,7 @@ gulp.task("build", async () => {
     file: "./dist/index.js",
     format: "umd",
     name: "library",
-    sourcemap: true,
+    sourcemap,
   });
 });
 
@@ -61,4 +62,5 @@ gulp.task("serve", () => {
   );
 });
 
+gulp.task("build", gulp.series("clean", "compile", "bundle"));
 gulp.task("default", gulp.series("clean", "bundle", "serve"));
