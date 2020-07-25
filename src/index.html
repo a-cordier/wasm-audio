@@ -13,13 +13,33 @@
       href="https://fonts.googleapis.com/css?family=Roboto&display=swap"
       rel="stylesheet"
     />
-    <script src="index.js"></script>
+    <script defer src="index.js"></script>
   </head>
 
   <body>
     <div class="content">
       <child-element></child-element>
     </div>
+    <script>
+      function isChrome() {
+        const runtimeWindow = window;
+        return (
+          !!runtimeWindow.chrome &&
+          (!!runtimeWindow.chrome.webstore || !!runtimeWindow.chrome.runtime)
+        );
+      }
+
+      if (!isChrome()) {
+        alert(
+          [
+            "WARNING!",
+            "This application uses Web API that have not been properly standardized yet.",
+            "For now it has been succesfully tested in Chromium browsers only.",
+            "You are adviced to switch to a Chromium browser beforer going further.",
+          ].join("\n")
+        );
+      }
+    </script>
   </body>
 
   <style>
