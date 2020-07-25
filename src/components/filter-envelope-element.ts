@@ -1,5 +1,4 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { FilterMode } from "../types/filter-mode";
 import { FilterEnvelopeEvent } from "../types/filter-envelope-event";
 import "./panel-wrapper-element";
 import "./fader-element";

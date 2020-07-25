@@ -6,7 +6,7 @@ import "./wave-selector-element";
 import "./knob-element";
 import "./panel-wrapper-element";
 import "./lcd-selector-element";
-import { LfoDestination, lfoDestinations } from "../types/lfo-destination";
+import { lfoDestinations } from "../types/lfo-destination";
 import { SelectOptions } from "../types/select-option";
 
 interface LfoState {

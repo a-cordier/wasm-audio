@@ -4,7 +4,7 @@ import {
   createMidiOctaves,
   computeOctave,
   computePitchClassIndex,
-} from "../midi/note";
+} from "../midi/midi-note";
 import { createMidiController } from "../midi/midi-controller";
 import { MidiMessage, isNote, Status } from "../midi/midi-message";
 
@@ -37,7 +37,7 @@ export class Keys extends LitElement {
   @property({ type: Number })
   public higherKey = 59;
 
-  @property({ type: Set })
+  @property({ type: Object })
   private pressedKeys = new Set();
 
   @property({ type: Number })

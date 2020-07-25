@@ -1,4 +1,4 @@
-import { LitElement, html, css, customElement, property } from "lit-element";
+import { LitElement, html, css, customElement } from "lit-element";
 
 @customElement("saw-wave-icon")
 export class SawWaveIcon extends LitElement {

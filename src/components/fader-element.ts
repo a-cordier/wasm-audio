@@ -1,5 +1,4 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { classMap } from "lit-html/directives/class-map";
 import { styleMap } from "lit-html/directives/style-map";
 
 @customElement("fader-element")
@@ -10,21 +9,12 @@ export class Fader extends LitElement {
   @property({ type: Number })
   public value = 127;
 
-  private cursorElements = [];
-
-  async onChange(event) {
-    this.dispatchEvent(new CustomEvent("change", {}));
-  }
-
   toggleActive(event) {
     const host = this.shadowRoot.host as HTMLElement;
-    const offsetParent = host.offsetParent as HTMLElement;
-    const cursorWrapper = this.shadowRoot.querySelector(
-      ".cursor-wrapper"
-    ) as HTMLElement;
-    const height = cursorWrapper.offsetHeight;
-    const position =
-      event.pageY - (offsetParent.offsetTop + cursorWrapper.offsetTop);
+    const parent = host.offsetParent as HTMLElement;
+    const wrapper = this.cursorWrapperElement;
+    const height = wrapper.offsetHeight;
+    const position = event.pageY - (parent.offsetTop + wrapper.offsetTop);
 
     this.updateValue((1 - position / height) * 128);
 
@@ -48,7 +38,7 @@ export class Fader extends LitElement {
   }
 
   updateValue(value) {
-    if (value <= 0 || value >= 127) {
+    if (value < 0 || value > 127) {
       return;
     }
     this.value = value;
@@ -63,11 +53,15 @@ export class Fader extends LitElement {
     });
   }
 
-  get cursor() {
+  get cursorElement() {
     return html` <div
       class="fader-cursor"
       style="${this.computeFaderCursorStyle()}"
     ></div>`;
+  }
+
+  get cursorWrapperElement(): HTMLElement {
+    return this.shadowRoot.querySelector(".cursor-wrapper");
   }
 
   render() {
@@ -79,7 +73,7 @@ export class Fader extends LitElement {
             @mousedown="${this.toggleActive}"
             @wheel="${this.onWheel}"
           >
-            ${this.cursor}
+            ${this.cursorElement}
           </div>
         </div>
         <label>${this.label}</label>

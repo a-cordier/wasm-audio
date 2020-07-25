@@ -4,7 +4,6 @@ import "./keys-element";
 import "./visualizer-element";
 import "./knob-element";
 import "./switch-element";
-import "./button-element";
 import "./sawtooth-wave-icon";
 import "./square-wave-icon";
 import "./sine-wave-icon";
@@ -17,20 +16,14 @@ import "./filter-envelope-element";
 import "./lfo-element";
 import "./panel-wrapper-element";
 
-import { VoiceManager, createVoiceGenerator } from "../core/voice-manager";
+import { VoiceManager } from "../core/voice-manager";
 import { GlobalDispatcher, DispatcherEvent } from "../core/dispatcher";
 
-import { Voice } from "../types/voice";
-import { Envelope } from "../types/envelope";
 import { OscillatorEvent } from "../types/oscillator-event";
-import { OscillatorMode } from "../types/oscillator-mode";
-import { FilterMode } from "../types/filter-mode";
 import { FilterEvent } from "../types/filter-event";
 import { FilterEnvelopeEvent } from "../types/filter-envelope-event";
 import { OscillatorEnvelopeEvent } from "../types/oscillator-envelope-event";
 import { LfoEvent } from "../types/lfo-event";
-import { LfoDestination } from "../types/lfo-destination";
-import { Lfo } from "./lfo-element";
 
 @customElement("child-element")
 export class Root extends LitElement {

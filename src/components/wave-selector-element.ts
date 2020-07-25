@@ -1,48 +1,34 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
+import { OscillatorMode } from "../types/oscillator-mode";
 
 import "./sine-wave-icon";
 import "./square-wave-icon";
 import "./sawtooth-wave-icon";
 import "./triangle-wave-icon";
 
-const wave = Object.freeze({
-  sine: "sine",
-  sawtooth: "sawtooth",
-  square: "square",
-  triangle: "triangle",
-});
-
 @customElement("wave-selector-element")
 export class WaveSelector extends LitElement {
   @property({ type: String })
-  public value = wave.sine;
-
-  constructor() {
-    super();
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-  }
+  public value = OscillatorMode.SINE;
 
   async onSawSelect() {
-    this.value = wave.sawtooth;
+    this.value = OscillatorMode.SAWTOOTH;
     this.dispatchSelect();
   }
 
   async onSquareSelect() {
-    this.value = wave.square;
+    this.value = OscillatorMode.SQUARE;
     this.dispatchSelect();
   }
 
   async onSineSelect() {
-    this.value = wave.sine;
+    this.value = OscillatorMode.SINE;
     this.dispatchSelect();
   }
 
   async onTriangleSelect() {
-    this.value = wave.triangle;
+    this.value = OscillatorMode.TRIANGLE;
     this.dispatchSelect();
   }
 
@@ -56,25 +42,25 @@ export class WaveSelector extends LitElement {
     return html`
       <div class="wave-selector">
         <button
-          class="${this.computeButtonClasses(wave.sawtooth)}"
+          class="${this.computeButtonClasses(OscillatorMode.SAWTOOTH)}"
           @click=${this.onSawSelect}
         >
           <saw-wave-icon class="icon"></saw-wave-icon>
         </button>
         <button
-          class="${this.computeButtonClasses(wave.square)}"
+          class="${this.computeButtonClasses(OscillatorMode.SQUARE)}"
           @click=${this.onSquareSelect}
         >
           <square-wave-icon class="icon"></square-wave-icon>
         </button>
         <button
-          class="${this.computeButtonClasses(wave.triangle)}"
+          class="${this.computeButtonClasses(OscillatorMode.TRIANGLE)}"
           @click=${this.onTriangleSelect}
         >
           <triangle-wave-icon class="icon"></triangle-wave-icon>
         </button>
         <button
-          class="${this.computeButtonClasses(wave.sine)}"
+          class="${this.computeButtonClasses(OscillatorMode.SINE)}"
           @click=${this.onSineSelect}
         >
           <sine-wave-icon class="icon"></sine-wave-icon>

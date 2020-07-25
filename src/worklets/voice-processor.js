@@ -177,7 +177,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
       {
         name: "lfo1ModAmount",
         defaultValue: 127,
-        minValue: 1,
+        minValue: 0,
         maxValue: 127,
         automationRate: "a-rate",
       },
@@ -191,7 +191,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
       {
         name: "lfo2ModAmount",
         defaultValue: 127,
-        minValue: 1,
+        minValue: 0,
         maxValue: 127,
         automationRate: "a-rate",
       },
