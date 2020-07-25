@@ -4,15 +4,19 @@ const clean = require("gulp-clean");
 const rollup = require("rollup");
 const resolve = require("rollup-plugin-node-resolve");
 const typescript = require("rollup-plugin-typescript");
+const babel = require("rollup-plugin-babel");
 const exec = require("util").promisify(require("child_process").exec);
-const gutil = require("gulp-util");
+
+const isProduction = require("gulp-util").env.type === "production";
 
 gulp.task("copy-html", () => {
   return gulp.src(["src/index.html"]).pipe(gulp.dest("dist"));
 });
 
 gulp.task("copy-worklets", () => {
-  return gulp.src(["src/worklets/**/*.js"]).pipe(gulp.dest("dist"));
+  return isProduction
+    ? Promise.resolve()
+    : gulp.src(["src/worklets/**/*.js"]).pipe(gulp.dest("dist"));
 });
 
 gulp.task("clean", () => {
@@ -21,10 +25,51 @@ gulp.task("clean", () => {
 
 gulp.task("compile", async () => await exec("make"));
 
-gulp.task("build", async () => {
-  const sourcemap = gutil.env.type !== "production";
+async function bundleWasmIfNeeded() {
+  if (!isProduction) {
+    return;
+  }
 
-  const bundle = await rollup.rollup({
+  const sourcemap = !isProduction;
+
+  const wasmBundle = await rollup.rollup({
+    input: ["src/worklets/voice-processor.js"],
+    output: {
+      file: "dist/wasm.js",
+      format: "es",
+      sourcemap,
+    },
+    plugins: [
+      resolve(),
+      babel({
+        presets: [
+          [
+            "@babel/preset-env",
+            {
+              modules: false,
+            },
+          ],
+        ],
+        plugins: ["@babel/plugin-proposal-class-properties"],
+        sourceMaps: sourcemap,
+        babelrc: false,
+        exclude: "node_modules/**",
+      }),
+    ],
+  });
+
+  return wasmBundle.write({
+    file: "./dist/wasm.js",
+    format: "umd",
+    name: "library",
+    sourcemap,
+  });
+}
+
+async function bundleApplication() {
+  const sourcemap = !isProduction;
+
+  const applicationBundle = await rollup.rollup({
     input: ["src/main.ts"],
     output: {
       file: "dist/index.js",
@@ -34,12 +79,17 @@ gulp.task("build", async () => {
     plugins: [resolve(), typescript()],
   });
 
-  return bundle.write({
+  return applicationBundle.write({
     file: "./dist/index.js",
     format: "umd",
     name: "library",
     sourcemap,
   });
+}
+
+gulp.task("build", async () => {
+  await bundleWasmIfNeeded();
+  await bundleApplication();
 });
 
 gulp.task(

@@ -21,6 +21,17 @@
       <child-element></child-element>
     </div>
     <script>
+      function forceHttps() {
+        var host = "a-cordier.github.io";
+        if (
+          host == window.location.host &&
+          window.location.protocol != "https:"
+        )
+          window.location.protocol = "https";
+      }
+
+      forceHttps();
+
       function isChrome() {
         var runtimeWindow = window;
         return (

@@ -12,17 +12,20 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@babel/plugin-proposal-class-properties": "^7.10.4",
     "lit-element": "^2.2.1",
     "lit-html": "^1.1.2"
   },
   "devDependencies": {
+    "@babel/core": "^7.10.5",
+    "@babel/preset-env": "^7.10.4",
     "browser-sync": "^2.26.7",
     "gulp": "^4.0.0",
     "gulp-clean": "^0.4.0",
     "gulp-cli": "^2.2.0",
     "gulp-util": "^3.0.8",
     "rollup": "^1.26.5",
-    "rollup-plugin-babel": "^4.3.3",
+    "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-typescript": "^1.0.1",
     "tslib": "^1.10.0",
