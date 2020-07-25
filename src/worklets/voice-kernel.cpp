@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "emscripten/bind.h"
-#include <iostream>
 
 using namespace emscripten;
 
