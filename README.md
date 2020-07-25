@@ -1,6 +1,6 @@
 # :loud_sound: Web Assembly + Web Audio
 
-This project aims to showcase the use of Web Assembly modules in AudioWorklets (amongst other things I wanted to to give a go, like for instance the Web Midi API).
+This project aims to showcase the use of Web Assembly modules in AudioWorklets (amongst other things I wanted to give a try, like for instance the Web Midi API).
 
 ## :building_construction: Project Goal
 
