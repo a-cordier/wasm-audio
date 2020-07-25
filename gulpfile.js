@@ -59,7 +59,7 @@ async function bundleWasmIfNeeded() {
   });
 
   return wasmBundle.write({
-    file: "./dist/wasm.js",
+    file: "./dist/voice-processor.js",
     format: "umd",
     name: "library",
     sourcemap,
