@@ -4,9 +4,9 @@ import {
   createMidiOctaves,
   computeOctave,
   computePitchClassIndex,
-} from "../midi/midi-note";
-import { createMidiController } from "../midi/midi-controller";
-import { MidiMessage, isNote, Status } from "../midi/midi-message";
+} from "../../../core/midi/midi-note";
+import { createMidiController } from "../../../core/midi/midi-controller";
+import { MidiMessage, isNote, Status } from "../../../core/midi/midi-message";
 
 const octaves = createMidiOctaves(440).map(mapKeys);
 

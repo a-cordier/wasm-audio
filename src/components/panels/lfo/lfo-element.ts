@@ -1,20 +1,12 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { LfoEvent } from "../types/lfo-event";
-import { OscillatorMode } from "../types/oscillator-mode";
+import { LfoEvent } from "../../../types/lfo-event";
+import { OscillatorMode } from "../../../types/oscillator-mode";
 
-import "./wave-selector-element";
-import "./knob-element";
-import "./panel-wrapper-element";
+import "../oscillator/wave-selector-element";
+import "../../common/controls/knob-element";
+import "../panel-wrapper-element";
 import "./lcd-selector-element";
-import { lfoDestinations } from "../types/lfo-destination";
-import { SelectOptions } from "../types/select-option";
-
-interface LfoState {
-  mode: OscillatorMode;
-  destinations: SelectOptions;
-  frequency: number;
-  modAmount: number;
-}
+import { lfoDestinations } from "../../../types/lfo-destination";
 
 @customElement("lfo-element")
 export class Lfo extends LitElement {
@@ -22,7 +14,7 @@ export class Lfo extends LitElement {
   private label = "LFO";
 
   @property({ type: Object })
-  private state: LfoState = {
+  private state = {
     mode: OscillatorMode.SAWTOOTH,
     destinations: lfoDestinations,
     frequency: 127 / 2,
@@ -31,14 +23,6 @@ export class Lfo extends LitElement {
 
   @property({ type: Boolean })
   private shouldMidiLearn = false;
-
-  constructor() {
-    super();
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-  }
 
   onFrequencyChange(event: CustomEvent) {
     this.state.destinations.next();

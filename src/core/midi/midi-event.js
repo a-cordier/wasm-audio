@@ -4,8 +4,8 @@ import {
   isMetaEvent,
   isSysexMessage,
   getVariableLengthQuantity,
-} from "./utils";
-import { SysexMessage } from "./sysex-messages";
+} from "./midi-util";
+import { SysexMessage } from "./sysex-message";
 
 export function MidiEvent(data, offset) {
   /* eslint-disable no-param-reassign */

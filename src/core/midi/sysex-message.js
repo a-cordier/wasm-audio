@@ -1,4 +1,4 @@
-import { getBytes, getVariableLengthQuantity } from "./utils";
+import { getBytes, getVariableLengthQuantity } from "./midi-util";
 
 export function SysexMessage(data, offset) {
   /* eslint-disable no-param-reassign */

@@ -1,20 +1,20 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 
-import "./keys-element";
+import "./common/controls/keys-element";
 import "./visualizer-element";
-import "./knob-element";
-import "./switch-element";
-import "./sawtooth-wave-icon";
-import "./square-wave-icon";
-import "./sine-wave-icon";
-import "./triangle-wave-icon";
-import "./wave-selector-element";
-import "./oscillator-element";
-import "./filter-element";
-import "./oscillator-envelope-element";
-import "./filter-envelope-element";
-import "./lfo-element";
-import "./panel-wrapper-element";
+import "./common/controls/knob-element";
+import "./common/controls/switch-element";
+import "./common/icons/sawtooth-wave-icon";
+import "./common/icons/square-wave-icon";
+import "./common/icons/sine-wave-icon";
+import "./common/icons/triangle-wave-icon";
+import "./panels/oscillator/wave-selector-element";
+import "./panels/oscillator/oscillator-element";
+import "./panels/filter/filter-element";
+import "./panels/envelope/envelope-element";
+import "./panels/filter-mod/filter-envelope-element";
+import "./panels/lfo/lfo-element";
+import "./panels/panel-wrapper-element";
 
 import { VoiceManager } from "../core/voice-manager";
 import { GlobalDispatcher, DispatcherEvent } from "../core/dispatcher";
@@ -224,11 +224,11 @@ export class Root extends LitElement {
             ></filter-element>
           </div>
           <div class="envelopes">
-            <oscillator-envelope-element
+            <envelope-element
               label="envelope"
               .state=${this.voiceManager.osc1Envelope}
               @change=${this.onOsc1EnvelopeChange}
-            ></oscillator-envelope-element>
+            ></envelope-element>
             <lfo-element
               label="lfo 1"
               @change=${this.onLfo1Change}

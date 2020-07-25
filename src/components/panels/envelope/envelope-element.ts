@@ -1,10 +1,10 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { OscillatorEnvelopeEvent } from "../types/oscillator-envelope-event";
-import "./panel-wrapper-element";
-import "./fader-element";
+import { OscillatorEnvelopeEvent } from "../../../types/oscillator-envelope-event";
+import "../panel-wrapper-element";
+import "../../common/controls/fader-element";
 
-@customElement("oscillator-envelope-element")
-export class OscillatorEnvelope extends LitElement {
+@customElement("envelope-element")
+export class Envelope extends LitElement {
   @property({ type: Boolean })
   private shouldMidiLearn = false;
 

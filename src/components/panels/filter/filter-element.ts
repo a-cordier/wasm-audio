@@ -1,8 +1,8 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { FilterMode } from "../types/filter-mode";
-import { FilterEvent } from "../types/filter-event";
-import "./panel-wrapper-element";
-import "./knob-element";
+import { FilterMode } from "../../../types/filter-mode";
+import { FilterEvent } from "../../../types/filter-event";
+import "../panel-wrapper-element";
+import "../../common/controls/knob-element";
 import "./filter-selector-element";
 
 interface FilterState {

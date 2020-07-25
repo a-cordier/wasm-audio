@@ -1,4 +1,4 @@
-import { getBytes, getString, getVariableLengthQuantity } from "./utils";
+import { getBytes, getString, getVariableLengthQuantity } from "./midi-util";
 
 export const Meta = Object.freeze({
   SEQUENCE_NUMBER: 0x00,

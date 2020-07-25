@@ -1,10 +1,10 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { OscillatorEvent } from "../types/oscillator-event";
-import { OscillatorMode } from "../types/oscillator-mode";
+import { OscillatorEvent } from "../../../types/oscillator-event";
+import { OscillatorMode } from "../../../types/oscillator-mode";
 
 import "./wave-selector-element";
-import "./knob-element";
-import "./panel-wrapper-element";
+import "../../common/controls/knob-element";
+import "../panel-wrapper-element";
 
 interface OscillatorState {
   mode: OscillatorMode;

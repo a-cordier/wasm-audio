@@ -1,8 +1,8 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { FilterEnvelopeEvent } from "../types/filter-envelope-event";
-import "./panel-wrapper-element";
-import "./fader-element";
-import "./knob-element";
+import { FilterEnvelopeEvent } from "../../../types/filter-envelope-event";
+import "../panel-wrapper-element";
+import "../../common/controls/fader-element";
+import "../../common/controls/knob-element";
 
 @customElement("filter-envelope-element")
 export class FilterEnvelope extends LitElement {

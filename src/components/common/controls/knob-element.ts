@@ -1,9 +1,9 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
 
-import { createMidiController } from "../midi/midi-controller";
-import { MidiMessage, isControlChange } from "../midi/midi-message";
-import { GlobalDispatcher, DispatcherEvent } from "../core/dispatcher";
+import { createMidiController } from "../../../core/midi/midi-controller";
+import { MidiMessage, isControlChange } from "../../../core/midi/midi-message";
+import { GlobalDispatcher, DispatcherEvent } from "../../../core/dispatcher";
 
 function scale(value: number, range: ValueRange, newRange: ValueRange): number {
   return Math.round(

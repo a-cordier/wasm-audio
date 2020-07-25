@@ -1,8 +1,8 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
 
-import "./lcd-element";
-import { SelectOptions, SelectOption } from "../types/select-option";
+import "../../common/lcd/lcd-element";
+import { SelectOptions, SelectOption } from "../../../types/select-option";
 
 @customElement("lcd-selector-element")
 export class LCDSelector extends LitElement {
