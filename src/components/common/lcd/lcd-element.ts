@@ -37,7 +37,7 @@ export class LCD extends LitElement {
 
         border: 1px solid gray;
 
-        background-color: var(--lcd-screen-height, darkslategray);
+        background-color: var(--lcd-screen-background, darkslategray);
 
         padding: 5px;
       }
