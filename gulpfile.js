@@ -19,6 +19,10 @@ gulp.task("copy-worklets", () => {
     : gulp.src(["src/worklets/**/*.js"]).pipe(gulp.dest("dist"));
 });
 
+gulp.task("copy-fonts", () => {
+  return gulp.src(["src/fonts/**/*"]).pipe(gulp.dest("dist"));
+});
+
 gulp.task("clean", () => {
   return gulp.src("dist", { allowEmpty: true }).pipe(clean());
 });
