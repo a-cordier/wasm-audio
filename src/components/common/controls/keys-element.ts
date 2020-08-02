@@ -5,8 +5,11 @@ import {
   computeOctave,
   computePitchClassIndex,
 } from "../../../core/midi/midi-note";
-import { createMidiController } from "../../../core/midi/midi-controller";
-import { MidiMessage, isNote, Status } from "../../../core/midi/midi-message";
+import {
+  newMidiMessage,
+  isNote,
+  Status,
+} from "../../../core/midi/midi-message";
 
 const octaves = createMidiOctaves(440).map(mapKeys);
 
@@ -63,7 +66,7 @@ export class Keys extends LitElement {
   }
 
   async registerMidiHandler() {
-    await createMidiController(this.onMidiMessage.bind(this));
+    // TODO: HANDLE FROM VOICE MANAGER
   }
 
   mouseUp() {
@@ -98,7 +101,7 @@ export class Keys extends LitElement {
   }
 
   async onMidiMessage(message) {
-    const midiMessage = MidiMessage(new DataView(message.data.buffer));
+    const midiMessage = newMidiMessage(new DataView(message.data.buffer));
 
     if (!isNote(midiMessage)) {
       return;

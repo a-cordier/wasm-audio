@@ -134,29 +134,29 @@ class VoiceProcessor extends AudioWorkletProcessor {
       {
         name: "osc1SemiShift",
         defaultValue: 0,
-        minValue: -24,
-        maxValue: 24,
+        minValue: 0,
+        maxValue: 127,
         automationRate: "k-rate",
       },
       {
         name: "osc1CentShift",
         defaultValue: 0,
-        minValue: -50,
-        maxValue: 50,
+        minValue: 0,
+        maxValue: 127,
         automationRate: "k-rate",
       },
       {
         name: "osc2SemiShift",
         defaultValue: 0,
-        minValue: -24,
-        maxValue: 24,
+        minValue: 0,
+        maxValue: 127,
         automationRate: "k-rate",
       },
       {
         name: "osc2CentShift",
         defaultValue: 0,
-        minValue: -50,
-        maxValue: 50,
+        minValue: 0,
+        maxValue: 127,
         automationRate: "k-rate",
       },
       {
@@ -319,6 +319,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
     );
     this.kernel.setCutoffEnvelopeAttack(Number(parameters.cutoffAttack));
     this.kernel.setCutoffEnvelopeDecay(Number(parameters.cutoffDecay));
+
+    // LFO parameters
     this.kernel.setLfo1Frequency(lfo1FrequencyPtr);
     this.kernel.setLfo1ModAmount(lfo1ModAmountptr);
     this.kernel.setLfo2Frequency(lfo2FrequencyPtr);

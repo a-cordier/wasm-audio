@@ -1,4 +1,4 @@
-import { MidiMessage } from "./midi-message";
+import { newMidiMessage } from "./midi-message";
 import { MetaEvent } from "./meta-event";
 import {
   isMetaEvent,
@@ -21,5 +21,5 @@ export function MidiEvent(data, offset) {
     // throw new Error('Sysex messages are not implemented yet')
     return SysexMessage(data, offset);
   }
-  return Object.assign(MidiMessage(data, offset), event);
+  return Object.assign(newMidiMessage(data, offset), event);
 }

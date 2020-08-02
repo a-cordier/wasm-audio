@@ -1,4 +1,4 @@
-import { LitElement, html, customElement, property } from "lit-element";
+import { LitElement, html, css, customElement, property } from "lit-element";
 
 @customElement("visualizer-element")
 export class Visualizer extends LitElement {
@@ -41,14 +41,15 @@ export class Visualizer extends LitElement {
     this.canvasContext.clearRect(0, 0, this.canvas.width, this.canvas.height);
     const sliceWidth = (this.canvas.width / this.analyser.fftSize) * 4;
     this.analyser.getByteTimeDomainData(this.buffer);
+
     this.canvasContext.beginPath();
     this.buffer.forEach((v, i) => {
       const y = (v / 128) * (this.canvas.height / 2);
       const x = i * sliceWidth;
       this.canvasContext.lineTo(x, y);
     });
-    this.canvasContext.lineWidth = 2;
-    this.canvasContext.strokeStyle = "#00954a";
+    this.canvasContext.lineWidth = 1;
+    this.canvasContext.strokeStyle = "#b4d455";
     this.canvasContext.stroke();
     requestAnimationFrame(this.drawOscilloscope.bind(this));
   }
@@ -61,6 +62,16 @@ export class Visualizer extends LitElement {
         width=${this.width}
         height=${this.height}
       ></canvas>
+    `;
+  }
+
+  static get styles() {
+    // noinspection CssUnresolvedCustomProperty
+    return css`
+      canvas {
+        border: 1px solid grey;
+        border-radius: 0.25rem;
+      }
     `;
   }
 }

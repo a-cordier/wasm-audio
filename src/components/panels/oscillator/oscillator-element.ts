@@ -6,26 +6,13 @@ import "./wave-selector-element";
 import "../../common/controls/knob-element";
 import "../panel-wrapper-element";
 
-interface OscillatorState {
-  mode: OscillatorMode;
-  semiShift: number;
-  centShift: number;
-}
-
 @customElement("oscillator-element")
 export class Oscillator extends LitElement {
   @property({ type: String })
   private label = "Osc";
 
   @property({ type: Object })
-  private state: OscillatorState = {
-    mode: OscillatorMode.SAWTOOTH,
-    semiShift: 0,
-    centShift: 0,
-  };
-
-  @property({ type: Boolean })
-  private shouldMidiLearn = false;
+  private state: any;
 
   constructor() {
     super();
@@ -36,27 +23,19 @@ export class Oscillator extends LitElement {
   }
 
   onSemiShift(event: CustomEvent) {
-    if (event.detail.value < 39 || event.detail.value > 87) {
-      return;
-    }
-    const value = event.detail.value - 39 - 24; // mapped to [-24;24]
-    this.dispatchChange(OscillatorEvent.SEMI_SHIFT, value);
+    this.dispatchChange(OscillatorEvent.SEMI_SHIFT, event.detail.value);
   }
 
   get semiShiftValue() {
-    return this.state.semiShift + 39 + 24;
+    return this.state.semiShift.value;
   }
 
   onCentShift(event: CustomEvent) {
-    if (event.detail.value < 13 || event.detail.value > 113) {
-      return;
-    }
-    const value = event.detail.value - 13 - 50; // mapped to [-50;50]
-    this.dispatchChange(OscillatorEvent.CENT_SHIFT, value);
+    this.dispatchChange(OscillatorEvent.CENT_SHIFT, event.detail.value);
   }
 
   get centShiftValue() {
-    return this.state.centShift + 13 + 50;
+    return this.state.centShift.value;
   }
 
   onWaveFormChange(event: CustomEvent) {
@@ -73,7 +52,7 @@ export class Oscillator extends LitElement {
         <div class="oscillator-controls">
           <div class="wave-control">
             <wave-selector-element
-              .value=${this.state.mode}
+              .value=${this.state.mode.value as OscillatorMode}
               @change=${this.onWaveFormChange}
             ></wave-selector-element>
           </div>
@@ -83,7 +62,6 @@ export class Oscillator extends LitElement {
                 <knob-element
                   .value=${this.semiShiftValue}
                   @change=${this.onSemiShift}
-                  .shouldMidiLearn=${this.shouldMidiLearn}
                 ></knob-element>
               </div>
               <label>semi</label>
@@ -93,7 +71,6 @@ export class Oscillator extends LitElement {
                 <knob-element
                   .value=${this.centShiftValue}
                   @change=${this.onCentShift}
-                  .shouldMidiLearn=${this.shouldMidiLearn}
                 ></knob-element>
               </div>
               <label>cents</label>

@@ -1,6 +1,8 @@
 import { SelectOptions } from "./select-option";
 
-enum MidiLearnOption {
+export enum MidiControlID {
+  NONE = -1, // NONE should be used to indicate that no control is learning from MIDI
+
   OSC1_SEMI,
   OSC1_CENT,
   OSC_MIX,
@@ -21,30 +23,30 @@ enum MidiLearnOption {
   CUT_DECAY,
 }
 
-function toSelectOption(option: MidiLearnOption) {
+function toSelectOption(option: MidiControlID) {
   return {
-    name: MidiLearnOption[option].replace(/_/g, " "),
+    name: MidiControlID[option].replace(/_/g, " "),
     value: option,
   };
 }
 
 export const MidiLearnOptions = new SelectOptions([
-  toSelectOption(MidiLearnOption.OSC1_SEMI),
-  toSelectOption(MidiLearnOption.OSC1_CENT),
-  toSelectOption(MidiLearnOption.OSC_MIX),
-  toSelectOption(MidiLearnOption.OSC2_SEMI),
-  toSelectOption(MidiLearnOption.OSC2_CENT),
-  toSelectOption(MidiLearnOption.CUTOFF),
-  toSelectOption(MidiLearnOption.RESONANCE),
-  toSelectOption(MidiLearnOption.ATTACK),
-  toSelectOption(MidiLearnOption.DECAY),
-  toSelectOption(MidiLearnOption.SUSTAIN),
-  toSelectOption(MidiLearnOption.RELEASE),
-  toSelectOption(MidiLearnOption.LFO1_FREQ),
-  toSelectOption(MidiLearnOption.LFO1_MOD),
-  toSelectOption(MidiLearnOption.LFO2_FREQ),
-  toSelectOption(MidiLearnOption.LFO2_MOD),
-  toSelectOption(MidiLearnOption.CUT_MOD),
-  toSelectOption(MidiLearnOption.CUT_ATTACK),
-  toSelectOption(MidiLearnOption.CUT_DECAY),
+  toSelectOption(MidiControlID.OSC1_SEMI),
+  toSelectOption(MidiControlID.OSC1_CENT),
+  toSelectOption(MidiControlID.OSC_MIX),
+  toSelectOption(MidiControlID.OSC2_SEMI),
+  toSelectOption(MidiControlID.OSC2_CENT),
+  toSelectOption(MidiControlID.CUTOFF),
+  toSelectOption(MidiControlID.RESONANCE),
+  toSelectOption(MidiControlID.ATTACK),
+  toSelectOption(MidiControlID.DECAY),
+  toSelectOption(MidiControlID.SUSTAIN),
+  toSelectOption(MidiControlID.RELEASE),
+  toSelectOption(MidiControlID.LFO1_FREQ),
+  toSelectOption(MidiControlID.LFO1_MOD),
+  toSelectOption(MidiControlID.LFO2_FREQ),
+  toSelectOption(MidiControlID.LFO2_MOD),
+  toSelectOption(MidiControlID.CUT_MOD),
+  toSelectOption(MidiControlID.CUT_ATTACK),
+  toSelectOption(MidiControlID.CUT_DECAY),
 ]);

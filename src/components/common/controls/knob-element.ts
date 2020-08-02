@@ -2,8 +2,12 @@ import { LitElement, html, css, customElement, property } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
 
 import { createMidiController } from "../../../core/midi/midi-controller";
-import { MidiMessage, isControlChange } from "../../../core/midi/midi-message";
-import { GlobalDispatcher, DispatcherEvent } from "../../../core/dispatcher";
+import {
+  newMidiMessage,
+  isControlChange,
+} from "../../../core/midi/midi-message";
+import { GlobalDispatcher } from "../../../core/dispatcher";
+import { clamp } from "./clamp";
 
 function scale(value: number, range: ValueRange, newRange: ValueRange): number {
   return Math.round(
@@ -42,48 +46,18 @@ export class Knob extends LitElement {
   @property({ type: Number })
   private angle = 0;
 
-  @property({ type: Boolean })
-  private shouldMidiLearn = false;
-
   @property({ type: String })
   private label: string;
-
-  private isMidiLearning = false;
-
-  private midiControl: number;
 
   async connectedCallback() {
     super.connectedCallback();
     this.updateAngle();
-    await this.registerMidiHandler();
-    await this.registerDispatchHandlers();
-  }
-
-  async registerDispatchHandlers() {
-    GlobalDispatcher.subscribe(DispatcherEvent.NEW_MIDI_LEARNER, (event) => {
-      if (event.detail.value === this) {
-        this.isMidiLearning = true;
-        this.requestUpdate();
-      }
-      //this.shouldMidiLearn = false;
-    });
-    GlobalDispatcher.subscribe(DispatcherEvent.SHOULD_MIDI_LEARN, (event) => {
-      this.shouldMidiLearn = event.detail.value;
-      if (!this.shouldMidiLearn) {
-        this.isMidiLearning = false;
-        this.requestUpdate();
-      }
-    });
-  }
-
-  async registerMidiHandler() {
-    await createMidiController(this.onMidiMessage.bind(this));
   }
 
   toggleActive() {
     const drag = (event: DragEvent) => {
       event.preventDefault();
-      this.updateValue(event.movementY);
+      this.updateValue(this.computeStep(-event.movementY, event.altKey));
     };
 
     const destroy = () => {
@@ -95,57 +69,26 @@ export class Knob extends LitElement {
     document.addEventListener("mouseup", destroy);
   }
 
-  toggleMidiLearn() {
-    if (this.shouldMidiLearn) {
-      GlobalDispatcher.dispatch(DispatcherEvent.NEW_MIDI_LEARNER, {
-        value: this,
-      });
-    }
-  }
-
-  get midiLearnMessage() {
-    return this.shouldMidiLearn ? "MIDI" : "LEARNING";
-  }
-
   onWheel(event: WheelEvent) {
     event.preventDefault();
-    this.updateValue(this.computeStep(event.deltaY, event.altKey ? 0.25 : 1));
-  }
-
-  async onMidiMessage(message) {
-    const midiMessage = MidiMessage(new DataView(message.data.buffer));
-
-    if (isControlChange(midiMessage)) {
-      if (this.isMidiLearning) {
-        this.midiControl = midiMessage.data.control;
-        this.isMidiLearning = false;
-      }
-      if (this.midiControl === midiMessage.data.control) {
-        this.value = midiMessage.data.value;
-      }
-    }
+    this.updateValue(this.computeStep(event.deltaY, event.altKey));
   }
 
   updateAngle() {
     this.angle = scale(this.value, this.range, ANGLE_RANGE);
   }
 
-  updateValue(increment) {
-    if (increment < 0 && this.value > this.range.min) {
-      this.value += increment;
-    }
-    if (increment > 0 && this.value < this.range.max) {
-      this.value += increment;
-    }
+  updateValue(step) {
+    this.value = clamp(this.range, this.value + step);
   }
 
-  computeStep(increment, multiplier = 1) {
-    if (increment < 0 && this.value > this.range.min) {
-      this.value -= this.step * multiplier;
-    }
-    if (increment > 0 && this.value < this.range.max) {
-      this.value += this.step * multiplier;
-    }
+  computeStep(increment, sharp = false) {
+    return this.computeStepMultiplier(increment, sharp) * this.step;
+  }
+
+  computeStepMultiplier(increment, sharp = false) {
+    const multiplier = increment < 0 ? -1 : 1;
+    return sharp ? multiplier * 0.25 : multiplier;
   }
 
   updated(changedProperties) {
@@ -157,20 +100,9 @@ export class Knob extends LitElement {
     }
   }
 
-  computeMidiLearnClasses() {
-    return classMap({
-      "should-learn": this.shouldMidiLearn,
-      "is-learning": this.isMidiLearning,
-    });
-  }
-
   render() {
     return html`
-      <div
-        class="knob-wrapper"
-        class="knob-wrapper"
-        @click="${this.toggleMidiLearn}"
-      >
+      <div class="knob-wrapper" class="knob-wrapper">
         <svg
           class="knob"
           shape-rendering="geometricPrecision"
@@ -214,21 +146,6 @@ export class Knob extends LitElement {
             <circle class="knob__top" r="150" cy="250" cx="250" />
           </g>
         </svg>
-        <div
-          class="midi-learn top-left-corner ${this.computeMidiLearnClasses()}"
-        ></div>
-        <div
-          class="midi-learn top-right-corner ${this.computeMidiLearnClasses()}"
-        ></div>
-        <div
-          class="midi-learn bottom-right-corner ${this.computeMidiLearnClasses()}"
-        ></div>
-        <div
-          class="midi-learn bottom-left-corner ${this.computeMidiLearnClasses()}"
-        ></div>
-        <div class="midi-learn-label ${this.computeMidiLearnClasses()}">
-          ${this.midiLearnMessage}
-        </div>
         <div class="label">${this.label}</div>
       </div>
     `;
@@ -265,91 +182,17 @@ export class Knob extends LitElement {
         fill: var(--control-top-color, #ccc);
       }
 
+      @keyframes focus {
+        0% {
+          fill: var(--control-top-color, #ccc);
+        }
+        50% {
+          fill: var(--control-color-focused, #ccc);
+        }
+      }
+
       .knob__cursor {
         fill: var(--control-cursor-color, #ccc);
-      }
-
-      .midi-learn {
-        position: absolute;
-        height: 30%;
-        width: 30%;
-
-        display: none;
-      }
-
-      .midi-learn.should-learn {
-        display: block;
-      }
-
-      .midi-learn.is-learning {
-        display: block;
-        animation: blink 0.5s step-end infinite alternate;
-      }
-
-      .midi-learn.top-left-corner {
-        top: -5px;
-        left: -5px;
-
-        border-left: 3px solid var(--control-handle-color);
-        border-top: 3px solid var(--control-handle-color);
-      }
-
-      .midi-learn.top-right-corner {
-        position: absolute;
-        top: -5px;
-        right: -5px;
-
-        height: 33%;
-        width: 33%;
-
-        border-right: 3px solid var(--control-handle-color);
-        border-top: 3px solid var(--control-handle-color);
-      }
-
-      .midi-learn.bottom-right-corner {
-        position: absolute;
-        bottom: -5px;
-        right: -5px;
-
-        height: 33%;
-        width: 33%;
-
-        border-right: 3px solid var(--control-handle-color);
-        border-bottom: 3px solid var(--control-handle-color);
-      }
-
-      .midi-learn.bottom-left-corner {
-        position: absolute;
-        bottom: -5px;
-        left: -5px;
-
-        height: 33%;
-        width: 33%;
-
-        border-left: 3px solid var(--control-handle-color);
-        border-bottom: 3px solid var(--control-handle-color);
-      }
-
-      .midi-learn-label {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-
-        display: none;
-
-        font-size: 0.5vw;
-        color: var(--lighter-color);
-      }
-
-      .midi-learn-label.should-learn,
-      .midi-learn-label.is-learning {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-
-        z-index: 1;
       }
 
       .label {
@@ -357,12 +200,6 @@ export class Knob extends LitElement {
         color: var(--lighter-color);
         display: flex;
         justify-content: center;
-      }
-
-      @keyframes blink {
-        50% {
-          opacity: 0;
-        }
       }
     `;
   }

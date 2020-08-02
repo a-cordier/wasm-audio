@@ -1,8 +1,15 @@
 import { WasmVoiceNode } from "../worklets/voice-node";
-import { Voice } from "../types/voice";
+import { Voice, createVoiceState } from "../types/voice";
 import { OscillatorMode } from "../types/oscillator-mode";
 import { FilterMode } from "../types/filter-mode";
 import { LfoDestination } from "../types/lfo-destination";
+import { MidiControl, SelectControl } from "../types/control";
+import { MidiControlID } from "../types/midi-learn-options";
+import { Dispatcher } from "./dispatcher";
+import { MidiMessageEvent, MidiMessage } from "../types/midi-message";
+import { createNotes, midiToNote } from "./midi/midi-note";
+import { MidiController } from "../types/midi-controller";
+import { VoiceEvent } from "../types/voice-event";
 
 export function* createVoiceGenerator(
   audioContext: AudioContext
@@ -12,108 +19,232 @@ export function* createVoiceGenerator(
   }
 }
 
-export class VoiceManager {
+export class VoiceManager extends Dispatcher {
   private voiceGenerator: IterableIterator<Voice>;
-  private channels: Map<number, Voice>[];
+  private voices: Map<number, Voice>;
   private output: GainNode;
+  private midiController: MidiController & Dispatcher;
 
-  private state = {
+  private state = createVoiceState({
     osc1: {
-      mode: OscillatorMode.SAWTOOTH,
-      semiShift: 0,
-      centShift: 0,
-    },
-    osc1Envelope: {
-      attack: 0,
-      decay: 127 / 2,
-      sustain: 127,
-      release: 127 / 4,
+      mode: { value: OscillatorMode.SAWTOOTH },
+      semiShift: { value: 127 / 2 },
+      centShift: { value: 127 / 2 },
     },
     osc2: {
-      mode: OscillatorMode.SAWTOOTH,
-      semiShift: 0,
-      centShift: 0,
+      mode: { value: OscillatorMode.SAWTOOTH },
+      semiShift: { value: 127 / 2 },
+      centShift: { value: 127 / 2 },
     },
-    osc2Envelope: {
-      attack: 0,
-      decay: 127 / 2,
-      sustain: 127,
-      release: 127 / 4,
+    osc2Amplitude: { value: 127 / 2 },
+    envelope: {
+      attack: { value: 0 },
+      decay: { value: 127 / 2 },
+      sustain: { value: 127 },
+      release: { value: 127 / 4 },
     },
-    osc2Amplitude: 127 / 2,
     filter: {
-      mode: FilterMode.LOWPASS,
-      cutoff: 127,
-      resonance: 0,
+      mode: { value: FilterMode.LOWPASS },
+      cutoff: { value: 127 },
+      resonance: { value: 0 },
     },
-    cutoffEnvelope: {
-      attack: 0,
-      decay: 127 / 2,
-      amount: 0,
+    cutoffMod: {
+      attack: { value: 0 },
+      decay: { value: 127 / 2 },
+      amount: { value: 0 },
     },
     lfo1: {
-      mode: OscillatorMode.SINE,
-      frequency: 127 / 2,
-      modAmount: 0,
-      destination: LfoDestination.OSCILLATOR_MIX,
+      mode: { value: OscillatorMode.SINE },
+      frequency: { value: 127 / 2 },
+      modAmount: { value: 0 },
+      destination: { value: LfoDestination.OSCILLATOR_MIX },
     },
     lfo2: {
-      mode: OscillatorMode.SINE,
-      frequency: 127 / 2,
-      modAmount: 0,
-      destination: LfoDestination.OSCILLATOR_MIX,
+      mode: { value: OscillatorMode.SINE },
+      frequency: { value: 127 / 2 },
+      modAmount: { value: 0 },
+      destination: { value: LfoDestination.OSCILLATOR_MIX },
     },
-  };
+  });
 
   constructor(audioContext: AudioContext) {
+    super();
     this.voiceGenerator = createVoiceGenerator(audioContext);
-    this.channels = Array.from({ length: 16 }).map(() => new Map());
+    this.voices = new Map();
     this.output = new GainNode(audioContext);
+    this.onMidiNoteOn = this.onMidiNoteOn.bind(this);
+    this.onMidiNoteOff = this.onMidiNoteOff.bind(this);
+    this.onMidiCC = this.onMidiCC.bind(this);
   }
 
-  next({ frequency, midiValue, channel }): Voice {
-    const voiceMap = this.channels[channel - 1];
-    if (voiceMap.has(midiValue)) {
-      return voiceMap.get(midiValue);
+  next({ frequency, midiValue }): Voice {
+    if (this.voices.has(midiValue)) {
+      return this.voices.get(midiValue);
     }
     const voice = this.voiceGenerator.next().value;
     voice.frequency.value = frequency;
-    voice.osc1 = this.state.osc1.mode;
-    voice.osc1SemiShift.value = this.state.osc1.semiShift;
-    voice.osc1CentShift.value = this.state.osc1.centShift;
-    voice.osc2 = this.state.osc2.mode;
-    voice.osc2SemiShift.value = this.state.osc2.semiShift;
-    voice.osc2CentShift.value = this.state.osc2.centShift;
-    voice.osc2Amplitude.value = this.state.osc2Amplitude;
-    voice.amplitudeAttack.value = this.state.osc1Envelope.attack;
-    voice.amplitudeDecay.value = this.state.osc1Envelope.decay;
-    voice.amplitudeSustain.value = this.state.osc1Envelope.sustain;
-    voice.amplitudeRelease.value = this.state.osc1Envelope.release;
-    voice.filterMode = this.state.filter.mode;
-    voice.cutoff.value = this.state.filter.cutoff;
-    voice.resonance.value = this.state.filter.resonance;
-    voice.cutoffAttack.value = this.state.cutoffEnvelope.attack;
-    voice.cutoffDecay.value = this.state.cutoffEnvelope.decay;
-    voice.cutoffEnvelopeAmount.value = this.state.cutoffEnvelope.amount;
-    voice.lfo1Frequency.value = this.state.lfo1.frequency;
-    voice.lfo1ModAmount.value = this.state.lfo1.modAmount;
-    voice.lfo1Mode = this.state.lfo1.mode;
-    voice.lfo1Destination = this.state.lfo1.destination;
-    voice.lfo2Frequency.value = this.state.lfo2.frequency;
-    voice.lfo2ModAmount.value = this.state.lfo2.modAmount;
-    voice.lfo2Mode = this.state.lfo2.mode;
-    voice.lfo2Destination = this.state.lfo2.destination;
-    voiceMap.set(midiValue, voice);
+    voice.osc1 = this.state.osc1.mode.value;
+    voice.osc1SemiShift.value = this.state.osc1.semiShift.value;
+    voice.osc1CentShift.value = this.state.osc1.centShift.value;
+    voice.osc2 = this.state.osc2.mode.value;
+    voice.osc2SemiShift.value = this.state.osc2.semiShift.value;
+    voice.osc2CentShift.value = this.state.osc2.centShift.value;
+    voice.osc2Amplitude.value = this.state.osc2Amplitude.value;
+    voice.amplitudeAttack.value = this.state.envelope.attack.value;
+    voice.amplitudeDecay.value = this.state.envelope.decay.value;
+    voice.amplitudeSustain.value = this.state.envelope.decay.value;
+    voice.amplitudeRelease.value = this.state.envelope.release.value;
+    voice.filterMode = this.state.filter.mode.value;
+    voice.cutoff.value = this.state.filter.cutoff.value;
+    voice.resonance.value = this.state.filter.resonance.value;
+    voice.cutoffAttack.value = this.state.cutoffMod.attack.value;
+    voice.cutoffDecay.value = this.state.cutoffMod.decay.value;
+    voice.cutoffEnvelopeAmount.value = this.state.cutoffMod.amount.value;
+    voice.lfo1Frequency.value = this.state.lfo1.frequency.value;
+    voice.lfo1ModAmount.value = this.state.lfo1.modAmount.value;
+    voice.lfo1Mode = this.state.lfo1.mode.value;
+    voice.lfo1Destination = this.state.lfo1.destination.value;
+    voice.lfo2Frequency.value = this.state.lfo2.frequency.value;
+    voice.lfo2ModAmount.value = this.state.lfo2.modAmount.value;
+    voice.lfo2Mode = this.state.lfo2.mode.value;
+    voice.lfo2Destination = this.state.lfo2.destination.value;
+    this.voices.set(midiValue, voice);
     voice.connect(this.output);
     voice.start();
     return voice;
   }
 
-  stop({ midiValue, channel }) {
-    const voiceMap = this.channels[channel - 1];
-    if (voiceMap.has(midiValue)) {
-      voiceMap.get(midiValue).stop();
-      voiceMap.delete(midiValue);
+  setMidiController(midiController: MidiController & Dispatcher) {
+    midiController
+      .subscribe(MidiMessageEvent.NOTE_ON, this.onMidiNoteOn)
+      .subscribe(MidiMessageEvent.NOTE_OFF, this.onMidiNoteOff)
+      .subscribe(MidiMessageEvent.CONTROL_CHANGE, this.onMidiCC);
+    this.midiController = midiController;
+    return this;
+  }
+
+  onMidiNoteOn(message: MidiMessage) {
+    const note = midiToNote(message.data.value);
+    this.next(note);
+    this.dispatch(MidiMessageEvent.NOTE_ON, note);
+  }
+
+  onMidiNoteOff(message: MidiMessage) {
+    this.stop({ midiValue: message.data.value });
+    this.dispatch(MidiMessageEvent.NOTE_OFF, message);
+  }
+
+  onMidiCC(message: MidiMessage) {
+    const midiControl = this.state.findMidiControlById(message.controlID);
+    if (!midiControl) {
+      return;
+    }
+
+    midiControl.value = message.data.value;
+
+    if (message.isMidiLearning) {
+      this.midiController.mapControl(message.data.control, midiControl.id);
+    }
+
+    this.dispatchCC(midiControl);
+  }
+
+  dispatchCC(control: MidiControl) {
+    switch (control.id) {
+      case MidiControlID.OSC1_SEMI:
+        return this.dispatch(VoiceEvent.OSC1, {
+          ...this.state.osc1,
+          ...{ semiShift: control.clone() },
+        });
+      case MidiControlID.OSC1_CENT:
+        return this.dispatch(VoiceEvent.OSC1, {
+          ...this.state.osc1,
+          ...{ centShift: control.clone() },
+        });
+      case MidiControlID.OSC2_SEMI:
+        return this.dispatch(VoiceEvent.OSC2, {
+          ...this.state.osc2,
+          ...{ centShift: control.clone() },
+        });
+      case MidiControlID.OSC2_CENT:
+        return this.dispatch(VoiceEvent.OSC2, {
+          ...this.state.osc1,
+          ...{ centShift: control.clone() },
+        });
+      case MidiControlID.OSC_MIX:
+        return this.dispatch(VoiceEvent.OSC_MIX, control.clone());
+      case MidiControlID.CUTOFF:
+        return this.dispatch(VoiceEvent.FILTER, {
+          ...this.state.filter,
+          ...{ cutoff: control.clone() },
+        });
+      case MidiControlID.RESONANCE:
+        return this.dispatch(VoiceEvent.FILTER, {
+          ...this.state.filter,
+          ...{ resonance: control.clone() },
+        });
+      case MidiControlID.ATTACK:
+        return this.dispatch(VoiceEvent.ENVELOPE, {
+          ...this.state.envelope,
+          ...{ attack: control.clone() },
+        });
+      case MidiControlID.DECAY:
+        return this.dispatch(VoiceEvent.ENVELOPE, {
+          ...this.state.envelope,
+          ...{ decay: control.clone() },
+        });
+      case MidiControlID.SUSTAIN:
+        return this.dispatch(VoiceEvent.ENVELOPE, {
+          ...this.state.envelope,
+          ...{ sustain: control.clone() },
+        });
+      case MidiControlID.RELEASE:
+        return this.dispatch(VoiceEvent.ENVELOPE, {
+          ...this.state.envelope,
+          ...{ release: control.clone() },
+        });
+      case MidiControlID.LFO1_FREQ:
+        return this.dispatch(VoiceEvent.LFO1, {
+          ...this.state.lfo1,
+          ...{ frequency: control.clone() },
+        });
+      case MidiControlID.LFO1_MOD:
+        return this.dispatch(VoiceEvent.LFO1, {
+          ...this.state.lfo1,
+          ...{ modAmount: control.clone() },
+        });
+      case MidiControlID.LFO2_FREQ:
+        return this.dispatch(VoiceEvent.LFO1, {
+          ...this.state.lfo1,
+          ...{ frequency: control.clone() },
+        });
+      case MidiControlID.LFO2_MOD:
+        return this.dispatch(VoiceEvent.LFO2, {
+          ...this.state.lfo2,
+          ...{ modAmount: control.clone() },
+        });
+      case MidiControlID.CUT_ATTACK:
+        return this.dispatch(VoiceEvent.CUTOFF_MOD, {
+          ...this.state.cutoffMod,
+          ...{ attack: control.clone() },
+        });
+      case MidiControlID.CUT_DECAY:
+        return this.dispatch(VoiceEvent.CUTOFF_MOD, {
+          ...this.state.cutoffMod,
+          ...{ decay: control.clone() },
+        });
+      case MidiControlID.CUT_MOD:
+        return this.dispatch(VoiceEvent.CUTOFF_MOD, {
+          ...this.state.cutoffMod,
+          ...{ amount: control.clone() },
+        });
+    }
+  }
+
+  stop({ midiValue }) {
+    if (this.voices.has(midiValue)) {
+      this.voices.get(midiValue).stop();
+      this.voices.delete(midiValue);
     }
   }
 
@@ -121,24 +252,26 @@ export class VoiceManager {
     this.output.connect(input);
   }
 
-  withState(state: any): VoiceManager {
-    this.state = state;
-    return this;
+  getState() {
+    return { ...this.state };
   }
 
   setOsc1Mode(newMode: OscillatorMode) {
-    this.state.osc1.mode = newMode;
+    this.state.osc1.mode.value = newMode;
     this.dispatchUpdate((voice) => (voice.osc1 = newMode));
+    return this;
   }
 
   setOsc1SemiShift(newSemiShift: number) {
-    this.state.osc1.semiShift = newSemiShift;
+    this.state.osc1.semiShift.value = newSemiShift;
     this.dispatchUpdate((voice) => (voice.osc1SemiShift.value = newSemiShift));
+    return this;
   }
 
   setOsc1CentShift(newCentShift: number) {
-    this.state.osc1.centShift = newCentShift;
+    this.state.osc1.centShift.value = newCentShift;
     this.dispatchUpdate((voice) => (voice.osc1CentShift.value = newCentShift));
+    return this;
   }
 
   get osc1() {
@@ -146,18 +279,21 @@ export class VoiceManager {
   }
 
   setOsc2Mode(newMode: OscillatorMode) {
-    this.state.osc2.mode = newMode;
+    this.state.osc2.mode.value = newMode;
     this.dispatchUpdate((voice) => (voice.osc2 = newMode));
+    return this;
   }
 
   setOsc2SemiShift(newSemiShift: number) {
-    this.state.osc2.semiShift = newSemiShift;
+    this.state.osc2.semiShift.value = newSemiShift;
     this.dispatchUpdate((voice) => (voice.osc2SemiShift.value = newSemiShift));
+    return this;
   }
 
   setOsc2CentShift(newCentShift: number) {
-    this.state.osc2.centShift = newCentShift;
+    this.state.osc2.centShift.value = newCentShift;
     this.dispatchUpdate((voice) => (voice.osc2CentShift.value = newCentShift));
+    return this;
   }
 
   get osc2() {
@@ -165,30 +301,35 @@ export class VoiceManager {
   }
 
   setOsc1EnvelopeAttack(newAttackTime: number) {
-    this.state.osc1Envelope.attack = newAttackTime;
+    this.state.envelope.attack.value = newAttackTime;
+    return this;
   }
 
   setOsc1EnvelopeDecay(newDecayTime: number) {
-    this.state.osc1Envelope.decay = newDecayTime;
+    this.state.envelope.decay.value = newDecayTime;
+    return this;
   }
 
   setOsc1EnvelopeSustain(newSustainLevel: number) {
-    this.state.osc1Envelope.sustain = newSustainLevel;
+    this.state.envelope.sustain.value = newSustainLevel;
+    return this;
   }
 
   setOsc1EnvelopeRelease(newReleaseTime: number) {
-    this.state.osc1Envelope.release = newReleaseTime;
+    this.state.envelope.release.value = newReleaseTime;
+    return this;
   }
 
-  get osc1Envelope() {
-    return this.state.osc1Envelope;
+  get envelope() {
+    return this.state.envelope;
   }
 
   setOsc2Amplitude(newOsc2Amplitude: number) {
-    this.state.osc2Amplitude = newOsc2Amplitude;
+    this.state.osc2Amplitude.value = newOsc2Amplitude;
     this.dispatchUpdate(
       (voice) => (voice.osc2Amplitude.value = newOsc2Amplitude)
     );
+    return this;
   }
 
   get osc2Amplitude() {
@@ -196,18 +337,21 @@ export class VoiceManager {
   }
 
   setFilterMode(newMode: FilterMode) {
-    this.state.filter.mode = newMode;
+    this.state.filter.mode.value = newMode;
     this.dispatchUpdate((voice) => (voice.filterMode = newMode));
+    return this;
   }
 
   setFilterCutoff(newCutoff: number) {
-    this.state.filter.cutoff = newCutoff;
+    this.state.filter.cutoff.value = newCutoff;
     this.dispatchUpdate((voice) => (voice.cutoff.value = newCutoff));
+    return this;
   }
 
   setFilterResonance(newResonance: number) {
-    this.state.filter.resonance = newResonance;
+    this.state.filter.resonance.value = newResonance;
     this.dispatchUpdate((voice) => (voice.resonance.value = newResonance));
+    return this;
   }
 
   get filter() {
@@ -215,66 +359,83 @@ export class VoiceManager {
   }
 
   setCutoffEnvelopeAmount(newAmount: number) {
-    this.state.cutoffEnvelope.amount = newAmount;
+    this.state.cutoffMod.amount.value = newAmount;
+    return this;
   }
 
   setCutoffEnvelopeAttack(newAttackTime: number) {
-    this.state.cutoffEnvelope.attack = newAttackTime;
+    this.state.cutoffMod.attack.value = newAttackTime;
+    return this;
   }
 
   setCutoffEnvelopeDecay(newDecayTime: number) {
-    this.state.cutoffEnvelope.decay = newDecayTime;
+    this.state.cutoffMod.decay.value = newDecayTime;
+    return this;
   }
 
   setLfo1Mode(newMode: OscillatorMode) {
-    this.state.lfo1.mode = newMode;
+    this.state.lfo1.mode.value = newMode;
     this.dispatchUpdate((voice) => (voice.lfo1Mode = newMode));
+    return this;
+  }
+
+  get lfo1() {
+    return this.state.lfo1;
   }
 
   setLfo1Destination(newDestination: LfoDestination) {
-    this.state.lfo1.destination = newDestination;
+    this.state.lfo1.destination.value = newDestination;
     this.dispatchUpdate((voice) => (voice.lfo1Destination = newDestination));
+    return this;
   }
 
   setLfo1Frequency(newFrequency: number) {
-    this.state.lfo1.frequency = newFrequency;
+    this.state.lfo1.frequency.value = newFrequency;
     this.dispatchUpdate((voice) => (voice.lfo1Frequency.value = newFrequency));
+    return this;
   }
 
   setLfo1ModAmount(newAmount: number) {
-    this.state.lfo1.modAmount = newAmount;
+    this.state.lfo1.modAmount.value = newAmount;
     this.dispatchUpdate((voice) => (voice.lfo1ModAmount.value = newAmount));
+    return this;
+  }
+
+  get lfo2() {
+    return this.state.lfo2;
   }
 
   setLfo2Mode(newMode: OscillatorMode) {
-    this.state.lfo2.mode = newMode;
+    this.state.lfo2.mode.value = newMode;
     this.dispatchUpdate((voice) => (voice.lfo2Mode = newMode));
+    return this;
   }
 
   setLfo2Destination(newDestination: LfoDestination) {
-    this.state.lfo2.destination = newDestination;
+    this.state.lfo2.destination.value = newDestination;
     this.dispatchUpdate((voice) => (voice.lfo2Destination = newDestination));
+    return this;
   }
 
   setLfo2Frequency(newFrequency: number) {
-    this.state.lfo2.frequency = newFrequency;
+    this.state.lfo2.frequency.value = newFrequency;
     this.dispatchUpdate((voice) => (voice.lfo2Frequency.value = newFrequency));
+    return this;
   }
 
   setLfo2ModAmount(newAmount: number) {
-    this.state.lfo2.modAmount = newAmount;
+    this.state.lfo2.modAmount.value = newAmount;
     this.dispatchUpdate((voice) => (voice.lfo2ModAmount.value = newAmount));
+    return this;
   }
 
-  get cutoffEnvelope() {
-    return this.state.cutoffEnvelope;
+  get cutoffMod() {
+    return this.state.cutoffMod;
   }
 
   dispatchUpdate(doUpdate: (voice: Voice) => void) {
-    for (const channel of this.channels) {
-      for (const voice of channel.values()) {
-        doUpdate(voice);
-      }
+    for (const voice of this.voices.values()) {
+      doUpdate(voice);
     }
   }
 }

@@ -1,3 +1,5 @@
+import { MidiMessage } from "../../types/midi-message";
+
 export const Status = Object.freeze({
   NOTE_OFF: 0x08,
   NOTE_ON: 0x09,
@@ -76,7 +78,7 @@ export function ProgramChange(data, channel) {
   };
 }
 
-export function ChannelAfterTouch(data, channel) {
+export function ChannelAfterTouch(data, channel, offset) {
   return {
     status: Status.CHANNEL_AFTER_TOUCH,
     data: {
@@ -86,17 +88,7 @@ export function ChannelAfterTouch(data, channel) {
   };
 }
 
-export function PitchBend(data, channel) {
-  return {
-    // FIXME (check spec. )
-    status: Status.PITCH_BEND,
-    b1: data.getUint8(0),
-    b2: data.getUint8(offset),
-    channel,
-  };
-}
-
-export function MidiMessage(data, offset = 0) {
+export function newMidiMessage(data, offset = 0): Partial<MidiMessage> {
   /* eslint-disable no-param-reassign */
   const status = data.getUint8(offset) >> 4;
   const channel = (data.getUint8(offset) & 0xf) + 1;
@@ -113,9 +105,7 @@ export function MidiMessage(data, offset = 0) {
     case Status.PROGRAM_CHANGE:
       return ProgramChange(data, channel);
     case Status.CHANNEL_AFTER_TOUCH:
-      return ChannelAfterTouch(data, channel);
-    case Status.PITCH_BEND:
-      return PitchBend(data, channel);
+      return ChannelAfterTouch(data, channel, offset);
     // ignore unknown running status
   }
 }
