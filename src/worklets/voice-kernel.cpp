@@ -60,7 +60,7 @@ class SubOsc {
 
 	public:
 	void setOsc2Amplitude(float newOsc2Amplitude) {
-		osc2Amplitude = zeroOneRange.map(newOsc2Amplitude, midiRange);
+		osc2Amplitude = newOsc2Amplitude;
 	}
 
 	private:
@@ -176,14 +176,16 @@ class VoiceKernel {
 
 	public:
 	void setOsc1SemiShift(float newSemiShift) {
-		osc1.setSemiShift(newSemiShift);
-		subOsc.setOsc1SemiShift(newSemiShift);
+		auto shift = semiShiftRange.map(newSemiShift, midiRange);
+		osc1.setSemiShift(shift);
+		subOsc.setOsc1SemiShift(shift);
 	}
 
 	public:
 	void setOsc1CentShift(float newCentShift) {
-		osc1.setCentShift(newCentShift);
-		subOsc.setOsc1CentShift(newCentShift);
+		auto shift = centShiftRange.map(newCentShift, midiRange);
+		osc1.setCentShift(shift);
+		subOsc.setOsc1CentShift(shift);
 	}
 
 	public:
@@ -194,14 +196,16 @@ class VoiceKernel {
 
 	public:
 	void setOsc2SemiShift(float newSemiShift) {
-		osc2.setSemiShift(newSemiShift);
-		subOsc.setOsc2SemiShift(newSemiShift);
+		auto shift = semiShiftRange.map(newSemiShift, midiRange);
+		osc2.setSemiShift(shift);
+		subOsc.setOsc2SemiShift(shift);
 	}
 
 	public:
 	void setOsc2CentShift(float newCentShift) {
-		osc2.setCentShift(newCentShift);
-		subOsc.setOsc2CentShift(newCentShift);
+		auto shift = centShiftRange.map(newCentShift, midiRange);
+		osc2.setCentShift(shift);
+		subOsc.setOsc2CentShift(shift);
 	}
 
 	public:
@@ -325,6 +329,7 @@ class VoiceKernel {
 		subOsc.setOsc2Amplitude(parameters.osc2Amplitude);
 		float osc1Sample = osc1.nextSample(parameters.frequency) * parameters.osc1Amplitude();
 		float osc2Sample = osc2.nextSample(parameters.frequency) * parameters.osc2Amplitude;
+		subOsc.setOsc2Amplitude(parameters.osc2Amplitude);
 		float subOscSample = subOsc.nextSample(parameters.frequency);
 		float rawSample = (1 - subOscPresence) * (osc1Sample + osc2Sample) + subOscPresence * subOscSample;
 		return rawSample * amplitudeEnvelope.nextLevel() * finalAmplitude;

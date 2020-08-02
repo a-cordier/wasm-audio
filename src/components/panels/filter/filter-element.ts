@@ -5,23 +5,10 @@ import "../panel-wrapper-element";
 import "../../common/controls/knob-element";
 import "./filter-selector-element";
 
-interface FilterState {
-  mode: FilterMode;
-  cutoff: number;
-  resonance: number;
-}
-
 @customElement("filter-element")
 export class Filter extends LitElement {
-  @property({ type: Boolean })
-  private shouldMidiLearn = false;
-
   @property({ type: Object })
-  private state: FilterState = {
-    mode: FilterMode.LOWPASS,
-    cutoff: 0,
-    resonance: 0,
-  };
+  private state: any;
 
   onCutoffChange(event: CustomEvent) {
     this.dispatchChange(FilterEvent.CUTOFF, event.detail.value);
@@ -45,7 +32,7 @@ export class Filter extends LitElement {
         <div class="filter-controls">
           <div class="mode-control">
             <filter-selector-element
-              .value=${this.state.mode}
+              .value=${this.state.mode.value}
               @change=${this.onTypeChange}
             ></filter-selector-element>
           </div>
@@ -53,9 +40,8 @@ export class Filter extends LitElement {
             <div class="frequency-control">
               <div class="cutoff-control">
                 <knob-element
-                  .value=${this.state.cutoff}
+                  .value=${this.state.cutoff.value}
                   @change=${this.onCutoffChange}
-                  .shouldMidiLearn="${this.shouldMidiLearn}"
                 ></knob-element>
               </div>
               <label>cutoff</label>
@@ -63,9 +49,8 @@ export class Filter extends LitElement {
             <div class="frequency-control">
               <div class="resonance-control">
                 <knob-element
-                  .value=${this.state.resonance}
+                  .value=${this.state.resonance.value}
                   @change=${this.onResonanceChange}
-                  .shouldMidiLearn="${this.shouldMidiLearn}"
                 ></knob-element>
               </div>
               <label>reson.</label>

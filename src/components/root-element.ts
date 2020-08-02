@@ -3,7 +3,6 @@ import { LitElement, html, css, customElement, property } from "lit-element";
 import "./common/controls/keys-element";
 import "./visualizer-element";
 import "./common/controls/knob-element";
-import "./common/controls/switch-element";
 import "./common/icons/sawtooth-wave-icon";
 import "./common/icons/square-wave-icon";
 import "./common/icons/sine-wave-icon";
@@ -14,16 +13,23 @@ import "./panels/filter/filter-element";
 import "./panels/envelope/envelope-element";
 import "./panels/filter-mod/filter-envelope-element";
 import "./panels/lfo/lfo-element";
+import "./panels/menu/menu-element";
 import "./panels/panel-wrapper-element";
 
 import { VoiceManager } from "../core/voice-manager";
-import { GlobalDispatcher, DispatcherEvent } from "../core/dispatcher";
 
 import { OscillatorEvent } from "../types/oscillator-event";
 import { FilterEvent } from "../types/filter-event";
 import { FilterEnvelopeEvent } from "../types/filter-envelope-event";
 import { OscillatorEnvelopeEvent } from "../types/oscillator-envelope-event";
 import { LfoEvent } from "../types/lfo-event";
+import { createMidiController } from "../core/midi/midi-controller";
+import { MidiOmniChannel } from "../core/midi/midi-channels";
+import { Dispatcher } from "../core/dispatcher";
+import { MidiController } from "../types/midi-controller";
+import { MenuMode } from "../types/menu-mode";
+import { VoiceEvent } from "../types/voice-event";
+import { VoiceState } from "../types/voice";
 
 @customElement("child-element")
 export class Root extends LitElement {
@@ -32,44 +38,83 @@ export class Root extends LitElement {
   @property({ type: Object })
   private analyzer: AnalyserNode;
 
-  @property({ type: Boolean })
-  private shouldMidiLearn = false;
-
+  private midiController: MidiController & Dispatcher;
   private voiceManager: VoiceManager;
 
-  async connectedCallback() {
-    super.connectedCallback();
+  private state: Partial<VoiceState>;
+
+  constructor() {
+    super();
     this.audioContext = new AudioContext();
     this.analyzer = this.audioContext.createAnalyser();
     this.voiceManager = new VoiceManager(this.audioContext);
-    this.voiceManager.connect(this.analyzer);
+    this.state = this.voiceManager.getState();
+    this.registerVoiceHandlers = this.registerVoiceHandlers.bind(this);
+  }
+
+  async connectedCallback() {
+    super.connectedCallback();
+    this.midiController = await createMidiController(MidiOmniChannel);
+    this.voiceManager
+      .setMidiController(this.midiController)
+      .connect(this.analyzer);
     this.analyzer.connect(this.audioContext.destination);
     await this.audioContext.audioWorklet.addModule("voice-processor.js");
-    this.registerMidiLearners();
+    this.registerVoiceHandlers();
   }
 
   async onKeyOn(event: CustomEvent) {
     if (this.audioContext.state === "suspended") {
       await this.audioContext.resume();
     }
-    const { frequency, midiValue, channel } = event.detail;
-    this.voiceManager.next({ frequency, midiValue, channel });
+    const { frequency, midiValue } = event.detail;
+    this.voiceManager.next({ frequency, midiValue });
   }
 
   onKeyOff(event: CustomEvent) {
-    const { midiValue, channel } = event.detail;
-    this.voiceManager.stop({ midiValue, channel });
+    const { midiValue } = event.detail;
+    this.voiceManager.stop({ midiValue });
   }
 
-  notifyMidiLearners(event: CustomEvent) {
-    GlobalDispatcher.dispatch(DispatcherEvent.SHOULD_MIDI_LEARN, event.detail);
+  registerVoiceHandlers() {
+    this.voiceManager
+      .subscribe(VoiceEvent.OSC1, (newState) => {
+        this.state.osc1 = newState;
+        this.requestUpdate();
+      })
+      .subscribe(VoiceEvent.OSC_MIX, (newState) => {
+        this.state.osc2Amplitude = newState;
+        this.requestUpdate();
+      })
+      .subscribe(VoiceEvent.OSC2, (newState) => {
+        this.state.osc2 = newState;
+        this.requestUpdate();
+      })
+      .subscribe(VoiceEvent.FILTER, (newState) => {
+        this.state.filter = newState;
+        this.requestUpdate();
+      })
+      .subscribe(VoiceEvent.ENVELOPE, (newState) => {
+        this.state.envelope = newState;
+        this.requestUpdate();
+      })
+      .subscribe(VoiceEvent.LFO1, (newState) => {
+        this.state.lfo1 = newState;
+        this.requestUpdate();
+      })
+      .subscribe(VoiceEvent.LFO2, (newState) => {
+        this.state.lfo2 = newState;
+        this.requestUpdate();
+      })
+      .subscribe(VoiceEvent.CUTOFF_MOD, (newState) => {
+        this.state.cutoffMod = newState;
+        this.requestUpdate();
+      });
   }
 
-  registerMidiLearners() {
-    GlobalDispatcher.subscribe(DispatcherEvent.SHOULD_MIDI_LEARN, (event) => {
-      this.shouldMidiLearn = event.detail.value;
-    });
-  }
+  notifyMidiLearners(event: CustomEvent) {}
+
+  registerMidiLearners() {}
 
   onOsc1Change(event: CustomEvent) {
     switch (event.detail.type) {
@@ -180,69 +225,70 @@ export class Root extends LitElement {
     }
   }
 
+  onMenuChange(event: CustomEvent) {
+    const { type, option } = event.detail;
+    switch (type) {
+      case MenuMode.MIDI_LEARN:
+        this.midiController.setMidiLearnerID(option.value);
+    }
+  }
+
   render() {
     return html`
       <div class="content">
-        <div class="visualizer">
-          <visualizer-element
-            .analyser=${this.analyzer}
-            width="1024"
-            height="300"
-          ></visualizer-element>
-        </div>
-        <switch-element @change="${this.notifyMidiLearners}"></switch-element>
         <div class="synth">
+          <div class="menu">
+            <menu-element
+              .analyser=${this.analyzer}
+              @change=${this.onMenuChange}
+            ></menu-element>
+          </div>
           <div class="oscillators">
             <oscillator-element
               label="Osc 1"
-              .state=${this.voiceManager.osc1}
+              .state=${this.state.osc1}
               @change=${this.onOsc1Change}
-              .shouldMidiLearn="${this.shouldMidiLearn}"
             ></oscillator-element>
             <div class="oscillator-mix">
               <panel-wrapper-element class="oscillator-mix-wrapper">
                 <div class="oscillator-mix-control">
                   <knob-element
                     label="osc mix"
-                    .value=${this.voiceManager.osc2Amplitude}
+                    .value=${this.state.osc2Amplitude.value as number}
                     @change=${this.onOscMixChange}
-                    .shouldMidiLearn="${this.shouldMidiLearn}"
                   ></knob-element>
                 </div>
               </panel-wrapper-element>
             </div>
             <oscillator-element
               label="Osc 2"
-              .state=${this.voiceManager.osc1}
+              .state=${this.state.osc2}
               @change=${this.onOsc2Change}
-              .shouldMidiLearn="${this.shouldMidiLearn}"
             ></oscillator-element>
             <filter-element
-              .state=${this.voiceManager.filter}
+              .state=${this.state.filter}
               @change=${this.onFilterChange}
-              .shouldMidiLearn="${this.shouldMidiLearn}"
             ></filter-element>
           </div>
           <div class="envelopes">
             <envelope-element
               label="envelope"
-              .state=${this.voiceManager.osc1Envelope}
+              .state=${this.state.envelope}
               @change=${this.onOsc1EnvelopeChange}
             ></envelope-element>
             <lfo-element
               label="lfo 1"
+              .state=${this.state.lfo1}
               @change=${this.onLfo1Change}
-              .shouldMidiLearn="${this.shouldMidiLearn}"
             ></lfo-element>
             <lfo-element
               label="lfo 2"
+              .state=${this.state.lfo2}
               @change=${this.onLfo2Change}
-              .shouldMidiLearn="${this.shouldMidiLearn}"
             ></lfo-element>
             <filter-envelope-element
-              .state=${this.voiceManager.cutoffEnvelope}
+              .state=${this.state.cutoffMod}
               @change=${this.onFilterEnvelopeChange}
-              .shouldMidiLearn="${this.shouldMidiLearn}"
             ></filter-envelope-element>
           </div>
         </div>
@@ -254,6 +300,13 @@ export class Root extends LitElement {
               @keyOff=${this.onKeyOff}
             ></keys-element>
           </div>
+        </div>
+        <div class="visualizer">
+          <visualizer-element
+            .analyser=${this.analyzer}
+            width="650"
+            height="200"
+          ></visualizer-element>
         </div>
       </div>
     `;
@@ -274,7 +327,7 @@ export class Root extends LitElement {
       }
 
       .menu {
-        margin: 10px 0;
+        margin: 0 0 10px 0;
       }
 
       .synth {

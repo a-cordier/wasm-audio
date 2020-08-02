@@ -36,12 +36,14 @@ export class SelectOptions {
     if (++this.currentOption >= this.options.length) {
       this.currentOption = 0;
     }
+    return this;
   }
 
   previous() {
     if (--this.currentOption < 0) {
       this.currentOption = this.options.length - 1;
     }
+    return this;
   }
 
   getCurrent(): SelectOption {

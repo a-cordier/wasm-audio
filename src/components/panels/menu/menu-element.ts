@@ -18,7 +18,7 @@ export class Menu extends LitElement {
         <div class="button-wrapper">
           <button
             class="${this.computeButtonClasses(MenuMode.PRESET)}"
-            @click=${this.switchModeHandler(MenuMode.MIDI_CHANNEL)}
+            @click=${this.createSwitchModeHandler(MenuMode.MIDI_CHANNEL)}
           >
             PRESET
           </button>
@@ -26,7 +26,7 @@ export class Menu extends LitElement {
         <div class="button-wrapper">
           <button
             class="${this.computeButtonClasses(MenuMode.MIDI_CHANNEL)}"
-            @click=${this.switchModeHandler(MenuMode.MIDI_CHANNEL)}
+            @click=${this.createSwitchModeHandler(MenuMode.MIDI_CHANNEL)}
           >
             CHANNEL
           </button>
@@ -34,7 +34,7 @@ export class Menu extends LitElement {
         <div class="button-wrapper">
           <button
             class="${this.computeButtonClasses(MenuMode.MIDI_LEARN)}"
-            @click=${this.switchModeHandler(MenuMode.MIDI_LEARN)}
+            @click=${this.createSwitchModeHandler(MenuMode.MIDI_LEARN)}
           >
             LEARN
           </button>
@@ -58,16 +58,18 @@ export class Menu extends LitElement {
     });
   }
 
-  switchModeHandler(mode: MenuMode) {
+  createSwitchModeHandler(mode: MenuMode) {
     switch (mode) {
       case MenuMode.MIDI_CHANNEL:
         return () => {
           this.mode = MenuMode.MIDI_CHANNEL;
+          this.dispatchChange();
           this.requestUpdate();
         };
       case MenuMode.MIDI_LEARN:
         return () => {
           this.mode = MenuMode.MIDI_LEARN;
+          this.dispatchChange();
           this.requestUpdate();
         };
     }
@@ -75,12 +77,25 @@ export class Menu extends LitElement {
 
   nextOption() {
     this.options.next();
+    this.dispatchChange();
     this.requestUpdate();
   }
 
   previousOption() {
     this.options.previous();
+    this.dispatchChange();
     this.requestUpdate();
+  }
+
+  dispatchChange() {
+    this.dispatchEvent(
+      new CustomEvent("change", {
+        detail: {
+          type: this.mode,
+          option: this.options.getCurrent(),
+        },
+      })
+    );
   }
 
   get options() {
@@ -99,6 +114,7 @@ export class Menu extends LitElement {
       .menu {
         display: flex;
         --lcd-screen-height: 15px;
+        --lcd-screen-width: 130px;
       }
 
       .lcd-wrapper {

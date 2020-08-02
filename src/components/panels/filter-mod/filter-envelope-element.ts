@@ -6,15 +6,8 @@ import "../../common/controls/knob-element";
 
 @customElement("filter-envelope-element")
 export class FilterEnvelope extends LitElement {
-  @property({ type: Boolean })
-  private shouldMidiLearn = false;
-
   @property({ type: Object })
-  private state = {
-    attack: 0,
-    decay: 127 / 2,
-    amount: 0,
-  };
+  private state;
 
   onAttackChange(event: CustomEvent) {
     this.dispatchChange(FilterEnvelopeEvent.ATTACK, event.detail.value);
@@ -39,21 +32,20 @@ export class FilterEnvelope extends LitElement {
           <div class="time-controls">
             <fader-element
               label="A"
-              .value=${this.state.attack}
+              .value=${this.state.attack.value as number}
               @change=${this.onAttackChange}
             ></fader-element>
             <fader-element
               label="D"
-              .value=${this.state.decay}
+              .value=${this.state.decay.value as number}
               @change=${this.onDecayChange}
             ></fader-element>
           </div>
           <div class="mod-control">
             <knob-element
               label="mod."
-              .value=${this.state.amount}
+              .value=${this.state.amount.value as number}
               @change=${this.onAmountChange}
-              .shouldMidiLearn="${this.shouldMidiLearn}"
             ></knob-element>
           </div>
         </div>

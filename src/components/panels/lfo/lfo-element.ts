@@ -6,7 +6,8 @@ import "../oscillator/wave-selector-element";
 import "../../common/controls/knob-element";
 import "../panel-wrapper-element";
 import "./lcd-selector-element";
-import { lfoDestinations } from "../../../types/lfo-destination";
+import { LfoDestination } from "../../../types/lfo-destination";
+import { SelectOptions } from "../../../types/select-option";
 
 @customElement("lfo-element")
 export class Lfo extends LitElement {
@@ -14,19 +15,19 @@ export class Lfo extends LitElement {
   private label = "LFO";
 
   @property({ type: Object })
-  private state = {
-    mode: OscillatorMode.SAWTOOTH,
-    destinations: lfoDestinations,
-    frequency: 127 / 2,
-    modAmount: 0,
-  };
+  private state: any;
+
+  private destinations = new SelectOptions([
+    { value: LfoDestination.OSCILLATOR_MIX, name: "OSC MIX" },
+    { value: LfoDestination.FREQUENCY, name: "FREQUENCY" },
+    { value: LfoDestination.CUTOFF, name: "CUTOFF" },
+    { value: LfoDestination.RESONANCE, name: "RESONANCE" },
+  ]);
 
   @property({ type: Boolean })
   private shouldMidiLearn = false;
 
   onFrequencyChange(event: CustomEvent) {
-    this.state.destinations.next();
-    this.requestUpdate();
     this.dispatchChange(LfoEvent.FREQUENCY, event.detail.value);
   }
 
@@ -52,13 +53,13 @@ export class Lfo extends LitElement {
         <div class="lfo-controls">
           <div class="wave-control">
             <wave-selector-element
-              .value=${this.state.mode}
+              .value=${this.state.mode.value as OscillatorMode}
               @change=${this.onWaveFormChange}
             ></wave-selector-element>
           </div>
           <div class="destination-control">
             <lcd-selector-element
-              .options=${this.state.destinations}
+              .options=${this.destinations}
               @change=${this.onDestinationChange}
             ></lcd-selector-element>
           </div>
@@ -66,7 +67,7 @@ export class Lfo extends LitElement {
             <div class="modulation-control">
               <div class="frequency-control">
                 <knob-element
-                  .value=${this.state.frequency}
+                  .value=${this.state.frequency.value as number}
                   @change=${this.onFrequencyChange}
                   .shouldMidiLearn=${this.shouldMidiLearn}
                 ></knob-element>
@@ -76,7 +77,7 @@ export class Lfo extends LitElement {
             <div class="modulation-control">
               <div class="mod-amount-control">
                 <knob-element
-                  .value=${this.state.modAmount}
+                  .value=${this.state.modAmount.value as number}
                   @change=${this.onModAmountChange}
                   .shouldMidiLearn=${this.shouldMidiLearn}
                 ></knob-element>

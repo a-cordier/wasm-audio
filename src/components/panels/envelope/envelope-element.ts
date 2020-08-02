@@ -5,19 +5,15 @@ import "../../common/controls/fader-element";
 
 @customElement("envelope-element")
 export class Envelope extends LitElement {
-  @property({ type: Boolean })
-  private shouldMidiLearn = false;
-
   @property({ type: String })
   private label = "Envelope";
 
   @property({ type: Object })
-  private state = {
-    attack: 0,
-    decay: 127 / 2,
-    sustain: 100,
-    release: 12,
-  };
+  private state;
+
+  constructor() {
+    super();
+  }
 
   onAttackChange(event: CustomEvent) {
     this.dispatchChange(OscillatorEnvelopeEvent.ATTACK, event.detail.value);
@@ -45,22 +41,22 @@ export class Envelope extends LitElement {
         <div class="envelope-controls">
           <fader-element
             label="A"
-            .value=${this.state.attack}
+            .value=${this.state.attack.value}
             @change=${this.onAttackChange}
           ></fader-element>
           <fader-element
             label="D"
-            .value=${this.state.decay}
+            .value=${this.state.decay.value}
             @change=${this.onDecayChange}
           ></fader-element>
           <fader-element
             label="S"
-            .value=${this.state.sustain}
+            .value=${this.state.sustain.value}
             @change=${this.onSustainChange}
           ></fader-element>
           <fader-element
             label="R"
-            .value=${this.state.release}
+            .value=${this.state.release.value}
             @change=${this.onReleaseChange}
           ></fader-element>
         </div>
