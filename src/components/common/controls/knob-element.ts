@@ -182,15 +182,6 @@ export class Knob extends LitElement {
         fill: var(--control-top-color, #ccc);
       }
 
-      @keyframes focus {
-        0% {
-          fill: var(--control-top-color, #ccc);
-        }
-        50% {
-          fill: var(--control-color-focused, #ccc);
-        }
-      }
-
       .knob__cursor {
         fill: var(--control-cursor-color, #ccc);
       }
