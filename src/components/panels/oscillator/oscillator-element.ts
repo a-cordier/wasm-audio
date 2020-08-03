@@ -5,6 +5,7 @@ import { OscillatorMode } from "../../../types/oscillator-mode";
 import "./wave-selector-element";
 import "../../common/controls/knob-element";
 import "../panel-wrapper-element";
+import { MidiControlID } from "../../../types/midi-learn-options";
 
 @customElement("oscillator-element")
 export class Oscillator extends LitElement {
@@ -13,6 +14,15 @@ export class Oscillator extends LitElement {
 
   @property({ type: Object })
   private state: any;
+
+  @property({ type: Number })
+  private currentLearnerID = MidiControlID.NONE;
+
+  @property({ type: Number })
+  private semiControlID = MidiControlID.OSC1_SEMI;
+
+  @property({ type: Number })
+  private centControlID = MidiControlID.OSC1_CENT;
 
   constructor() {
     super();
@@ -59,19 +69,29 @@ export class Oscillator extends LitElement {
           <div class="tone-controls">
             <div class="shift-control">
               <div class="semi-shift-control">
-                <knob-element
-                  .value=${this.semiShiftValue}
-                  @change=${this.onSemiShift}
-                ></knob-element>
+                <midi-control-wrapper
+                  controlID=${this.semiControlID}
+                  currentLearnerID=${this.currentLearnerID}
+                >
+                  <knob-element
+                    .value=${this.semiShiftValue}
+                    @change=${this.onSemiShift}
+                  ></knob-element>
+                </midi-control-wrapper>
               </div>
               <label>semi</label>
             </div>
             <div class="shift-control">
               <div class="cent-shift-control cent">
-                <knob-element
-                  .value=${this.centShiftValue}
-                  @change=${this.onCentShift}
-                ></knob-element>
+                <midi-control-wrapper
+                  controlID=${this.centControlID}
+                  currentLearnerID=${this.currentLearnerID}
+                >
+                  <knob-element
+                    .value=${this.centShiftValue}
+                    @change=${this.onCentShift}
+                  ></knob-element>
+                </midi-control-wrapper>
               </div>
               <label>cents</label>
             </div>
@@ -132,7 +152,7 @@ export class Oscillator extends LitElement {
 
       label {
         display: block;
-        color: white;
+        color: var(--control-label-color);
         font-size: 0.8em;
       }
     `;

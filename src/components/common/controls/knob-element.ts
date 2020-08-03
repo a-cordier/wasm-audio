@@ -188,7 +188,7 @@ export class Knob extends LitElement {
 
       .label {
         font-size: 0.8em;
-        color: var(--lighter-color);
+        color: var(--control-label-color);
         display: flex;
         justify-content: center;
       }

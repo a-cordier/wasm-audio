@@ -1,14 +1,19 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { FilterMode } from "../../../types/filter-mode";
 import { FilterEvent } from "../../../types/filter-event";
+
 import "../panel-wrapper-element";
+import "../../common/controls/midi-control-wrapper";
 import "../../common/controls/knob-element";
 import "./filter-selector-element";
+import { MidiControlID } from "../../../types/midi-learn-options";
 
 @customElement("filter-element")
 export class Filter extends LitElement {
   @property({ type: Object })
   private state: any;
+
+  @property({ type: Number })
+  private currentLearnerID = MidiControlID.NONE;
 
   onCutoffChange(event: CustomEvent) {
     this.dispatchChange(FilterEvent.CUTOFF, event.detail.value);
@@ -39,21 +44,31 @@ export class Filter extends LitElement {
           <div class="frequency-controls">
             <div class="frequency-control">
               <div class="cutoff-control">
-                <knob-element
-                  .value=${this.state.cutoff.value}
-                  @change=${this.onCutoffChange}
-                ></knob-element>
+                <midi-control-wrapper
+                  controlID=${MidiControlID.CUTOFF}
+                  currentLearnerID=${this.currentLearnerID}
+                >
+                  <knob-element
+                    label="cutoff"
+                    .value=${this.state.cutoff.value}
+                    @change=${this.onCutoffChange}
+                  ></knob-element>
+                </midi-control-wrapper>
               </div>
-              <label>cutoff</label>
             </div>
             <div class="frequency-control">
               <div class="resonance-control">
-                <knob-element
-                  .value=${this.state.resonance.value}
-                  @change=${this.onResonanceChange}
-                ></knob-element>
+                <midi-control-wrapper
+                  controlID=${MidiControlID.RESONANCE}
+                  currentLearnerID=${this.currentLearnerID}
+                >
+                  <knob-element
+                    label="reson."
+                    .value=${this.state.resonance.value}
+                    @change=${this.onResonanceChange}
+                  ></knob-element>
+                </midi-control-wrapper>
               </div>
-              <label>reson.</label>
             </div>
           </div>
         </div>

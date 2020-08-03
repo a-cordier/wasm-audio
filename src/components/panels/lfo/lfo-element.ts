@@ -8,6 +8,7 @@ import "../panel-wrapper-element";
 import "./lcd-selector-element";
 import { LfoDestination } from "../../../types/lfo-destination";
 import { SelectOptions } from "../../../types/select-option";
+import { MidiControlID } from "../../../types/midi-learn-options";
 
 @customElement("lfo-element")
 export class Lfo extends LitElement {
@@ -26,6 +27,15 @@ export class Lfo extends LitElement {
 
   @property({ type: Boolean })
   private shouldMidiLearn = false;
+
+  @property({ type: Number })
+  private currentLearnerID = MidiControlID.NONE;
+
+  @property({ type: Number })
+  private frequencyControlID = MidiControlID.LFO1_FREQ;
+
+  @property({ type: Number })
+  private modAmountControlID = MidiControlID.LFO1_MOD;
 
   onFrequencyChange(event: CustomEvent) {
     this.dispatchChange(LfoEvent.FREQUENCY, event.detail.value);
@@ -66,21 +76,31 @@ export class Lfo extends LitElement {
           <div class="modulation-controls">
             <div class="modulation-control">
               <div class="frequency-control">
-                <knob-element
-                  .value=${this.state.frequency.value as number}
-                  @change=${this.onFrequencyChange}
-                  .shouldMidiLearn=${this.shouldMidiLearn}
-                ></knob-element>
+                <midi-control-wrapper
+                  controlID=${this.frequencyControlID}
+                  currentLearnerID=${this.currentLearnerID}
+                >
+                  <knob-element
+                    .value=${this.state.frequency.value as number}
+                    @change=${this.onFrequencyChange}
+                    .shouldMidiLearn=${this.shouldMidiLearn}
+                  ></knob-element>
+                </midi-control-wrapper>
               </div>
               <label>freq.</label>
             </div>
             <div class="modulation-control">
               <div class="mod-amount-control">
-                <knob-element
-                  .value=${this.state.modAmount.value as number}
-                  @change=${this.onModAmountChange}
-                  .shouldMidiLearn=${this.shouldMidiLearn}
-                ></knob-element>
+                <midi-control-wrapper
+                  controlID=${this.modAmountControlID}
+                  currentLearnerID=${this.currentLearnerID}
+                >
+                  <knob-element
+                    .value=${this.state.modAmount.value as number}
+                    @change=${this.onModAmountChange}
+                    .shouldMidiLearn=${this.shouldMidiLearn}
+                  ></knob-element>
+                </midi-control-wrapper>
               </div>
               <label>mod.</label>
             </div>
@@ -144,7 +164,7 @@ export class Lfo extends LitElement {
 
       label {
         display: block;
-        color: white;
+        color: var(--control-label-color);
         font-size: 0.8em;
       }
     `;

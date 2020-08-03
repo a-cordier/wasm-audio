@@ -22,8 +22,8 @@ export async function createMidiController(
   const controlMap = new Map<number, MidiControlID>();
 
   let midiAccess;
-  let midiChannel = channel;
-  let midiLearnerID = MidiControlID.NONE;
+  let currentLearnerID = MidiControlID.NONE;
+  let currentChannel = channel;
 
   if (!midiNavigator.requestMIDIAccess) {
     return Promise.reject("MIDI is not supported, returning a noop dispatcher");
@@ -45,8 +45,11 @@ export async function createMidiController(
   }
 
   function dispatchMessageIfNeeded(message: Partial<MidiMessage>) {
-    const channel = message.data.channel;
-    if (channel !== midiChannel && midiChannel !== MidiOmniChannel) {
+    const messageChannel = message.data.channel;
+    if (
+      messageChannel !== currentChannel &&
+      currentChannel !== MidiOmniChannel
+    ) {
       return;
     }
     if (message.status === Status.NOTE_ON) {
@@ -61,25 +64,21 @@ export async function createMidiController(
   }
 
   function dispatchControlChangeMessage(message: Partial<MidiMessage>) {
-    message.isMidiLearning = midiLearnerID !== MidiControlID.NONE;
+    message.isMidiLearning = currentLearnerID !== MidiControlID.NONE;
     message.controlID = controlMap.get(message.data.control);
     if (message.isMidiLearning) {
-      message.controlID = midiLearnerID;
+      message.controlID = currentLearnerID;
     }
     midiDispatcher.dispatch(MidiMessageEvent.CONTROL_CHANGE, message);
   }
 
   return Object.assign(midiDispatcher, {
-    setChannel(channel: number) {
-      midiChannel = channel;
-    },
-    setMidiLearnerID(id: MidiControlID) {
-      midiLearnerID = id;
-    },
+    currentChannel,
+    currentLearnerID,
     mapControl(midiControl: number, id: MidiControlID) {
       controlMap.delete(midiControl);
       controlMap.set(midiControl, id);
-      midiLearnerID = MidiControlID.NONE;
+      currentLearnerID = MidiControlID.NONE;
     },
   });
 }

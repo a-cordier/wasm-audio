@@ -15,6 +15,7 @@ import "./panels/filter-mod/filter-envelope-element";
 import "./panels/lfo/lfo-element";
 import "./panels/menu/menu-element";
 import "./panels/panel-wrapper-element";
+import "./common/controls/midi-control-wrapper";
 
 import { VoiceManager } from "../core/voice-manager";
 
@@ -30,18 +31,17 @@ import { MidiController } from "../types/midi-controller";
 import { MenuMode } from "../types/menu-mode";
 import { VoiceEvent } from "../types/voice-event";
 import { VoiceState } from "../types/voice";
+import { MidiControlID } from "../types/midi-learn-options";
 
 @customElement("child-element")
 export class Root extends LitElement {
   private audioContext: AudioContext;
-
-  @property({ type: Object })
   private analyzer: AnalyserNode;
-
   private midiController: MidiController & Dispatcher;
   private voiceManager: VoiceManager;
-
   private state: Partial<VoiceState>;
+
+  private currentLearnerID = MidiControlID.NONE;
 
   constructor() {
     super();
@@ -49,18 +49,21 @@ export class Root extends LitElement {
     this.analyzer = this.audioContext.createAnalyser();
     this.voiceManager = new VoiceManager(this.audioContext);
     this.state = this.voiceManager.getState();
-    this.registerVoiceHandlers = this.registerVoiceHandlers.bind(this);
   }
 
   async connectedCallback() {
     super.connectedCallback();
     this.midiController = await createMidiController(MidiOmniChannel);
-    this.voiceManager
-      .setMidiController(this.midiController)
-      .connect(this.analyzer);
+    this.setUpVoiceManager();
     this.analyzer.connect(this.audioContext.destination);
     await this.audioContext.audioWorklet.addModule("voice-processor.js");
     this.registerVoiceHandlers();
+  }
+
+  setUpVoiceManager() {
+    this.voiceManager
+      .setMidiController(this.midiController)
+      .connect(this.analyzer);
   }
 
   async onKeyOn(event: CustomEvent) {
@@ -225,10 +228,14 @@ export class Root extends LitElement {
     const { type, option } = event.detail;
     switch (type) {
       case MenuMode.MIDI_LEARN:
-        return this.midiController.setMidiLearnerID(option.value);
+        this.midiController.currentLearnerID = option.value;
+        this.currentLearnerID = this.midiController.currentLearnerID;
+        break;
       case MenuMode.MIDI_CHANNEL:
-        return this.midiController.setChannel(option.value);
+        this.midiController.currentChannel = option.value;
+        break;
     }
+    this.requestUpdate();
   }
 
   render() {
@@ -243,6 +250,9 @@ export class Root extends LitElement {
           </div>
           <div class="oscillators">
             <oscillator-element
+              .currentLearnerID=${this.currentLearnerID}
+              .semiControlID=${MidiControlID.OSC1_SEMI}
+              .centControlID=${MidiControlID.OSC1_CENT}
               label="Osc 1"
               .state=${this.state.osc1}
               @change=${this.onOsc1Change}
@@ -250,41 +260,58 @@ export class Root extends LitElement {
             <div class="oscillator-mix">
               <panel-wrapper-element class="oscillator-mix-wrapper">
                 <div class="oscillator-mix-control">
-                  <knob-element
-                    label="osc mix"
-                    .value=${this.state.osc2Amplitude.value as number}
-                    @change=${this.onOscMixChange}
-                  ></knob-element>
+                  <midi-control-wrapper
+                    .controlID=${MidiControlID.OSC_MIX}
+                    .currentLearnerID=${this.currentLearnerID}
+                  >
+                    <knob-element
+                      label="osc mix"
+                      .value=${this.state.osc2Amplitude.value as number}
+                      @change=${this.onOscMixChange}
+                    ></knob-element>
+                  </midi-control-wrapper>
                 </div>
               </panel-wrapper-element>
             </div>
             <oscillator-element
+              .currentLearnerID=${this.currentLearnerID}
+              .semiControlID=${MidiControlID.OSC2_SEMI}
+              .centControlID=${MidiControlID.OSC2_CENT}
               label="Osc 2"
               .state=${this.state.osc2}
               @change=${this.onOsc2Change}
             ></oscillator-element>
             <filter-element
+              .currentLearnerID=${this.currentLearnerID}
               .state=${this.state.filter}
               @change=${this.onFilterChange}
             ></filter-element>
           </div>
           <div class="envelopes">
             <envelope-element
+              .currentLearnerID=${this.currentLearnerID}
               label="envelope"
               .state=${this.state.envelope}
               @change=${this.onOsc1EnvelopeChange}
             ></envelope-element>
             <lfo-element
+              .currentLearnerID=${this.currentLearnerID}
+              .frequencyControlID=${MidiControlID.LFO1_FREQ}
+              .modAmountControlID=${MidiControlID.LFO1_MOD}
               label="lfo 1"
               .state=${this.state.lfo1}
               @change=${this.onLfo1Change}
             ></lfo-element>
             <lfo-element
+              .currentLearnerID=${this.currentLearnerID}
+              .frequencyControlID=${MidiControlID.LFO2_FREQ}
+              .modAmountControlID=${MidiControlID.LFO2_MOD}
               label="lfo 2"
               .state=${this.state.lfo2}
               @change=${this.onLfo2Change}
             ></lfo-element>
             <filter-envelope-element
+              .currentLearnerID=${this.currentLearnerID}
               .state=${this.state.cutoffMod}
               @change=${this.onFilterEnvelopeChange}
             ></filter-envelope-element>
@@ -348,9 +375,19 @@ export class Root extends LitElement {
       .synth .oscillator-mix {
         --knob-size: 60px;
         --panel-wrapper-background-color: #7a1621;
-
         display: inline-flex;
         justify-content: center;
+      }
+
+      .synth .oscillator-mix.focused {
+        animation: control-focus 1s ease-in-out infinite;
+      }
+
+      @keyframes control-focus {
+        to {
+          --control-handle-color: #abbdcd;
+          --control-top-color: #252525;
+        }
       }
 
       .synth .oscillator-mix .oscillator-mix-control {

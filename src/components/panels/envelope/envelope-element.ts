@@ -1,6 +1,9 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { OscillatorEnvelopeEvent } from "../../../types/oscillator-envelope-event";
+import { MidiControlID } from "../../../types/midi-learn-options";
+
 import "../panel-wrapper-element";
+import "../../common/controls/midi-control-wrapper";
 import "../../common/controls/fader-element";
 
 @customElement("envelope-element")
@@ -11,9 +14,8 @@ export class Envelope extends LitElement {
   @property({ type: Object })
   private state;
 
-  constructor() {
-    super();
-  }
+  @property({ type: Number })
+  private currentLearnerID = MidiControlID.NONE;
 
   onAttackChange(event: CustomEvent) {
     this.dispatchChange(OscillatorEnvelopeEvent.ATTACK, event.detail.value);
@@ -39,26 +41,50 @@ export class Envelope extends LitElement {
     return html`
       <panel-wrapper-element .label=${this.label}>
         <div class="envelope-controls">
-          <fader-element
-            label="A"
-            .value=${this.state.attack.value}
-            @change=${this.onAttackChange}
-          ></fader-element>
-          <fader-element
-            label="D"
-            .value=${this.state.decay.value}
-            @change=${this.onDecayChange}
-          ></fader-element>
-          <fader-element
-            label="S"
-            .value=${this.state.sustain.value}
-            @change=${this.onSustainChange}
-          ></fader-element>
-          <fader-element
-            label="R"
-            .value=${this.state.release.value}
-            @change=${this.onReleaseChange}
-          ></fader-element>
+          <midi-control-wrapper
+            .controlID=${MidiControlID.ATTACK}
+            .currentLearnerID=${this.currentLearnerID}
+          >
+            <fader-element
+              class="envelope-control focus"
+              label="A"
+              .value=${this.state.attack.value}
+              @change=${this.onAttackChange}
+            ></fader-element>
+          </midi-control-wrapper>
+          <midi-control-wrapper
+            .controlID=${MidiControlID.DECAY}
+            .currentLearnerID=${this.currentLearnerID}
+          >
+            <fader-element
+              class="envelope-control"
+              label="D"
+              .value=${this.state.decay.value}
+              @change=${this.onDecayChange}
+            ></fader-element>
+          </midi-control-wrapper>
+          <midi-control-wrapper
+            .controlID=${MidiControlID.SUSTAIN}
+            .currentLearnerID=${this.currentLearnerID}
+          >
+            <fader-element
+              class="envelope-control"
+              label="S"
+              .value=${this.state.sustain.value}
+              @change=${this.onSustainChange}
+            ></fader-element>
+          </midi-control-wrapper>
+          <midi-control-wrapper
+            .controlID=${MidiControlID.RELEASE}
+            .currentLearnerID=${this.currentLearnerID}
+          >
+            <fader-element
+              class="envelope-control"
+              label="R"
+              .value=${this.state.release.value}
+              @change=${this.onReleaseChange}
+            ></fader-element>
+          </midi-control-wrapper>
         </div>
       </panel-wrapper-element>
     `;
