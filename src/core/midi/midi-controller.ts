@@ -73,8 +73,12 @@ export async function createMidiController(
   }
 
   return Object.assign(midiDispatcher, {
-    currentChannel,
-    currentLearnerID,
+    setCurrentChannel(channel: number) {
+      currentChannel = channel;
+    },
+    setCurrentLearnerID(id: MidiControlID) {
+      currentLearnerID = id;
+    },
     mapControl(midiControl: number, id: MidiControlID) {
       controlMap.delete(midiControl);
       controlMap.set(midiControl, id);

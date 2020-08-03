@@ -228,11 +228,11 @@ export class Root extends LitElement {
     const { type, option } = event.detail;
     switch (type) {
       case MenuMode.MIDI_LEARN:
-        this.midiController.currentLearnerID = option.value;
-        this.currentLearnerID = this.midiController.currentLearnerID;
+        this.midiController.setCurrentLearnerID(option.value);
+        this.currentLearnerID = option.value;
         break;
       case MenuMode.MIDI_CHANNEL:
-        this.midiController.currentChannel = option.value;
+        this.midiController.setCurrentChannel(option.value);
         break;
     }
     this.requestUpdate();
