@@ -17,6 +17,7 @@ export class Menu extends LitElement {
       <div class="menu">
         <div class="button-wrapper">
           <button
+            disabled
             class="${this.computeButtonClasses(MenuMode.PRESET)}"
             @click=${this.createSwitchModeHandler(MenuMode.MIDI_CHANNEL)}
           >
@@ -138,6 +139,11 @@ export class Menu extends LitElement {
         height: 100%;
 
         color: black;
+      }
+
+      .menu .button-wrapper button:disabled {
+        opacity: 0.5;
+        color: white;
       }
 
       .menu .button-wrapper button:focus {
