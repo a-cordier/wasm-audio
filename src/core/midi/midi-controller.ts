@@ -77,6 +77,7 @@ export async function createMidiController(
       midiLearnerID = id;
     },
     mapControl(midiControl: number, id: MidiControlID) {
+      controlMap.delete(midiControl);
       controlMap.set(midiControl, id);
       midiLearnerID = MidiControlID.NONE;
     },
