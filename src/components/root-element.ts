@@ -112,10 +112,6 @@ export class Root extends LitElement {
       });
   }
 
-  notifyMidiLearners(event: CustomEvent) {}
-
-  registerMidiLearners() {}
-
   onOsc1Change(event: CustomEvent) {
     switch (event.detail.type) {
       case OscillatorEvent.WAVE_FORM:
@@ -229,7 +225,9 @@ export class Root extends LitElement {
     const { type, option } = event.detail;
     switch (type) {
       case MenuMode.MIDI_LEARN:
-        this.midiController.setMidiLearnerID(option.value);
+        return this.midiController.setMidiLearnerID(option.value);
+      case MenuMode.MIDI_CHANNEL:
+        return this.midiController.setChannel(option.value);
     }
   }
 
