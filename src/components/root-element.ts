@@ -43,6 +43,8 @@ export class Root extends LitElement {
 
   private currentLearnerID = MidiControlID.NONE;
 
+  private showVizualizer = false;
+
   constructor() {
     super();
     this.audioContext = new AudioContext();
@@ -238,6 +240,20 @@ export class Root extends LitElement {
     this.requestUpdate();
   }
 
+  computeVizualizerIfEnabled() {
+    if (this.showVizualizer) {
+      return html`
+        <div class="visualizer">
+          <visualizer-element
+            .analyser=${this.analyzer}
+            width="650"
+            height="200"
+          ></visualizer-element>
+        </div>
+      `;
+    }
+  }
+
   render() {
     return html`
       <div class="content">
@@ -326,13 +342,7 @@ export class Root extends LitElement {
             ></keys-element>
           </div>
         </div>
-        <div class="visualizer">
-          <visualizer-element
-            .analyser=${this.analyzer}
-            width="650"
-            height="200"
-          ></visualizer-element>
-        </div>
+        ${this.computeVizualizerIfEnabled()}
       </div>
     `;
   }
