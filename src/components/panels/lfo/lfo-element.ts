@@ -70,6 +70,7 @@ export class Lfo extends LitElement {
           <div class="destination-control">
             <lcd-selector-element
               .options=${this.destinations}
+              .value=${this.state.destination.value}
               @change=${this.onDestinationChange}
             ></lcd-selector-element>
           </div>

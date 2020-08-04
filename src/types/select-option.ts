@@ -27,6 +27,13 @@ export class SelectOptions {
     return this.currentOption;
   }
 
+  selectValue(value) {
+    const idx = this.options.findIndex((option) => option.value === value);
+    if (idx > -1) {
+      this.currentOption = idx;
+    }
+  }
+
   select(index: number): SelectOptions {
     this.currentOption = index;
     return this;

@@ -29,4 +29,4 @@ const Range resonanceRange{ 0.f, 0.9f };
 const Range envelopeAmountRange{ 0.f, 1.f };
 const Range semiShiftRange{ -24.f, 24.f };
 const Range centShiftRange{ -50.f, 50.f };
-const Range lfoFrequencyRange{ 0.1f, 25.f };
+const Range lfoFrequencyRange{ 0.f, 25.f };

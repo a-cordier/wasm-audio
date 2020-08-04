@@ -2,12 +2,15 @@ import { LitElement, html, css, customElement, property } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
 
 import "../../common/lcd/lcd-element";
-import { SelectOptions, SelectOption } from "../../../types/select-option";
+import { SelectOptions } from "../../../types/select-option";
 
 @customElement("lcd-selector-element")
 export class LCDSelector extends LitElement {
   @property({ type: Object })
-  public options: SelectOptions;
+  private options: SelectOptions;
+
+  @property({ type: Object })
+  private value;
 
   render() {
     return html`
@@ -18,6 +21,11 @@ export class LCDSelector extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  async connectedCallback() {
+    super.connectedCallback();
+    this.options.selectValue(this.value);
   }
 
   createOptionSelector(_: never, index: number) {
@@ -57,7 +65,7 @@ export class LCDSelector extends LitElement {
     this.dispatchChange(this.options.getCurrent());
   }
 
-  dispatchChange({ value }: SelectOption) {
+  dispatchChange({ value }) {
     this.dispatchEvent(new CustomEvent("change", { detail: { value } }));
   }
 

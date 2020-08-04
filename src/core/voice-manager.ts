@@ -28,42 +28,42 @@ export class VoiceManager extends Dispatcher {
   private state = createVoiceState({
     osc1: {
       mode: { value: OscillatorMode.SAWTOOTH },
-      semiShift: { value: 127 / 2 },
+      semiShift: { value: 127 - 127 / 4 },
       centShift: { value: 127 / 2 },
     },
     osc2: {
       mode: { value: OscillatorMode.SAWTOOTH },
       semiShift: { value: 127 / 2 },
-      centShift: { value: 127 / 2 },
+      centShift: { value: 127 - 127 / 3 },
     },
-    osc2Amplitude: { value: 127 / 2 },
+    osc2Amplitude: { value: 127 - 127 / 4 },
     envelope: {
-      attack: { value: 0 },
+      attack: { value: 127 / 12 },
       decay: { value: 127 / 2 },
       sustain: { value: 127 },
-      release: { value: 127 / 4 },
+      release: { value: 127 - 127 / 3 },
     },
     filter: {
-      mode: { value: FilterMode.LOWPASS },
-      cutoff: { value: 127 },
-      resonance: { value: 0 },
+      mode: { value: FilterMode.LOWPASS_PLUS },
+      cutoff: { value: 0 },
+      resonance: { value: 127 - 127 / 4 },
     },
     cutoffMod: {
-      attack: { value: 0 },
-      decay: { value: 127 / 2 },
-      amount: { value: 0 },
+      attack: { value: 127 / 8 },
+      decay: { value: 127 / 3 },
+      amount: { value: 127 / 4 },
     },
     lfo1: {
-      mode: { value: OscillatorMode.SINE },
-      frequency: { value: 127 / 2 },
-      modAmount: { value: 0 },
-      destination: { value: LfoDestination.OSCILLATOR_MIX },
+      mode: { value: OscillatorMode.SQUARE },
+      frequency: { value: 127 / 8 },
+      modAmount: { value: 127 },
+      destination: { value: LfoDestination.FREQUENCY },
     },
     lfo2: {
-      mode: { value: OscillatorMode.SINE },
-      frequency: { value: 127 / 2 },
-      modAmount: { value: 0 },
-      destination: { value: LfoDestination.OSCILLATOR_MIX },
+      mode: { value: OscillatorMode.SQUARE },
+      frequency: { value: 127 / 4 },
+      modAmount: { value: 127 - 127 / 8 },
+      destination: { value: LfoDestination.CUTOFF },
     },
   });
 
@@ -214,8 +214,8 @@ export class VoiceManager extends Dispatcher {
           ...{ modAmount: control.clone() },
         });
       case MidiControlID.LFO2_FREQ:
-        return this.dispatch(VoiceEvent.LFO1, {
-          ...this.state.lfo1,
+        return this.dispatch(VoiceEvent.LFO2, {
+          ...this.state.lfo2,
           ...{ frequency: control.clone() },
         });
       case MidiControlID.LFO2_MOD:

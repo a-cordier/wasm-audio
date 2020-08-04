@@ -175,11 +175,11 @@ export function mapState(state: Partial<VoiceState>): Partial<VoiceState> {
       destination: new SelectControl(state.lfo2.destination.value),
       frequency: new MidiControl(
         MidiControlID.LFO2_FREQ,
-        state.lfo1.frequency.value
+        state.lfo2.frequency.value
       ),
       modAmount: new MidiControl(
         MidiControlID.LFO2_MOD,
-        state.lfo1.modAmount.value
+        state.lfo2.modAmount.value
       ),
     },
   };
