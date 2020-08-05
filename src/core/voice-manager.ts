@@ -3,13 +3,14 @@ import { Voice, createVoiceState } from "../types/voice";
 import { OscillatorMode } from "../types/oscillator-mode";
 import { FilterMode } from "../types/filter-mode";
 import { LfoDestination } from "../types/lfo-destination";
-import { MidiControl, SelectControl } from "../types/control";
+import { MidiControl } from "../types/control";
 import { MidiControlID } from "../types/midi-learn-options";
 import { Dispatcher } from "./dispatcher";
 import { MidiMessageEvent, MidiMessage } from "../types/midi-message";
-import { createNotes, midiToNote } from "./midi/midi-note";
+import { midiToNote } from "./midi/midi-note";
 import { MidiController } from "../types/midi-controller";
 import { VoiceEvent } from "../types/voice-event";
+import { KeyboardMessage } from "../types/keyboard-messsage";
 
 export function* createVoiceGenerator(
   audioContext: AudioContext
@@ -32,7 +33,7 @@ export class VoiceManager extends Dispatcher {
       centShift: { value: 127 / 2 },
     },
     osc2: {
-      mode: { value: OscillatorMode.SAWTOOTH },
+      mode: { value: OscillatorMode.SINE },
       semiShift: { value: 127 / 2 },
       centShift: { value: 127 - 127 / 3 },
     },
@@ -41,11 +42,11 @@ export class VoiceManager extends Dispatcher {
       attack: { value: 127 / 12 },
       decay: { value: 127 / 2 },
       sustain: { value: 127 },
-      release: { value: 127 - 127 / 3 },
+      release: { value: 127 / 4 },
     },
     filter: {
       mode: { value: FilterMode.LOWPASS_PLUS },
-      cutoff: { value: 0 },
+      cutoff: { value: 127 / 4 },
       resonance: { value: 127 - 127 / 4 },
     },
     cutoffMod: {
@@ -62,7 +63,7 @@ export class VoiceManager extends Dispatcher {
     lfo2: {
       mode: { value: OscillatorMode.SQUARE },
       frequency: { value: 127 / 4 },
-      modAmount: { value: 127 - 127 / 8 },
+      modAmount: { value: 127 / 12 },
       destination: { value: LfoDestination.CUTOFF },
     },
   });
@@ -120,6 +121,13 @@ export class VoiceManager extends Dispatcher {
       .subscribe(MidiMessageEvent.NOTE_OFF, this.onMidiNoteOff)
       .subscribe(MidiMessageEvent.CONTROL_CHANGE, this.onMidiCC);
     this.midiController = midiController;
+    return this;
+  }
+
+  setKeyBoardcontroller(keyBoardController: Dispatcher) {
+    keyBoardController
+      .subscribe(KeyboardMessage.NOTE_ON, this.onMidiNoteOn)
+      .subscribe(KeyboardMessage.NOTE_OFF, this.onMidiNoteOff);
     return this;
   }
 

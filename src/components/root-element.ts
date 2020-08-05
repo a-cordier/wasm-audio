@@ -32,6 +32,7 @@ import { MenuMode } from "../types/menu-mode";
 import { VoiceEvent } from "../types/voice-event";
 import { VoiceState } from "../types/voice";
 import { MidiControlID } from "../types/midi-learn-options";
+import { KeyBoardController } from "../core/keyboard-controller";
 
 @customElement("child-element")
 export class Root extends LitElement {
@@ -65,6 +66,7 @@ export class Root extends LitElement {
   setUpVoiceManager() {
     this.voiceManager
       .setMidiController(this.midiController)
+      .setKeyBoardcontroller(new KeyBoardController())
       .connect(this.analyzer);
   }
 
