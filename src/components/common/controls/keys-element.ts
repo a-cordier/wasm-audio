@@ -5,11 +5,6 @@ import {
   computeOctave,
   computePitchClassIndex,
 } from "../../../core/midi/midi-note";
-import {
-  newMidiMessage,
-  isNote,
-  Status,
-} from "../../../core/midi/midi-message";
 
 const octaves = createMidiOctaves(440).map(mapKeys);
 
@@ -41,10 +36,7 @@ export class Keys extends LitElement {
   public higherKey = 59;
 
   @property({ type: Object })
-  private pressedKeys = new Set();
-
-  @property({ type: Number })
-  private midiChannel = 1;
+  private pressedKeys;
 
   private mouseControlledKey = null;
 
@@ -58,15 +50,10 @@ export class Keys extends LitElement {
   async connectedCallback() {
     super.connectedCallback();
     this.registerMouseUpHandler();
-    await this.registerMidiHandler();
   }
 
   registerMouseUpHandler() {
     document.addEventListener("mouseup", this.mouseUp.bind(this));
-  }
-
-  async registerMidiHandler() {
-    // TODO: HANDLE FROM VOICE MANAGER
   }
 
   mouseUp() {
@@ -100,45 +87,21 @@ export class Keys extends LitElement {
     return octaves[computeOctave(midiValue)][computePitchClassIndex(midiValue)];
   }
 
-  async onMidiMessage(message) {
-    const midiMessage = newMidiMessage(new DataView(message.data.buffer));
-
-    if (!isNote(midiMessage)) {
-      return;
-    }
-
-    if (midiMessage.data.channel !== this.midiChannel) {
-      return;
-    }
-
-    const key = this.findKey(midiMessage.data.value);
-
-    if (!key) {
-      return;
-    }
-
-    if (midiMessage.status === Status.NOTE_ON) {
-      return await this.keyOn(key);
-    }
-
-    return await this.keyOff(key);
-  }
-
   async keyOn(key) {
-    this.pressedKeys.add(key);
+    this.pressedKeys.add(key.midiValue);
     this.dispatchEvent(
       new CustomEvent("keyOn", {
-        detail: { ...key, channel: this.midiChannel },
+        detail: key,
       })
     );
     await this.requestUpdate();
   }
 
   async keyOff(key) {
-    this.pressedKeys.delete(key);
+    this.pressedKeys.delete(key.midiValue);
     this.dispatchEvent(
       new CustomEvent("keyOff", {
-        detail: { ...key, channel: this.midiChannel },
+        detail: key,
       })
     );
     await this.requestUpdate();
@@ -166,7 +129,7 @@ export class Keys extends LitElement {
   computeKeyClasses(key) {
     return classMap({
       ...key.classes,
-      "key--pressed": this.pressedKeys.has(key),
+      "key--pressed": this.pressedKeys && this.pressedKeys.has(key.midiValue),
     });
   }
 

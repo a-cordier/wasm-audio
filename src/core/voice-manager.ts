@@ -134,12 +134,13 @@ export class VoiceManager extends Dispatcher {
   onMidiNoteOn(message: MidiMessage) {
     const note = midiToNote(message.data.value);
     this.next(note);
-    this.dispatch(MidiMessageEvent.NOTE_ON, note);
+    this.dispatch(VoiceEvent.NOTE_ON, note);
   }
 
   onMidiNoteOff(message: MidiMessage) {
-    this.stop({ midiValue: message.data.value });
-    this.dispatch(MidiMessageEvent.NOTE_OFF, message);
+    const note = { midiValue: message.data.value };
+    this.stop(note);
+    this.dispatch(VoiceEvent.NOTE_OFF, note);
   }
 
   onMidiCC(message: MidiMessage) {

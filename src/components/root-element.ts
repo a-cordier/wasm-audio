@@ -33,6 +33,7 @@ import { VoiceEvent } from "../types/voice-event";
 import { VoiceState } from "../types/voice";
 import { MidiControlID } from "../types/midi-learn-options";
 import { KeyBoardController } from "../core/keyboard-controller";
+import { times } from "../core/midi/midi-util";
 
 @customElement("child-element")
 export class Root extends LitElement {
@@ -44,7 +45,10 @@ export class Root extends LitElement {
 
   private currentLearnerID = MidiControlID.NONE;
 
-  private showVizualizer = false;
+  private showVizualizer = true;
+
+  @property({ type: Object })
+  private pressedKeys = new Set<number>();
 
   constructor() {
     super();
@@ -85,6 +89,16 @@ export class Root extends LitElement {
 
   registerVoiceHandlers() {
     this.voiceManager
+      .subscribe(VoiceEvent.NOTE_ON, (note) => {
+        this.pressedKeys.add(note.midiValue);
+        this.pressedKeys = new Set([...this.pressedKeys.values()]);
+        this.requestUpdate();
+      })
+      .subscribe(VoiceEvent.NOTE_OFF, (note) => {
+        this.pressedKeys.delete(note.midiValue);
+        this.pressedKeys = new Set([...this.pressedKeys.values()]);
+        this.requestUpdate();
+      })
       .subscribe(VoiceEvent.OSC1, (newState) => {
         this.state.osc1 = newState;
         this.requestUpdate();
@@ -338,8 +352,8 @@ export class Root extends LitElement {
         <div class="sequencer">
           <div class="keys">
             <keys-element
-              midiChannel="1"
-              @keyOn="${this.onKeyOn},"
+              .pressedKeys=${this.pressedKeys}
+              @keyOn=${this.onKeyOn}
               @keyOff=${this.onKeyOff}
             ></keys-element>
           </div>
