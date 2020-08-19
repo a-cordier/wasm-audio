@@ -1,5 +1,6 @@
 DEPS = src/worklets/voice-kernel.cpp
 
+SHELL:=/bin/bash
 build: $(DEPS)
 	emcc --bind -O1 -g0 \
 	    -s WASM=1 \
