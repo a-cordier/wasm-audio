@@ -45,7 +45,7 @@ export class Root extends LitElement {
 
   private currentLearnerID = MidiControlID.NONE;
 
-  private showVizualizer = true;
+  private showVizualizer = false;
 
   @property({ type: Object })
   private pressedKeys = new Set<number>();
@@ -348,14 +348,16 @@ export class Root extends LitElement {
               @change=${this.onFilterEnvelopeChange}
             ></filter-envelope-element>
           </div>
-        </div>
-        <div class="sequencer">
-          <div class="keys">
-            <keys-element
-              .pressedKeys=${this.pressedKeys}
-              @keyOn=${this.onKeyOn}
-              @keyOff=${this.onKeyOff}
-            ></keys-element>
+          <div class="keyboard">
+            <panel-wrapper-element>
+              <div class="keys">
+                <keys-element
+                  .pressedKeys=${this.pressedKeys}
+                  @keyOn=${this.onKeyOn}
+                  @keyOff=${this.onKeyOff}
+                ></keys-element>
+              </div>
+            </panel-wrapper-element>
           </div>
         </div>
         ${this.computeVizualizerIfEnabled()}
@@ -431,10 +433,21 @@ export class Root extends LitElement {
         margin-top: 1em;
       }
 
-      .sequencer {
-        width: 30%;
-        margin: 1em auto;
+      .synth .keyboard {
         --key-height: 100px;
+        --panel-wrapper-background-color: var(--keyboard-panel-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 0.5em;
+      }
+
+      .synth .keyboard .keys {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 635px;
+        margin: -1.5em auto 0.5em 0.6em;
       }
     `;
   }

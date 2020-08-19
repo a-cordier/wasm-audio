@@ -49,6 +49,9 @@ export class Menu extends LitElement {
         <div class="button-wrapper select">
           <button @click=${this.nextOption}>NEXT</button>
         </div>
+        <div class="label">
+          WASM POLY
+        </div>
       </div>
     `;
   }
@@ -160,6 +163,17 @@ export class Menu extends LitElement {
 
       .menu .button-wrapper.select button:active {
         transform: scale(0.999);
+      }
+
+      .menu .label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2em;
+        font-weight: 700;
+        line-height: 1em;
+        color: var(--control-top-color);
+        margin-left: 1em;
       }
     `;
   }

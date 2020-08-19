@@ -30,10 +30,10 @@ function mapKeys(octave) {
 @customElement("keys-element")
 export class Keys extends LitElement {
   @property({ type: Number })
-  public lowerKey = 48;
+  public lowerKey = 36;
 
   @property({ type: Number })
-  public higherKey = 59;
+  public higherKey = 61;
 
   @property({ type: Object })
   private pressedKeys;
@@ -147,12 +147,13 @@ export class Keys extends LitElement {
       :host {
         user-select: none;
         outline: none;
+        width: 100%;
       }
 
       .octaves {
         display: flex;
         justify-content: flex-start;
-        height: var(--key-height, 150px);
+        height: var(--key-height, 100%);
       }
 
       .octave {
@@ -160,6 +161,7 @@ export class Keys extends LitElement {
 
         display: grid;
         grid-template-columns: repeat(84, 1fr);
+
         margin-left: -7px;
       }
 
