@@ -20,7 +20,7 @@ namespace Oscillator {
 		float nextSample(float frequency) {
 			frequency = shiftFrequency(frequency);
 			phaseIncrement = computePhaseIncrement(frequency);
-			float sample = amplitude * computeSample(frequency);
+			float sample = amplitude * computeSample();
 			updatePhase(frequency);
 			return sample;
 		}
@@ -58,32 +58,54 @@ namespace Oscillator {
 		}
 
 		private:
-		inline float computeSample(float frequency) {
+		inline float computeSample() {
 			switch (mode) {
 				case Mode::SINE:
-					return computeSine(frequency);
+					return computeSine();
 				case Mode::SAW:
-					return computeSaw(frequency);
+					return computeSaw();
 				case Mode::SQUARE:
-					return computeSquare(frequency);
+					return computeSquare();
 				case Mode::TRIANGLE:
-					return computeTriangle(frequency);
+					return computeTriangle();
 			}
 		}
 
 		private:
-		inline float computeSine(float frequency) {
+		inline float computeSine() {
 			return std::sin(phase);
 		}
 
 		private:
-		inline float computeSaw(float frequency) {
+		inline float computeSineApproximation() {
+			float sample = phase;
+			for (float i = 3, mult = -1; i <= 13; i += 1, mult *= -1) {
+				sample += mult * computeSineSeriesTerm(phase, i);
+			}
+			return 0.5 * sample;
+		}
+
+		private:
+		inline float computeSineSeriesTerm(float x, float range) {
+			return std::pow(x, range) / factorial(range);
+		}
+
+		private:
+		inline float factorial(float range) {
+			float fact = 1;
+			for (int i = 1; i <= range; i++)
+				fact *= i;
+			return fact;
+		}
+
+		private:
+		inline float computeSaw() {
 			float value = 1.0 - (2.0 * phase / twoPi);
 			return value - computePolyBLEP(phase / twoPi, phaseIncrement / twoPi);
 		}
 
 		private:
-		inline float computeSquare(float frequency) {
+		inline float computeSquare() {
 			auto value = phase <= pi ? 1 : -1;
 			value += computePolyBLEP(phase / twoPi, phaseIncrement / twoPi);
 			value -= computePolyBLEP(fmod(phase / twoPi + 0.5, 1.0), phaseIncrement / twoPi);
@@ -91,8 +113,8 @@ namespace Oscillator {
 		}
 
 		private:
-		inline float computeTriangle(float frequency) {
-			auto value = computeSquare(frequency);
+		inline float computeTriangle() {
+			auto value = computeSquare();
 			value = phaseIncrement * value + (1.f - phaseIncrement) * lastValue;
 			lastValue = value;
 			return value;
