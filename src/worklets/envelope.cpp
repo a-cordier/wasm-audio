@@ -5,7 +5,7 @@
 #include <iostream>
 
 namespace Envelope {
-	constexpr float epsilon = 0.001f;
+	constexpr float epsilon = 0.0001f;
 	constexpr int sampleRate = 44100;
 
 	enum class Stage {
@@ -27,11 +27,11 @@ namespace Envelope {
 	}
 
 	float computeExponentialCoefficient(float ya, float yb, unsigned long sampleCount) {
-		return (std::log(yb) - std::log(ya)) / sampleCount;
+		return (std::log(epsilonIfZero(yb)) - std::log(epsilonIfZero(ya))) / epsilonIfZero(sampleCount);
 	}
 
 	float computeLinearMultiplier(float ya, float yb, unsigned long sampleCount, unsigned long sample) {
-		return ya + sample * (yb - ya) / sampleCount;
+		return ya + sample * (yb - ya) / epsilonIfZero(sampleCount);
 	}
 
 	class TimeLine {
@@ -42,9 +42,10 @@ namespace Envelope {
 			nextStage(nextStage),
 			sample(0),
 			sampleCount(sampleCount),
-			ya(epsilonIfZero(ya)),
-			yb(epsilonIfZero(yb)),
-			exponentialCoefficient(computeExponentialCoefficient(ya, yb, sampleCount)) {}
+			ya(ya),
+			yb(yb),
+			exponentialCoefficient(computeExponentialCoefficient(ya, yb, sampleCount)) {
+		}
 
 		public:
 		void setSampleCount(int count) {
@@ -54,13 +55,13 @@ namespace Envelope {
 
 		public:
 		void setStartLevel(float value) {
-			ya = epsilonIfZero(value);
+			ya = value;
 			exponentialCoefficient = computeExponentialCoefficient(ya, yb, sampleCount);
 		}
 
 		public:
 		void setEndLevel(float value) {
-			yb = epsilonIfZero(value);
+			yb = value;
 			exponentialCoefficient = computeExponentialCoefficient(ya, yb, sampleCount);
 		}
 
@@ -101,10 +102,9 @@ namespace Envelope {
 		public:
 		Kernel(float peakLevel, float sustainLevel, float attackTime, float decayTime, float releaseTime) :
 			stage(Stage::OFF),
-			attackTimeLine(TimeLine(RampType::LINEAR, epsilonIfZero(attackTime) * sampleRate, 0.f, peakLevel, Stage::ATTACK, Stage::DECAY)),
-			// FIX ME (decayTimeLine fucks everything up when set to EXPONENTIAL)
-			decayTimeLine(TimeLine(RampType::LINEAR, epsilonIfZero(decayTime) * sampleRate, peakLevel, sustainLevel, Stage::DECAY, Stage::SUSTAIN)),
-			releaseTimeLine(TimeLine(RampType::LINEAR, epsilonIfZero(releaseTime) * sampleRate, sustainLevel, 0.f, Stage::RELEASE, Stage::DONE)) {}
+			attackTimeLine(TimeLine(RampType::LINEAR, attackTime * sampleRate, 0.f, peakLevel, Stage::ATTACK, Stage::DECAY)),
+			decayTimeLine(TimeLine(RampType::EXPONENTIAL, decayTime * sampleRate, peakLevel, sustainLevel, Stage::DECAY, Stage::SUSTAIN)),
+			releaseTimeLine(TimeLine(RampType::EXPONENTIAL, releaseTime * sampleRate, sustainLevel, 0.f, Stage::RELEASE, Stage::DONE)) {}
 
 		public:
 		float nextLevel() {
@@ -151,17 +151,17 @@ namespace Envelope {
 
 		public:
 		void setAttackTime(float seconds) {
-			attackTimeLine.setSampleCount(epsilonIfZero(seconds) * sampleRate);
+			attackTimeLine.setSampleCount(seconds * sampleRate);
 		}
 
 		public:
 		void setDecayTime(float seconds) {
-			decayTimeLine.setSampleCount(epsilonIfZero(seconds) * sampleRate);
+			decayTimeLine.setSampleCount(seconds * sampleRate);
 		}
 
 		public:
 		void setReleaseTime(float seconds) {
-			releaseTimeLine.setSampleCount(epsilonIfZero(seconds) * sampleRate);
+			releaseTimeLine.setSampleCount(seconds * sampleRate);
 		}
 
 		public:
