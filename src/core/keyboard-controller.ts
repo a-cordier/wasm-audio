@@ -21,7 +21,7 @@ type PitchClass =
 
 /* prettier-ignore */
 const keyMapping = new Map([
-  ["w", midiOctaves[3][0]],     // C3w
+  ["w", midiOctaves[3][0]],     // C3
   ["x", midiOctaves[3][2]],     // D3
   ["c", midiOctaves[3][4]],     // E3
   ["v", midiOctaves[3][5]],     // F3
