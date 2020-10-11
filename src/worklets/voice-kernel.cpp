@@ -137,7 +137,7 @@ enum class LfoDestination {
 class VoiceKernel {
 	public:
 	VoiceKernel() :
-		amplitudeEnvelope(Envelope::Kernel(1.f, 0.5f, 0.5f, 0.5f, 0.9f)),
+		amplitudeEnvelope(Envelope::Kernel(1.f, 0.f, 0.5f, 0.5f, 0.9f)),
 		cutoffEnvelope(Envelope::Kernel(1.f, 0.f, 0.01f, 2.f, 0.f)),
 		state(VoiceState::DISPOSED) {
 	}
@@ -231,7 +231,7 @@ class VoiceKernel {
 
 	public:
 	void setAmplitudeSustain(float newAmplitudeSustain) {
-		amplitudeEnvelope.setSustainLevel(sustainRange.map(newAmplitudeSustain, midiRange));
+		amplitudeEnvelope.setSustainLevel(zeroOneRange.map(newAmplitudeSustain, midiRange));
 	}
 
 	public:
@@ -323,10 +323,9 @@ class VoiceKernel {
 
 	private:
 	inline float computeRawSample(SampleParameters &parameters) {
-		static constexpr float subOscPresence = 0.5f;
+		static constexpr float subOscPresence = 0.4f;
 		static constexpr float finalAmplitude = 0.8f;
 
-		subOsc.setOsc2Amplitude(parameters.osc2Amplitude);
 		float osc1Sample = osc1.nextSample(parameters.frequency) * parameters.osc1Amplitude();
 		float osc2Sample = osc2.nextSample(parameters.frequency) * parameters.osc2Amplitude;
 		subOsc.setOsc2Amplitude(parameters.osc2Amplitude);
