@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 namespace Envelope {
 	constexpr float epsilon = 0.0001f;
@@ -86,6 +87,11 @@ namespace Envelope {
 			return stage;
 		}
 
+		public:
+		void setType(RampType newType) {
+			type = newType;
+		}
+
 		private:
 		float ya;
 		float yb;
@@ -104,7 +110,7 @@ namespace Envelope {
 			stage(Stage::OFF),
 			attackTimeLine(TimeLine(RampType::LINEAR, attackTime * sampleRate, 0.f, peakLevel, Stage::ATTACK, Stage::DECAY)),
 			decayTimeLine(TimeLine(RampType::EXPONENTIAL, decayTime * sampleRate, peakLevel, sustainLevel, Stage::DECAY, Stage::SUSTAIN)),
-			releaseTimeLine(TimeLine(RampType::EXPONENTIAL, releaseTime * sampleRate, sustainLevel, 0.f, Stage::RELEASE, Stage::DONE)) {}
+			releaseTimeLine(TimeLine(RampType::LINEAR, releaseTime * sampleRate, sustainLevel, 0.f, Stage::RELEASE, Stage::DONE)) {}
 
 		public:
 		float nextLevel() {
@@ -174,6 +180,21 @@ namespace Envelope {
 		void setPeakLevel(float level) {
 			attackTimeLine.setEndLevel(level);
 			decayTimeLine.setStartLevel(level);
+		}
+
+		public:
+		void setAttackRampType(RampType newType) {
+			attackTimeLine.setType(newType);
+		}
+
+		public:
+		void setDecayRampType(RampType newType) {
+			decayTimeLine.setType(newType);
+		}
+
+		public:
+		void setReleaseRampType(RampType newType) {
+			releaseTimeLine.setType(newType);
 		}
 
 		private:
