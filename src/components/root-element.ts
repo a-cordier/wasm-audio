@@ -45,7 +45,7 @@ export class Root extends LitElement {
 
   private currentLearnerID = MidiControlID.NONE;
 
-  private showVizualizer = false;
+  private showVizualizer = true;
 
   @property({ type: Object })
   private pressedKeys = new Set<number>();
@@ -147,19 +147,19 @@ export class Root extends LitElement {
     }
   }
 
-  onOsc1EnvelopeChange(event: CustomEvent) {
+  onAmplitudeEnvelopeChange(event: CustomEvent) {
     switch (event.detail.type) {
       case OscillatorEnvelopeEvent.ATTACK:
-        this.voiceManager.setOsc1EnvelopeAttack(event.detail.value);
+        this.voiceManager.setAmplitudeEnvelopeAttack(event.detail.value);
         break;
       case OscillatorEnvelopeEvent.DECAY:
-        this.voiceManager.setOsc1EnvelopeDecay(event.detail.value);
+        this.voiceManager.setAmplitudeEnvelopeDecay(event.detail.value);
         break;
       case OscillatorEnvelopeEvent.SUSTAIN:
-        this.voiceManager.setOsc1EnvelopeSustain(event.detail.value);
+        this.voiceManager.setAmplitudeEnvelopeSustain(event.detail.value);
         break;
       case OscillatorEnvelopeEvent.RELEASE:
-        this.voiceManager.setOsc1EnvelopeRelease(event.detail.value);
+        this.voiceManager.setAmplitudeEnvelopeRelease(event.detail.value);
         break;
     }
   }
@@ -324,7 +324,7 @@ export class Root extends LitElement {
               .currentLearnerID=${this.currentLearnerID}
               label="envelope"
               .state=${this.state.envelope}
-              @change=${this.onOsc1EnvelopeChange}
+              @change=${this.onAmplitudeEnvelopeChange}
             ></envelope-element>
             <lfo-element
               .currentLearnerID=${this.currentLearnerID}

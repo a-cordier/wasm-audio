@@ -28,6 +28,48 @@ export class VoiceManager extends Dispatcher {
 
   private state = createVoiceState({
     osc1: {
+      mode: { value: OscillatorMode.SINE },
+      semiShift: { value: 127 - 127 / 4 },
+      centShift: { value: 127 / 2 },
+    },
+    osc2: {
+      mode: { value: OscillatorMode.SINE },
+      semiShift: { value: 127 / 2 },
+      centShift: { value: 127 - 127 / 3 },
+    },
+    osc2Amplitude: { value: 0 },
+    envelope: {
+      attack: { value: 1 },
+      decay: { value: 127 / 2 },
+      sustain: { value: 127 / 4 },
+      release: { value: 1 },
+    },
+    filter: {
+      mode: { value: FilterMode.LOWPASS_PLUS },
+      cutoff: { value: 127 },
+      resonance: { value: 0 },
+    },
+    cutoffMod: {
+      attack: { value: 127 / 8 },
+      decay: { value: 127 / 3 },
+      amount: { value: 0 },
+    },
+    lfo1: {
+      mode: { value: OscillatorMode.SQUARE },
+      frequency: { value: 127 / 8 },
+      modAmount: { value: 0 },
+      destination: { value: LfoDestination.FREQUENCY },
+    },
+    lfo2: {
+      mode: { value: OscillatorMode.SQUARE },
+      frequency: { value: 127 / 4 },
+      modAmount: { value: 0 },
+      destination: { value: LfoDestination.CUTOFF },
+    },
+  });
+
+  private _state = createVoiceState({
+    osc1: {
       mode: { value: OscillatorMode.SAWTOOTH },
       semiShift: { value: 127 - 127 / 4 },
       centShift: { value: 127 / 2 },
@@ -39,10 +81,10 @@ export class VoiceManager extends Dispatcher {
     },
     osc2Amplitude: { value: 127 - 127 / 4 },
     envelope: {
-      attack: { value: 127 / 12 },
-      decay: { value: 127 / 2 },
-      sustain: { value: 127 },
-      release: { value: 127 / 4 },
+      attack: { value: 0 },
+      decay: { value: 127 / 4 },
+      sustain: { value: 127 / 2 },
+      release: { value: 0 },
     },
     filter: {
       mode: { value: FilterMode.LOWPASS_PLUS },
@@ -93,7 +135,7 @@ export class VoiceManager extends Dispatcher {
     voice.osc2Amplitude.value = this.state.osc2Amplitude.value;
     voice.amplitudeAttack.value = this.state.envelope.attack.value;
     voice.amplitudeDecay.value = this.state.envelope.decay.value;
-    voice.amplitudeSustain.value = this.state.envelope.decay.value;
+    voice.amplitudeSustain.value = this.state.envelope.sustain.value;
     voice.amplitudeRelease.value = this.state.envelope.release.value;
     voice.filterMode = this.state.filter.mode.value;
     voice.cutoff.value = this.state.filter.cutoff.value;
@@ -309,22 +351,22 @@ export class VoiceManager extends Dispatcher {
     return this.state.osc2;
   }
 
-  setOsc1EnvelopeAttack(newAttackTime: number) {
+  setAmplitudeEnvelopeAttack(newAttackTime: number) {
     this.state.envelope.attack.value = newAttackTime;
     return this;
   }
 
-  setOsc1EnvelopeDecay(newDecayTime: number) {
+  setAmplitudeEnvelopeDecay(newDecayTime: number) {
     this.state.envelope.decay.value = newDecayTime;
     return this;
   }
 
-  setOsc1EnvelopeSustain(newSustainLevel: number) {
+  setAmplitudeEnvelopeSustain(newSustainLevel: number) {
     this.state.envelope.sustain.value = newSustainLevel;
     return this;
   }
 
-  setOsc1EnvelopeRelease(newReleaseTime: number) {
+  setAmplitudeEnvelopeRelease(newReleaseTime: number) {
     this.state.envelope.release.value = newReleaseTime;
     return this;
   }
