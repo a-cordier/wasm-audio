@@ -1,5 +1,6 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { styleMap } from "lit-html/directives/style-map";
+import { clamp } from "./clamp";
 
 @customElement("fader-element")
 export class Fader extends LitElement {
@@ -16,7 +17,7 @@ export class Fader extends LitElement {
     const height = wrapper.offsetHeight;
     const position = event.pageY - (parent.offsetTop + wrapper.offsetTop);
 
-    this.updateValue((1 - position / height) * 128);
+    this.updateValue((1 - position / height) * 127);
 
     const drag = (event: DragEvent) => {
       event.preventDefault();
@@ -38,10 +39,7 @@ export class Fader extends LitElement {
   }
 
   updateValue(value) {
-    if (value < 0 || value > 127) {
-      return;
-    }
-    this.value = value;
+    this.value = clamp({ min: 0, max: 127 }, value);
     this.dispatchEvent(
       new CustomEvent("change", { detail: { value: this.value } })
     );
