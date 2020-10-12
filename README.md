@@ -14,6 +14,5 @@ Assemble a simple synth using in house (read "stolen here and there on the web")
 ## :construction: Work in progress
 
 - Polish DSP algorithms
-- Add a keyboard handler (currently only mouse and midi keyboards are available)
 - Add a MIDI device selector
 - Add a sequencer
