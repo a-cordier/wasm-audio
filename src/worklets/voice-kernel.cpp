@@ -2,6 +2,7 @@
 #include "filter.cpp"
 #include "oscillator.cpp"
 #include "range.cpp"
+#include "sample-parameters.cpp"
 #include <algorithm>
 #include <bitset>
 #include <cmath>
@@ -70,63 +71,6 @@ class SubOsc {
 	float osc2Amplitude;
 };
 
-struct SampleParameters {
-	float frequency;
-	float osc2Amplitude;
-	float cutoff;
-	float resonance;
-
-	float lfo1Frequency;
-	float lfo1ModAmount;
-
-	float lfo2Frequency;
-	float lfo2ModAmount;
-
-	SampleParameters &setFrequency(float newFrequency) {
-		frequency = newFrequency;
-		return *this;
-	}
-
-	SampleParameters &setOsc2Amplitude(float newOsc2Amplitude) {
-		osc2Amplitude = newOsc2Amplitude;
-		return *this;
-	}
-
-	SampleParameters &setCutoff(float newCutoff) {
-		cutoff = newCutoff;
-		return *this;
-	}
-
-	SampleParameters &setResonance(float newResonance) {
-		resonance = newResonance;
-		return *this;
-	}
-
-	SampleParameters &setLfo1Frequency(float newFrequency) {
-		lfo1Frequency = newFrequency;
-		return *this;
-	}
-
-	SampleParameters &setLfo1ModAmount(float newModAmount) {
-		lfo1ModAmount = newModAmount;
-		return *this;
-	}
-
-	SampleParameters &setLfo2Frequency(float newFrequency) {
-		lfo2Frequency = newFrequency;
-		return *this;
-	}
-
-	SampleParameters &setLfo2ModAmount(float newModAmount) {
-		lfo2ModAmount = newModAmount;
-		return *this;
-	}
-
-	float osc1Amplitude() {
-		return 1.f - osc2Amplitude;
-	}
-};
-
 enum class LfoDestination {
 	FREQUENCY = 0,
 	OSCILLATOR_MIX = 1,
@@ -150,19 +94,10 @@ class VoiceKernel {
 		for (unsigned channel = 0; channel < channelCount; ++channel) {
 			float *channelBuffer = outputBuffer + channel * kRenderQuantumFrames;
 
-			for (auto i = 0; i < kRenderQuantumFrames; ++i) {
-				sampleParameters
-								.setFrequency(getCurrentValue(frequencyValues, i))
-								.setOsc2Amplitude(getCurrentValue(osc2AmplitudeValues, i, midiRange, zeroOneRange))
-								.setCutoff(getCurrentValue(cutoffValues, i, midiRange, cutoffRange))
-								.setResonance(getCurrentValue(resonanceValues, i, midiRange, resonanceRange))
-								.setLfo1Frequency(getCurrentValue(lfo1FrequencyValues, i, midiRange, lfoFrequencyRange))
-								.setLfo1ModAmount(getCurrentValue(lfo1ModAmountValues, i, midiRange, zeroOneRange))
-								.setLfo2Frequency(getCurrentValue(lfo2FrequencyValues, i, midiRange, lfoFrequencyRange))
-								.setLfo2ModAmount(getCurrentValue(lfo2ModAmountValues, i, midiRange, zeroOneRange));
-
+			for (auto sample = 0; sample < kRenderQuantumFrames; ++sample) {
 				startIfNecessary();
-				channelBuffer[i] = computeSample(sampleParameters);
+				preCompute(frequencyValues, sample);
+				channelBuffer[sample] = computeSample();
 				stopIfNecessary();
 			}
 		}
@@ -175,17 +110,13 @@ class VoiceKernel {
 	}
 
 	public:
-	void setOsc1SemiShift(float newSemiShift) {
-		auto shift = semiShiftRange.map(newSemiShift, midiRange);
-		osc1.setSemiShift(shift);
-		subOsc.setOsc1SemiShift(shift);
+	void setOsc1SemiShift(uintptr_t newSemiShiftValuesPtr) {
+		sampleParameters.osc1SemiShiftValues = reinterpret_cast<float *>(newSemiShiftValuesPtr);
 	}
 
 	public:
-	void setOsc1CentShift(float newCentShift) {
-		auto shift = centShiftRange.map(newCentShift, midiRange);
-		osc1.setCentShift(shift);
-		subOsc.setOsc1CentShift(shift);
+	void setOsc1CentShift(uintptr_t newCentShiftValuesPtr) {
+		sampleParameters.osc1CentShiftValues = reinterpret_cast<float *>(newCentShiftValuesPtr);
 	}
 
 	public:
@@ -195,22 +126,18 @@ class VoiceKernel {
 	}
 
 	public:
-	void setOsc2SemiShift(float newSemiShift) {
-		auto shift = semiShiftRange.map(newSemiShift, midiRange);
-		osc2.setSemiShift(shift);
-		subOsc.setOsc2SemiShift(shift);
+	void setOsc2SemiShift(uintptr_t newSemiShiftValuesPtr) {
+		sampleParameters.osc2SemiShiftValues = reinterpret_cast<float *>(newSemiShiftValuesPtr);
 	}
 
 	public:
-	void setOsc2CentShift(float newCentShift) {
-		auto shift = centShiftRange.map(newCentShift, midiRange);
-		osc2.setCentShift(shift);
-		subOsc.setOsc2CentShift(shift);
+	void setOsc2CentShift(uintptr_t newCentShiftValuesPtr) {
+		sampleParameters.osc2CentShiftValues = reinterpret_cast<float *>(newCentShiftValuesPtr);
 	}
 
 	public:
 	void setOsc2Amplitude(uintptr_t osc2AmplitudeValuesPtr) {
-		osc2AmplitudeValues = reinterpret_cast<float *>(osc2AmplitudeValuesPtr);
+		sampleParameters.osc2AmplitudeValues = reinterpret_cast<float *>(osc2AmplitudeValuesPtr);
 	}
 
 	public:
@@ -220,23 +147,23 @@ class VoiceKernel {
 	}
 
 	public:
-	void setAmplitudeAttack(const float newAmplitudeAttack) {
-		amplitudeEnvelope.setAttackTime(attackRange.map(newAmplitudeAttack, midiRange));
+	void setAmplitudeAttack(uintptr_t newAmplitudeAttackValuesPtr) {
+		sampleParameters.amplitudeEnvelopeAttackValues = reinterpret_cast<float *>(newAmplitudeAttackValuesPtr);
 	}
 
 	public:
-	void setAmplitudeDecay(float newAmplitudeDecay) {
-		amplitudeEnvelope.setDecayTime(decayRange.map(newAmplitudeDecay, midiRange));
+	void setAmplitudeDecay(uintptr_t newAmplitudeDecayValuesPtr) {
+		sampleParameters.amplitudeEnvelopeDecayValues = reinterpret_cast<float *>(newAmplitudeDecayValuesPtr);
 	}
 
 	public:
-	void setAmplitudeSustain(float newAmplitudeSustain) {
-		amplitudeEnvelope.setSustainLevel(zeroOneRange.map(newAmplitudeSustain, midiRange));
+	void setAmplitudeSustain(uintptr_t newAmplitudeSustainValuesPtr) {
+		sampleParameters.amplitudeEnvelopeSustainValues = reinterpret_cast<float *>(newAmplitudeSustainValuesPtr);
 	}
 
 	public:
-	void setAmplitudeRelease(float newAmplitudeRelease) {
-		amplitudeEnvelope.setReleaseTime(releaseRange.map(newAmplitudeRelease, midiRange));
+	void setAmplitudeRelease(uintptr_t newAmplitudeReleaseValuesPtr) {
+		sampleParameters.amplitudeEnvelopeReleaseValues = reinterpret_cast<float *>(newAmplitudeReleaseValuesPtr);
 	}
 
 	public:
@@ -245,28 +172,28 @@ class VoiceKernel {
 	}
 
 	public:
-	void setCutoff(uintptr_t cutoffValuesPtr) {
-		cutoffValues = reinterpret_cast<float *>(cutoffValuesPtr);
+	void setCutoff(uintptr_t newCutoffValuesPtr) {
+		sampleParameters.cutoffValues = reinterpret_cast<float *>(newCutoffValuesPtr);
 	}
 
 	public:
-	void setResonance(uintptr_t resonanceValuesPtr) {
-		resonanceValues = reinterpret_cast<float *>(resonanceValuesPtr);
+	void setResonance(uintptr_t newResonanceValuesPtr) {
+		sampleParameters.resonanceValues = reinterpret_cast<float *>(newResonanceValuesPtr);
 	}
 
 	public:
-	void setCutoffEnvelopeAmount(float newCutoffEnvelopeAmount) {
-		cutoffEnvelopeAmount = envelopeAmountRange.map(newCutoffEnvelopeAmount, midiRange);
+	void setCutoffEnvelopeAmount(uintptr_t newCutoffEnvelopeAmountValuesPtr) {
+		sampleParameters.cutoffEnvelopeAmountValues = reinterpret_cast<float *>(newCutoffEnvelopeAmountValuesPtr);
 	}
 
 	public:
-	void setCutoffEnvelopeAttack(float newCutoffEnvelopeAttack) {
-		cutoffEnvelope.setAttackTime(attackRange.map(newCutoffEnvelopeAttack, midiRange));
+	void setCutoffEnvelopeAttack(uintptr_t newCutoffEnvelopeAttackValuesPtr) {
+		sampleParameters.cutoffEnvelopeAttackValues = reinterpret_cast<float *>(newCutoffEnvelopeAttackValuesPtr);
 	}
 
 	public:
-	void setCutoffEnvelopeDecay(float newCutoffEnvelopeDecay) {
-		cutoffEnvelope.setDecayTime(decayRange.map(newCutoffEnvelopeDecay, midiRange));
+	void setCutoffEnvelopeDecay(uintptr_t newCutoffEnvelopeDecayValuesPtr) {
+		sampleParameters.cutoffEnvelopeDecayValues = reinterpret_cast<float *>(newCutoffEnvelopeDecayValuesPtr);
 	}
 
 	public:
@@ -275,13 +202,13 @@ class VoiceKernel {
 	}
 
 	public:
-	void setLfo1ModAmount(uintptr_t lfoModAmountValuesPtr) {
-		lfo1ModAmountValues = reinterpret_cast<float *>(lfoModAmountValuesPtr);
+	void setLfo1ModAmount(uintptr_t newLfoModAmountValuesPtr) {
+		sampleParameters.lfo1ModAmountValues = reinterpret_cast<float *>(newLfoModAmountValuesPtr);
 	}
 
 	public:
-	void setLfo1Frequency(uintptr_t lfoFrequencyValuesPtr) {
-		lfo1FrequencyValues = reinterpret_cast<float *>(lfoFrequencyValuesPtr);
+	void setLfo1Frequency(uintptr_t newLfoFrequencyValuesPtr) {
+		sampleParameters.lfo1FrequencyValues = reinterpret_cast<float *>(newLfoFrequencyValuesPtr);
 	}
 
 	public:
@@ -295,13 +222,13 @@ class VoiceKernel {
 	}
 
 	public:
-	void setLfo2ModAmount(uintptr_t lfoModAmountValuesPtr) {
-		lfo2ModAmountValues = reinterpret_cast<float *>(lfoModAmountValuesPtr);
+	void setLfo2ModAmount(uintptr_t newLfoModAmountValuesPtr) {
+		sampleParameters.lfo2ModAmountValues = reinterpret_cast<float *>(newLfoModAmountValuesPtr);
 	}
 
 	public:
-	void setLfo2Frequency(uintptr_t lfoFrequencyValuesPtr) {
-		lfo2FrequencyValues = reinterpret_cast<float *>(lfoFrequencyValuesPtr);
+	void setLfo2Frequency(uintptr_t newLfoFrequencyValuesPtr) {
+		sampleParameters.lfo2FrequencyValues = reinterpret_cast<float *>(newLfoFrequencyValuesPtr);
 	}
 
 	public:
@@ -315,50 +242,68 @@ class VoiceKernel {
 	}
 
 	private:
-	inline float computeSample(SampleParameters &parameters) {
-		applyModulations(parameters);
-		float rawSample = computeRawSample(parameters);
-		return filter.nextSample(rawSample, parameters.cutoff, parameters.resonance);
+	inline void preCompute(float *frequencyValues, unsigned int sampleCursor) {
+		sampleParameters.withFrequencyValues(frequencyValues).fetchValues(sampleCursor);
+		osc1.setSemiShift(sampleParameters.osc1SemiShift);
+		subOsc.setOsc1SemiShift(sampleParameters.osc1SemiShift);
+		osc1.setCentShift(sampleParameters.osc1CentShift);
+		subOsc.setOsc1CentShift(sampleParameters.osc1CentShift);
+		osc2.setSemiShift(sampleParameters.osc2SemiShift);
+		subOsc.setOsc2SemiShift(sampleParameters.osc2SemiShift);
+		osc2.setCentShift(sampleParameters.osc2CentShift);
+		subOsc.setOsc2CentShift(sampleParameters.osc2CentShift);
+		amplitudeEnvelope.setAttackTime(sampleParameters.amplitudeEnvelopeAttack);
+		amplitudeEnvelope.setDecayTime(sampleParameters.amplitudeEnvelopeDecay);
+		amplitudeEnvelope.setSustainLevel(sampleParameters.amplitudeEnvelopeSustain);
+		amplitudeEnvelope.setReleaseTime(sampleParameters.amplitudeEnvelopeRelease);
+		cutoffEnvelope.setAttackTime(sampleParameters.cutoffEnvelopeAttack);
+		cutoffEnvelope.setDecayTime(sampleParameters.cutoffEnvelopeDecay);
+		applyModulations();
 	}
 
 	private:
-	inline float computeRawSample(SampleParameters &parameters) {
+	inline float computeSample() {
+		float rawSample = computeRawSample();
+		return filter.nextSample(rawSample, sampleParameters.cutoff, sampleParameters.resonance);
+	}
+
+	private:
+	inline float computeRawSample() {
 		static constexpr float subOscPresence = 0.4f;
 		static constexpr float finalAmplitude = 0.8f;
 
-		float osc1Sample = osc1.nextSample(parameters.frequency) * parameters.osc1Amplitude();
-		float osc2Sample = osc2.nextSample(parameters.frequency) * parameters.osc2Amplitude;
-		subOsc.setOsc2Amplitude(parameters.osc2Amplitude);
-		float subOscSample = subOsc.nextSample(parameters.frequency);
+		float osc1Sample = osc1.nextSample(sampleParameters.frequency) * sampleParameters.osc1Amplitude;
+		float osc2Sample = osc2.nextSample(sampleParameters.frequency) * sampleParameters.osc2Amplitude;
+		subOsc.setOsc2Amplitude(sampleParameters.osc2Amplitude);
+		float subOscSample = subOsc.nextSample(sampleParameters.frequency);
 		float rawSample = (1 - subOscPresence) * (osc1Sample + osc2Sample) + subOscPresence * subOscSample;
 		return rawSample * amplitudeEnvelope.nextLevel() * finalAmplitude;
 	}
 
 	private:
-	inline void applyModulations(SampleParameters &parameters) {
-		float lfo1Mod = parameters.lfo1ModAmount * lfo1.nextSample(parameters.lfo1Frequency);
-		float lfo2Mod = parameters.lfo2ModAmount * lfo2.nextSample(parameters.lfo2Frequency);
-		float cutoffMod = cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
-
-		applyLFO(parameters, lfo1Destination, lfo1Mod);
-		applyLFO(parameters, lfo2Destination, lfo2Mod);
-		parameters.cutoff = cutoffRange.clamp(parameters.cutoff + cutoffMod);
+	inline void applyModulations() {
+		float lfo1Mod = sampleParameters.lfo1ModAmount * lfo1.nextSample(sampleParameters.lfo1Frequency);
+		float lfo2Mod = sampleParameters.lfo2ModAmount * lfo2.nextSample(sampleParameters.lfo2Frequency);
+		float cutoffMod = sampleParameters.cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
+		applyLFO(lfo1Destination, lfo1Mod);
+		applyLFO(lfo2Destination, lfo2Mod);
+		sampleParameters.cutoff = cutoffRange.clamp(sampleParameters.cutoff + cutoffMod);
 	}
 
 	private:
-	inline void applyLFO(SampleParameters &parameters, LfoDestination destination, float mod) {
+	inline void applyLFO(LfoDestination destination, float mod) {
 		switch (destination) {
 			case LfoDestination::FREQUENCY:
-				parameters.frequency += mod * parameters.frequency;
+				sampleParameters.frequency += mod * sampleParameters.frequency;
 				break;
 			case LfoDestination::CUTOFF:
-				parameters.cutoff = cutoffRange.clamp(parameters.cutoff + mod);
+				sampleParameters.cutoff = cutoffRange.clamp(sampleParameters.cutoff + mod);
 				break;
 			case LfoDestination::RESONANCE:
-				parameters.resonance = resonanceRange.clamp(parameters.resonance + mod);
+				sampleParameters.resonance = resonanceRange.clamp(sampleParameters.resonance + mod);
 				break;
 			case LfoDestination::OSCILLATOR_MIX:
-				parameters.osc2Amplitude = zeroOneRange.clamp(parameters.osc2Amplitude + mod);
+				sampleParameters.osc2Amplitude = zeroOneRange.clamp(sampleParameters.osc2Amplitude + mod);
 				break;
 		}
 	}
@@ -399,26 +344,18 @@ class VoiceKernel {
 	Oscillator::Kernel osc1;
 	Oscillator::Kernel osc2;
 	SubOsc subOsc;
-	float *osc2AmplitudeValues;
 
 	Oscillator::Kernel lfo1;
 	LfoDestination lfo1Destination;
-	float *lfo1FrequencyValues;
-	float *lfo1ModAmountValues;
 
 	Oscillator::Kernel lfo2;
 	LfoDestination lfo2Destination;
-	float *lfo2FrequencyValues;
-	float *lfo2ModAmountValues;
 
 	Envelope::Kernel amplitudeEnvelope;
 
 	Filter::Kernel filter;
-	float *cutoffValues;
-	float *resonanceValues;
 
 	Envelope::Kernel cutoffEnvelope;
-	float cutoffEnvelopeAmount = 0.8f;
 
 	VoiceState state;
 

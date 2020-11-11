@@ -29,6 +29,160 @@ const LfoDestination = Object.freeze({
   INVERSED_RESONANCE: wasm.LfoDestination.INVERSED_RESONANCE,
 });
 
+const parameterDescriptors = [
+  {
+    name: "frequency",
+    defaultValue: 440,
+    minValue: 0,
+    maxValue: 0.5 * sampleRate,
+    automationRate: "a-rate",
+  },
+  {
+    name: "amplitude",
+    defaultValue: 0.5,
+    minValue: 0,
+    maxValue: 1,
+    automationRate: "a-rate",
+  },
+  {
+    name: "amplitudeAttack",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "amplitudeDecay",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "amplitudeSustain",
+    defaultValue: 0.5,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "amplitudeRelease",
+    defaultValue: 0.5,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "cutoff",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "a-rate",
+  },
+  {
+    name: "resonance",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "a-rate",
+  },
+  {
+    name: "cutoffAttack",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "cutoffDecay",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "cutoffEnvelopeAmount",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "osc1SemiShift",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "osc1CentShift",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "osc2SemiShift",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "osc2CentShift",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "osc2Amplitude",
+    defaultValue: 127 / 2,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "a-rate",
+  },
+  {
+    name: "lfo1Frequency",
+    defaultValue: 127,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "a-rate",
+  },
+  {
+    name: "lfo1ModAmount",
+    defaultValue: 127,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "a-rate",
+  },
+  {
+    name: "lfo2Frequency",
+    defaultValue: 127,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "a-rate",
+  },
+  {
+    name: "lfo2ModAmount",
+    defaultValue: 127,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "a-rate",
+  },
+];
+
+function createParameterBuffers(parameterDescriptors = []) {
+  return new Map(parameterDescriptors.map(toParameterBufferEntry))
+}  
+
+function toParameterBufferEntry(descriptor) {
+  return [
+    descriptor.name, 
+    new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES)
+  ];
+}
+
 class VoiceProcessor extends AudioWorkletProcessor {
   startTime = -1;
   stopTime = undefined;
@@ -39,166 +193,20 @@ class VoiceProcessor extends AudioWorkletProcessor {
     2,
     MAX_CHANNEL_COUNT
   );
-  frequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
-  oscillatorMixBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
-  cutoffBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
-  resonanceBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
-  lfo1FrequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
-  lfo1ModAmountBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
-  lfo2FrequencyBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
-  lfo2ModAmountBuffer = new HeapParameterBuffer(wasm, RENDER_QUANTUM_FRAMES);
+
+  parameterBuffers = new Map();
 
   // noinspection JSUnresolvedFunction
   kernel = new wasm.VoiceKernel();
 
   // noinspection JSUnusedGlobalSymbols
   static get parameterDescriptors() {
-    return [
-      {
-        name: "frequency",
-        defaultValue: 440,
-        minValue: 0,
-        maxValue: 0.5 * sampleRate,
-        automationRate: "a-rate",
-      },
-      {
-        name: "amplitude",
-        defaultValue: 0.5,
-        minValue: 0,
-        maxValue: 1,
-        automationRate: "a-rate",
-      },
-      {
-        name: "amplitudeAttack",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "k-rate",
-      },
-      {
-        name: "amplitudeDecay",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "k-rate",
-      },
-      {
-        name: "amplitudeSustain",
-        defaultValue: 0.5,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "k-rate",
-      },
-      {
-        name: "amplitudeRelease",
-        defaultValue: 0.5,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "k-rate",
-      },
-      {
-        name: "cutoff",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "a-rate",
-      },
-      {
-        name: "resonance",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "a-rate",
-      },
-      {
-        name: "cutoffAttack",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "k-rate",
-      },
-      {
-        name: "cutoffDecay",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "k-rate",
-      },
-      {
-        name: "cutoffEnvelopeAmount",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "k-rate",
-      },
-      {
-        name: "osc1SemiShift",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "k-rate",
-      },
-      {
-        name: "osc1CentShift",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "k-rate",
-      },
-      {
-        name: "osc2SemiShift",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "k-rate",
-      },
-      {
-        name: "osc2CentShift",
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "k-rate",
-      },
-      {
-        name: "osc2Amplitude",
-        defaultValue: 127 / 2,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "a-rate",
-      },
-      {
-        name: "lfo1Frequency",
-        defaultValue: 127,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "a-rate",
-      },
-      {
-        name: "lfo1ModAmount",
-        defaultValue: 127,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "a-rate",
-      },
-      {
-        name: "lfo2Frequency",
-        defaultValue: 127,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "a-rate",
-      },
-      {
-        name: "lfo2ModAmount",
-        defaultValue: 127,
-        minValue: 0,
-        maxValue: 127,
-        automationRate: "a-rate",
-      },
-    ];
+    return parameterDescriptors;
   }
 
   constructor() {
     super();
+    this.parameterBuffers = createParameterBuffers(parameterDescriptors);
     this.registerPortMessages();
   }
 
@@ -248,15 +256,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
     }
 
     if (this.kernel.isStopped()) {
-      this.outputBuffer.free();
-      this.frequencyBuffer.free();
-      this.oscillatorMixBuffer.free();
-      this.cutoffBuffer.free();
-      this.resonanceBuffer.free();
-      this.lfo1FrequencyBuffer.free();
-      this.lfo1ModAmountBuffer.free();
-      this.lfo2FrequencyBuffer.free();
-      this.lfo2ModAmountBuffer.free();
+      this.freeBuffers();
       return false;
     }
 
@@ -264,75 +264,56 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.kernel.enterReleaseStage();
     }
 
-    let output = outputs[0];
+    const output = outputs[0];
+    const channelCount = output.length;
 
-    let channelCount = output.length;
-
-    this.outputBuffer.adaptChannel(channelCount);
-    this.frequencyBuffer.getData().set(parameters.frequency);
-    this.oscillatorMixBuffer.getData().set(parameters.osc2Amplitude);
-    this.cutoffBuffer.getData().set(parameters.cutoff);
-    this.resonanceBuffer.getData().set(parameters.resonance);
-    this.lfo1FrequencyBuffer.getData().set(parameters.lfo1Frequency);
-    this.lfo1ModAmountBuffer.getData().set(parameters.lfo1ModAmount);
-    this.lfo2FrequencyBuffer.getData().set(parameters.lfo2Frequency);
-    this.lfo2ModAmountBuffer.getData().set(parameters.lfo2ModAmount);
-
-    const [
-      outputPtr,
-      frequencyPtr,
-      oscillatorMixPtr,
-      cutoffPtr,
-      resonancePtr,
-      lfo1FrequencyPtr,
-      lfo1ModAmountptr,
-      lfo2FrequencyPtr,
-      lfo2ModAmountptr,
-    ] = [
-      this.outputBuffer.getHeapAddress(),
-      this.frequencyBuffer.getHeapAddress(),
-      this.oscillatorMixBuffer.getHeapAddress(),
-      this.cutoffBuffer.getHeapAddress(),
-      this.resonanceBuffer.getHeapAddress(),
-      this.lfo1FrequencyBuffer.getHeapAddress(),
-      this.lfo1ModAmountBuffer.getHeapAddress(),
-      this.lfo2FrequencyBuffer.getHeapAddress(),
-      this.lfo2ModAmountBuffer.getHeapAddress(),
-    ];
+    this.allocateBuffers(channelCount, parameters);  
 
     // Oscillators parameters
-    this.kernel.setAmplitudeAttack(Number(parameters.amplitudeAttack));
-    this.kernel.setAmplitudeDecay(Number(parameters.amplitudeDecay));
-    this.kernel.setAmplitudeSustain(Number(parameters.amplitudeSustain));
-    this.kernel.setAmplitudeRelease(Number(parameters.amplitudeRelease));
-    this.kernel.setOsc1SemiShift(Number(parameters.osc1SemiShift));
-    this.kernel.setOsc1CentShift(Number(parameters.osc1CentShift));
-    this.kernel.setOsc2SemiShift(Number(parameters.osc2SemiShift));
-    this.kernel.setOsc2CentShift(Number(parameters.osc2CentShift));
-    this.kernel.setOsc2Amplitude(oscillatorMixPtr);
+    this.kernel.setAmplitudeAttack(this.parameterBuffers.get("amplitudeAttack").getHeapAddress());
+    this.kernel.setAmplitudeDecay(this.parameterBuffers.get("amplitudeDecay").getHeapAddress());
+    this.kernel.setAmplitudeSustain(this.parameterBuffers.get("amplitudeSustain").getHeapAddress());
+    this.kernel.setAmplitudeRelease(this.parameterBuffers.get("amplitudeRelease").getHeapAddress());
+    this.kernel.setOsc1SemiShift(this.parameterBuffers.get("osc1SemiShift").getHeapAddress());
+    this.kernel.setOsc1CentShift(this.parameterBuffers.get("osc1CentShift").getHeapAddress());
+    this.kernel.setOsc2SemiShift(this.parameterBuffers.get("osc2SemiShift").getHeapAddress());
+    this.kernel.setOsc2CentShift(this.parameterBuffers.get("osc2CentShift").getHeapAddress());
+    this.kernel.setOsc2Amplitude(this.parameterBuffers.get("osc2Amplitude").getHeapAddress());
 
     // Filter parameters
-    this.kernel.setCutoff(cutoffPtr);
-    this.kernel.setResonance(resonancePtr);
-    this.kernel.setCutoffEnvelopeAmount(
-      Number(parameters.cutoffEnvelopeAmount)
-    );
-    this.kernel.setCutoffEnvelopeAttack(Number(parameters.cutoffAttack));
-    this.kernel.setCutoffEnvelopeDecay(Number(parameters.cutoffDecay));
+    this.kernel.setCutoff(this.parameterBuffers.get("cutoff").getHeapAddress());
+    this.kernel.setResonance(this.parameterBuffers.get("resonance").getHeapAddress());
+    this.kernel.setCutoffEnvelopeAmount(this.parameterBuffers.get("cutoffEnvelopeAmount").getHeapAddress());
+    this.kernel.setCutoffEnvelopeAttack(this.parameterBuffers.get("cutoffAttack").getHeapAddress());
+    this.kernel.setCutoffEnvelopeDecay(this.parameterBuffers.get("cutoffDecay").getHeapAddress());
 
     // LFO parameters
-    this.kernel.setLfo1Frequency(lfo1FrequencyPtr);
-    this.kernel.setLfo1ModAmount(lfo1ModAmountptr);
-    this.kernel.setLfo2Frequency(lfo2FrequencyPtr);
-    this.kernel.setLfo2ModAmount(lfo2ModAmountptr);
+    this.kernel.setLfo1Frequency(this.parameterBuffers.get("lfo1Frequency").getHeapAddress());
+    this.kernel.setLfo1ModAmount(this.parameterBuffers.get("lfo1ModAmount").getHeapAddress());
+    this.kernel.setLfo2Frequency(this.parameterBuffers.get("lfo2Frequency").getHeapAddress());
+    this.kernel.setLfo2ModAmount(this.parameterBuffers.get("lfo2ModAmount").getHeapAddress());
 
-    this.kernel.process(outputPtr, channelCount, frequencyPtr);
+    this.kernel.process(this.outputBuffer.getHeapAddress(), channelCount, this.parameterBuffers.get("frequency").getHeapAddress());
 
     for (let channel = 0; channel < channelCount; ++channel) {
       output[channel].set(this.outputBuffer.getChannelData(channel)); // wasm to audio thread copy
     }
 
     return true;
+  }
+
+  allocateBuffers(channelCount, parameters) {
+    this.outputBuffer.adaptChannel(channelCount);
+    this.parameterBuffers.forEach((buffer, name) => {
+      buffer.getData().set(parameters[name]);
+    });
+  }
+
+  freeBuffers() {
+    this.parameterBuffers.forEach((buffer) => {
+      buffer.free();
+    });
+    this.outputBuffer.free();
   }
 }
 
