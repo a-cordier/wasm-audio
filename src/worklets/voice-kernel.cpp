@@ -67,7 +67,6 @@ class SubOsc {
 	private:
 	Oscillator::Kernel osc1;
 	Oscillator::Kernel osc2;
-
 	float osc2Amplitude;
 };
 
@@ -81,8 +80,8 @@ enum class LfoDestination {
 class VoiceKernel {
 	public:
 	VoiceKernel() :
-		amplitudeEnvelope(Envelope::Kernel(1.f, 0.f, 0.5f, 0.5f, 0.9f)),
-		cutoffEnvelope(Envelope::Kernel(1.f, 0.f, 0.01f, 2.f, 0.f)),
+		amplitudeEnvelope(Envelope::Kernel{ 1.f, 0.f, 0.5f, 0.5f, 0.9f }),
+		cutoffEnvelope(Envelope::Kernel{ 1.f, 0.f, 0.01f, 2.f, 0.f }),
 		state(VoiceState::DISPOSED) {
 	}
 
@@ -354,7 +353,6 @@ class VoiceKernel {
 	Envelope::Kernel amplitudeEnvelope;
 
 	Filter::Kernel filter;
-
 	Envelope::Kernel cutoffEnvelope;
 
 	VoiceState state;
@@ -369,28 +367,28 @@ EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
 					.smart_ptr_constructor("VoiceKernel", &std::make_shared<VoiceKernel>)
 					.function("process", &VoiceKernel::process, allow_raw_pointers())
 					.function("setOsc1Mode", &VoiceKernel::setOsc1Mode)
-					.function("setOsc1SemiShift", &VoiceKernel::setOsc1SemiShift)
-					.function("setOsc1CentShift", &VoiceKernel::setOsc1CentShift)
+					.function("setOsc1SemiShift", &VoiceKernel::setOsc1SemiShift, allow_raw_pointers())
+					.function("setOsc1CentShift", &VoiceKernel::setOsc1CentShift, allow_raw_pointers())
 					.function("setOsc2Mode", &VoiceKernel::setOsc2Mode)
-					.function("setOsc2SemiShift", &VoiceKernel::setOsc2SemiShift)
-					.function("setOsc2CentShift", &VoiceKernel::setOsc2CentShift)
+					.function("setOsc2SemiShift", &VoiceKernel::setOsc2SemiShift, allow_raw_pointers())
+					.function("setOsc2CentShift", &VoiceKernel::setOsc2CentShift, allow_raw_pointers())
 					.function("setOsc2Amplitude", &VoiceKernel::setOsc2Amplitude, allow_raw_pointers())
-					.function("setAmplitudeAttack", &VoiceKernel::setAmplitudeAttack)
-					.function("setAmplitudeDecay", &VoiceKernel::setAmplitudeDecay)
-					.function("setAmplitudeSustain", &VoiceKernel::setAmplitudeSustain)
-					.function("setAmplitudeRelease", &VoiceKernel::setAmplitudeRelease)
+					.function("setAmplitudeAttack", &VoiceKernel::setAmplitudeAttack, allow_raw_pointers())
+					.function("setAmplitudeDecay", &VoiceKernel::setAmplitudeDecay, allow_raw_pointers())
+					.function("setAmplitudeSustain", &VoiceKernel::setAmplitudeSustain, allow_raw_pointers())
+					.function("setAmplitudeRelease", &VoiceKernel::setAmplitudeRelease, allow_raw_pointers())
 					.function("setFilterMode", &VoiceKernel::setFilterMode)
 					.function("setCutoff", &VoiceKernel::setCutoff, allow_raw_pointers())
 					.function("setResonance", &VoiceKernel::setResonance, allow_raw_pointers())
-					.function("setCutoffEnvelopeAmount", &VoiceKernel::setCutoffEnvelopeAmount)
-					.function("setCutoffEnvelopeAttack", &VoiceKernel::setCutoffEnvelopeAttack)
-					.function("setCutoffEnvelopeDecay", &VoiceKernel::setCutoffEnvelopeDecay)
-					.function("setLfo1Frequency", &VoiceKernel::setLfo1Frequency)
-					.function("setLfo1ModAmount", &VoiceKernel::setLfo1ModAmount)
+					.function("setCutoffEnvelopeAmount", &VoiceKernel::setCutoffEnvelopeAmount, allow_raw_pointers())
+					.function("setCutoffEnvelopeAttack", &VoiceKernel::setCutoffEnvelopeAttack, allow_raw_pointers())
+					.function("setCutoffEnvelopeDecay", &VoiceKernel::setCutoffEnvelopeDecay, allow_raw_pointers())
+					.function("setLfo1Frequency", &VoiceKernel::setLfo1Frequency, allow_raw_pointers())
+					.function("setLfo1ModAmount", &VoiceKernel::setLfo1ModAmount, allow_raw_pointers())
 					.function("setLfo1Mode", &VoiceKernel::setLfo1Mode)
 					.function("setLfo1Destination", &VoiceKernel::setLfo1Destination)
-					.function("setLfo2Frequency", &VoiceKernel::setLfo2Frequency)
-					.function("setLfo2ModAmount", &VoiceKernel::setLfo2ModAmount)
+					.function("setLfo2Frequency", &VoiceKernel::setLfo2Frequency, allow_raw_pointers())
+					.function("setLfo2ModAmount", &VoiceKernel::setLfo2ModAmount, allow_raw_pointers())
 					.function("setLfo2Mode", &VoiceKernel::setLfo2Mode)
 					.function("setLfo2Destination", &VoiceKernel::setLfo2Destination)
 					.function("isStopped", &VoiceKernel::isStopped)

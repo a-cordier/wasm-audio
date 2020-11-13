@@ -194,7 +194,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
     MAX_CHANNEL_COUNT
   );
 
-  parameterBuffers = new Map();
+  parameterBuffers = createParameterBuffers(parameterDescriptors);
 
   // noinspection JSUnresolvedFunction
   kernel = new wasm.VoiceKernel();
@@ -206,7 +206,6 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
   constructor() {
     super();
-    this.parameterBuffers = createParameterBuffers(parameterDescriptors);
     this.registerPortMessages();
   }
 
@@ -214,38 +213,19 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.port.onmessage = (event) => {
       switch (event.data.type) {
         case "START":
-          return (this.startTime = event.data.time);
+          this.startTime = event.data.time; return;
         case "STOP":
-          return (this.stopTime = event.data.time);
+          this.stopTime = event.data.time;  return;
         case "WAVEFORM":
-          if (event.data.target === "osc1") {
-            const oscillatorMode = waveforms[event.data.waveform];
-            return this.kernel.setOsc1Mode(oscillatorMode);
-          }
-          if (event.data.target === "osc2") {
-            const oscillatorMode = waveforms[event.data.waveform];
-            return this.kernel.setOsc2Mode(oscillatorMode);
-          }
-          if (event.data.target === "lfo1") {
-            const oscillatorMode = waveforms[event.data.waveform];
-            return this.kernel.setLfo1Mode(oscillatorMode);
-          }
-          if (event.data.target === "lfo2") {
-            const oscillatorMode = waveforms[event.data.waveform];
-            return this.kernel.setLfo2Mode(oscillatorMode);
-          }
+          if (event.data.target === "osc1") return this.kernel.setOsc1Mode(waveforms[event.data.waveform]);
+          if (event.data.target === "osc2") return this.kernel.setOsc2Mode(waveforms[event.data.waveform]);
+          if (event.data.target === "lfo1") return this.kernel.setLfo1Mode(waveforms[event.data.waveform]);
+          if (event.data.target === "lfo2") return this.kernel.setLfo2Mode(waveforms[event.data.waveform]);
         case "FILTER_MODE":
-          const filterMode = FilterMode[event.data.mode];
-          return this.kernel.setFilterMode(filterMode);
+          return this.kernel.setFilterMode(FilterMode[event.data.mode]);
         case "LFO_DESTINATION":
-          if (event.data.target === "lfo1") {
-            const lfoDestination = LfoDestination[event.data.destination];
-            return this.kernel.setLfo1Destination(lfoDestination);
-          }
-          if (event.data.target === "lfo2") {
-            const lfoDestination = LfoDestination[event.data.destination];
-            return this.kernel.setLfo2Destination(lfoDestination);
-          }
+          if (event.data.target === "lfo1") return this.kernel.setLfo1Destination(LfoDestination[event.data.destination]);
+          if (event.data.target === "lfo2") return this.kernel.setLfo2Destination(LfoDestination[event.data.destination]);s
       }
     };
   }

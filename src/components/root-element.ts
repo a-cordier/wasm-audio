@@ -45,7 +45,7 @@ export class Root extends LitElement {
 
   private currentLearnerID = MidiControlID.NONE;
 
-  private showVizualizer = true;
+  private showVizualizer = false;
 
   @property({ type: Object })
   private pressedKeys = new Set<number>();
