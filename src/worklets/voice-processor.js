@@ -1,5 +1,3 @@
-import wasm from "./voice-kernel.wasmmodule.js";
-
 import {
   RENDER_QUANTUM_FRAMES, // 128
   MAX_CHANNEL_COUNT, // 32
@@ -7,26 +5,31 @@ import {
   HeapParameterBuffer,
 } from "./wasm-audio-helper.js";
 
-const waveforms = Object.freeze({
-  sine: wasm.WaveForm.SINE,
-  sawtooth: wasm.WaveForm.SAW,
-  square: wasm.WaveForm.SQUARE,
-  triangle: wasm.WaveForm.TRIANGLE,
-});
+import createModule from "./voice-kernel.wasmmodule.js";
 
-const FilterMode = Object.freeze({
-  LOWPASS: wasm.FilterMode.LOWPASS,
-  LOWPASS_PLUS: wasm.FilterMode.LOWPASS_PLUS,
-  BANDPASS: wasm.FilterMode.BANDPASS,
-  HIGHPASS: wasm.FilterMode.HIGHPASS,
-});
+let wasm, waveforms, FilterMode, LfoDestination;
 
-const LfoDestination = Object.freeze({
-  FREQUENCY: wasm.LfoDestination.FREQUENCY,
-  OSCILLATOR_MIX: wasm.LfoDestination.OSCILLATOR_MIX,
-  CUTOFF: wasm.LfoDestination.CUTOFF,
-  RESONANCE: wasm.LfoDestination.RESONANCE,
-  INVERSED_RESONANCE: wasm.LfoDestination.INVERSED_RESONANCE,
+createModule().then(module => {
+  wasm = module;
+  waveforms = Object.freeze({
+    sine: wasm.WaveForm.SINE,
+    sawtooth: wasm.WaveForm.SAW,
+    square: wasm.WaveForm.SQUARE,
+    triangle: wasm.WaveForm.TRIANGLE,
+  });
+  FilterMode = Object.freeze({
+    LOWPASS: wasm.FilterMode.LOWPASS,
+    LOWPASS_PLUS: wasm.FilterMode.LOWPASS_PLUS,
+    BANDPASS: wasm.FilterMode.BANDPASS,
+    HIGHPASS: wasm.FilterMode.HIGHPASS,
+  });
+  LfoDestination = Object.freeze({
+    FREQUENCY: wasm.LfoDestination.FREQUENCY,
+    OSCILLATOR_MIX: wasm.LfoDestination.OSCILLATOR_MIX,
+    CUTOFF: wasm.LfoDestination.CUTOFF,
+    RESONANCE: wasm.LfoDestination.RESONANCE,
+    INVERSED_RESONANCE: wasm.LfoDestination.INVERSED_RESONANCE,
+  });
 });
 
 const parameterDescriptors = [

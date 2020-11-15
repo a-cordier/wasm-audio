@@ -152,17 +152,16 @@ export class VoiceManager extends Dispatcher {
     voice.lfo2Mode = this.state.lfo2.mode.value;
     voice.lfo2Destination = this.state.lfo2.destination.value;
     this.voices.set(midiValue, voice);
-    voice.connect(this.output);
     voice.start();
+    voice.connect(this.output);
     return voice;
   }
 
   setMidiController(midiController: MidiController & Dispatcher) {
-    midiController
+    this.midiController = midiController
       .subscribe(MidiMessageEvent.NOTE_ON, this.onMidiNoteOn)
       .subscribe(MidiMessageEvent.NOTE_OFF, this.onMidiNoteOff)
       .subscribe(MidiMessageEvent.CONTROL_CHANGE, this.onMidiCC);
-    this.midiController = midiController;
     return this;
   }
 

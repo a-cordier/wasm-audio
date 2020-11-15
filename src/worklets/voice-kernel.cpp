@@ -269,7 +269,7 @@ class VoiceKernel {
 	private:
 	inline float computeRawSample() {
 		static constexpr float subOscPresence = 0.4f;
-		static constexpr float finalAmplitude = 0.8f;
+		static constexpr float finalAmplitude = 0.5f;
 
 		float osc1Sample = osc1.nextSample(sampleParameters.frequency) * sampleParameters.osc1Amplitude;
 		float osc2Sample = osc2.nextSample(sampleParameters.frequency) * sampleParameters.osc2Amplitude;
