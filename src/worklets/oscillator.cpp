@@ -77,28 +77,6 @@ namespace Oscillator {
 		}
 
 		private:
-		inline float computeSineApproximation() {
-			float sample = phase;
-			for (float i = 3, mult = -1; i <= 13; i += 1, mult *= -1) {
-				sample += mult * computeSineSeriesTerm(phase, i);
-			}
-			return 0.5 * sample;
-		}
-
-		private:
-		inline float computeSineSeriesTerm(float x, float range) {
-			return std::pow(x, range) / factorial(range);
-		}
-
-		private:
-		inline float factorial(float range) {
-			float fact = 1;
-			for (int i = 1; i <= range; i++)
-				fact *= i;
-			return fact;
-		}
-
-		private:
 		inline float computeSaw() {
 			float value = 1.0 - (2.0 * phase / twoPi);
 			return value - computePolyBLEP(phase / twoPi, phaseIncrement / twoPi);
@@ -146,17 +124,13 @@ namespace Oscillator {
 
 		private:
 		inline float shiftFrequency(float frequency) {
-			for (auto i = 0; i < semiShift; ++i)
-				frequency *= semiFactor;
-			for (auto i = 0; i < centShift; ++i)
-				frequency *= centFactor;
-			for (auto i = semiShift; i < 0; ++i) {
-				frequency /= semiFactor;
-			}
-			for (auto i = centShift; i < 0; ++i) {
-				frequency /= centFactor;
-			}
-			return frequency;
+			auto semiShited = shiftFrequency(frequency, semiFactor, semiShift);
+			return shiftFrequency(semiShited, centFactor, centShift);
+		}
+
+		private:
+		inline float shiftFrequency(float frequency, float factor, int steps) {
+			return steps < 0 ? frequency / std::pow(factor, std::abs(steps)) : frequency * std::pow(factor, steps);
 		}
 
 		private:
