@@ -130,7 +130,17 @@ namespace Oscillator {
 
 		private:
 		inline float shiftFrequency(float frequency, float factor, int steps) {
-			return steps < 0 ? frequency / std::pow(factor, std::abs(steps)) : frequency * std::pow(factor, steps);
+			return steps < 0 ? shiftLeft(frequency, factor, steps) : shiftRight(frequency, factor, steps);
+		}
+
+		private:
+		inline float shiftLeft(float frequency, float factor, int steps) {
+			return frequency / std::pow(factor, -steps);
+		}
+
+		private:
+		inline float shiftRight(float frequency, float factor, int steps) {
+			return frequency * std::pow(factor, steps);
 		}
 
 		private:
