@@ -7,7 +7,6 @@
 
 namespace Envelope {
 	constexpr float epsilon = 0.0001f;
-	constexpr int sampleRate = 44100;
 
 	enum class Stage {
 		OFF,
@@ -106,10 +105,11 @@ namespace Envelope {
 
 	class Kernel {
 		public:
-		Kernel(float peakLevel, float sustainLevel, float attackTime, float decayTime, float releaseTime) :
+		Kernel(float sampleRate, float peakLevel, float sustainLevel, float attackTime, float decayTime, float releaseTime) :
 			stage(Stage::OFF),
+			sampleRate(sampleRate),
 			attackTimeLine(TimeLine(RampType::LINEAR, attackTime * sampleRate, 0.f, peakLevel, Stage::ATTACK, Stage::DECAY)),
-			decayTimeLine(TimeLine(RampType::EXPONENTIAL, decayTime * sampleRate, peakLevel, sustainLevel, Stage::DECAY, Stage::SUSTAIN)),
+			decayTimeLine(TimeLine(RampType::LINEAR, decayTime * sampleRate, peakLevel, sustainLevel, Stage::DECAY, Stage::SUSTAIN)),
 			releaseTimeLine(TimeLine(RampType::LINEAR, releaseTime * sampleRate, sustainLevel, 0.f, Stage::RELEASE, Stage::DONE)) {}
 
 		public:
@@ -198,6 +198,7 @@ namespace Envelope {
 		}
 
 		private:
+		float sampleRate;
 		float level;
 
 		Stage stage;

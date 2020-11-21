@@ -23,6 +23,11 @@ enum class VoiceState {
 
 class SubOsc {
 	public:
+	SubOsc(float sampleRate) :
+		osc1(Oscillator::Kernel{ sampleRate }),
+		osc2(Oscillator::Kernel{ sampleRate }) {}
+
+	public:
 	float nextSample(float frequency) {
 		float osc1Sample = osc1.nextSample(frequency / 2) * (1.f - osc2Amplitude);
 		float osc2Sample = osc2.nextSample(frequency / 2) * osc2Amplitude;
@@ -79,9 +84,15 @@ enum class LfoDestination {
 
 class VoiceKernel {
 	public:
-	VoiceKernel() :
-		amplitudeEnvelope(Envelope::Kernel{ 1.f, 0.f, 0.5f, 0.5f, 0.9f }),
-		cutoffEnvelope(Envelope::Kernel{ 1.f, 0.f, 0.01f, 2.f, 0.f }),
+	VoiceKernel(float sampleRate) :
+		sampleRate(sampleRate),
+		osc1(Oscillator::Kernel{ sampleRate }),
+		osc2(Oscillator::Kernel{ sampleRate }),
+		lfo1(Oscillator::Kernel{ sampleRate }),
+		lfo2(Oscillator::Kernel{ sampleRate }),
+		subOsc(sampleRate),
+		amplitudeEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.5f, 0.5f, 0.9f }),
+		cutoffEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.01f, 2.f, 0.f }),
 		state(VoiceState::DISPOSED) {
 	}
 
@@ -364,7 +375,7 @@ class VoiceKernel {
 
 EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
 	class_<VoiceKernel>("VoiceKernel")
-					.smart_ptr_constructor("VoiceKernel", &std::make_shared<VoiceKernel>)
+					.constructor<float>()
 					.function("process", &VoiceKernel::process, allow_raw_pointers())
 					.function("setOsc1Mode", &VoiceKernel::setOsc1Mode)
 					.function("setOsc1SemiShift", &VoiceKernel::setOsc1SemiShift, allow_raw_pointers())

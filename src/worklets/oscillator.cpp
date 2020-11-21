@@ -17,6 +17,10 @@ namespace Oscillator {
 
 	class Kernel {
 		public:
+		Kernel(float sampleRate) :
+			sampleRate(sampleRate) {}
+
+		public:
 		float nextSample(float frequency) {
 			frequency = shiftFrequency(frequency);
 			phaseIncrement = computePhaseIncrement(frequency);
