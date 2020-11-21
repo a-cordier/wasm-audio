@@ -1,3 +1,4 @@
+#include "constants.cpp"
 #include "envelope.cpp"
 #include "filter.cpp"
 #include "oscillator.cpp"
@@ -11,8 +12,6 @@
 #include "emscripten/bind.h"
 
 using namespace emscripten;
-
-constexpr unsigned kRenderQuantumFrames = 128.f; // this value is fixed by the Web Audio API spec.
 
 enum class VoiceState {
 	DISPOSED,
@@ -84,8 +83,9 @@ enum class LfoDestination {
 
 class VoiceKernel {
 	public:
-	VoiceKernel(float sampleRate) :
+	VoiceKernel(float sampleRate, float kRenderQuantumFrames) :
 		sampleRate(sampleRate),
+		kRenderQuantumFrames(kRenderQuantumFrames),
 		osc1(Oscillator::Kernel{ sampleRate }),
 		osc2(Oscillator::Kernel{ sampleRate }),
 		lfo1(Oscillator::Kernel{ sampleRate }),
@@ -273,21 +273,17 @@ class VoiceKernel {
 
 	private:
 	inline float computeSample() {
-		float rawSample = computeRawSample();
-		return filter.nextSample(rawSample, sampleParameters.cutoff, sampleParameters.resonance);
+		float sample = computeRawSample() * amplitudeEnvelope.nextLevel() * Constants::voiceGain;
+		return filter.nextSample(sample, sampleParameters.cutoff, sampleParameters.resonance);
 	}
 
 	private:
 	inline float computeRawSample() {
-		static constexpr float subOscPresence = 0.4f;
-		static constexpr float finalAmplitude = 0.5f;
-
 		float osc1Sample = osc1.nextSample(sampleParameters.frequency) * sampleParameters.osc1Amplitude;
 		float osc2Sample = osc2.nextSample(sampleParameters.frequency) * sampleParameters.osc2Amplitude;
 		subOsc.setOsc2Amplitude(sampleParameters.osc2Amplitude);
 		float subOscSample = subOsc.nextSample(sampleParameters.frequency);
-		float rawSample = (1 - subOscPresence) * (osc1Sample + osc2Sample) + subOscPresence * subOscSample;
-		return rawSample * amplitudeEnvelope.nextLevel() * finalAmplitude;
+		return (1 - Constants::subOscPresence) * (osc1Sample + osc2Sample) + Constants::subOscPresence * subOscSample;
 	}
 
 	private:
@@ -370,12 +366,13 @@ class VoiceKernel {
 
 	SampleParameters sampleParameters;
 
-	float sampleRate = 44100.f;
+	float sampleRate = Constants::sampleRate;
+	unsigned kRenderQuantumFrames = Constants::kRenderQuantumFrames;
 };
 
 EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
 	class_<VoiceKernel>("VoiceKernel")
-					.constructor<float>()
+					.constructor<float, float>()
 					.function("process", &VoiceKernel::process, allow_raw_pointers())
 					.function("setOsc1Mode", &VoiceKernel::setOsc1Mode)
 					.function("setOsc1SemiShift", &VoiceKernel::setOsc1SemiShift, allow_raw_pointers())

@@ -56,7 +56,7 @@ createModule().then(wasm => {
     parameterBuffers = createParameterBuffers(parameterDescriptors);
   
     // noinspection JSUnresolvedFunction
-    kernel = new wasm.VoiceKernel(sampleRate);
+    kernel = new wasm.VoiceKernel(sampleRate, RENDER_QUANTUM_FRAMES);
   
     // noinspection JSUnusedGlobalSymbols
     static get parameterDescriptors() {

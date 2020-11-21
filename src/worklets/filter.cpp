@@ -25,6 +25,7 @@ namespace Filter {
 
 		public:
 		float nextSample(float sample, float cutoff, float resonance) {
+			static bool logged = false;
 			float feedbackAmount = resonance + resonance / (1.0 - cutoff);
 			buf0 += cutoff * (sample - buf0 + feedbackAmount * (buf0 - buf1));
 			buf1 += cutoff * (buf0 - buf1);

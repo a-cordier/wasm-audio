@@ -1,13 +1,9 @@
 #pragma once
 
+#include "constants.cpp"
 #include <cmath>
 
 namespace Oscillator {
-	constexpr float pi = 3.14159265358979f;
-	constexpr float twoPi = 2.f * pi;
-	constexpr float semiFactor = 1.0594630943592953f;
-	constexpr float centFactor = 1.0005777895065548f;
-
 	enum class Mode {
 		SAW,
 		SINE,
@@ -82,15 +78,15 @@ namespace Oscillator {
 
 		private:
 		inline float computeSaw() {
-			float value = 1.0 - (2.0 * phase / twoPi);
-			return value - computePolyBLEP(phase / twoPi, phaseIncrement / twoPi);
+			float value = 1.0 - (2.0 * phase / Constants::twoPi);
+			return value - computePolyBLEP(phase / Constants::twoPi, phaseIncrement / Constants::twoPi);
 		}
 
 		private:
 		inline float computeSquare() {
-			auto value = phase <= pi ? 1 : -1;
-			value += computePolyBLEP(phase / twoPi, phaseIncrement / twoPi);
-			value -= computePolyBLEP(fmod(phase / twoPi + 0.5, 1.0), phaseIncrement / twoPi);
+			auto value = phase <= Constants::pi ? 1 : -1;
+			value += computePolyBLEP(phase / Constants::twoPi, phaseIncrement / Constants::twoPi);
+			value -= computePolyBLEP(fmod(phase / Constants::twoPi + 0.5, 1.0), phaseIncrement / Constants::twoPi);
 			return value;
 		}
 
@@ -104,7 +100,7 @@ namespace Oscillator {
 
 		private:
 		inline float computePhaseIncrement(float frequency) {
-			return frequency * twoPi / sampleRate;
+			return frequency * Constants::twoPi / sampleRate;
 		}
 
 		private:
@@ -123,13 +119,13 @@ namespace Oscillator {
 		private:
 		inline void updatePhase(float frequency) {
 			phase += phaseIncrement;
-			if (phase >= twoPi) phase -= twoPi;
+			if (phase >= Constants::twoPi) phase -= Constants::twoPi;
 		}
 
 		private:
 		inline float shiftFrequency(float frequency) {
-			auto semiShited = shiftFrequency(frequency, semiFactor, semiShift);
-			return shiftFrequency(semiShited, centFactor, centShift);
+			auto semiShited = shiftFrequency(frequency, Constants::semiFactor, semiShift);
+			return shiftFrequency(semiShited, Constants::centFactor, centShift);
 		}
 
 		private:
@@ -159,6 +155,6 @@ namespace Oscillator {
 
 		float amplitude = 0.5f;
 
-		float sampleRate = 44100.f;
+		float sampleRate = Constants::sampleRate;
 	};
 } // namespace Oscillator

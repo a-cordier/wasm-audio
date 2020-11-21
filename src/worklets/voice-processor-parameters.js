@@ -3,7 +3,7 @@ export default [
       name: "frequency",
       defaultValue: 440,
       minValue: 0,
-      maxValue: 0.5 * sampleRate,
+      maxValue: 16_744,
       automationRate: "a-rate",
     },
     {

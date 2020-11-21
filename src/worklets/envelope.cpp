@@ -1,12 +1,12 @@
 #pragma once
 
+#include "constants.cpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <vector>
 
 namespace Envelope {
-	constexpr float epsilon = 0.0001f;
 
 	enum class Stage {
 		OFF,
@@ -23,7 +23,7 @@ namespace Envelope {
 	};
 
 	float epsilonIfZero(float x) {
-		return x == 0 ? epsilon : x;
+		return x == 0 ? Constants::epsilon : x;
 	}
 
 	float computeExponentialCoefficient(float ya, float yb, unsigned long sampleCount) {
@@ -198,7 +198,7 @@ namespace Envelope {
 		}
 
 		private:
-		float sampleRate;
+		float sampleRate = Constants::sampleRate;
 		float level;
 
 		Stage stage;
