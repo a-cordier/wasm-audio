@@ -1,43 +1,3 @@
-import { FilterMode } from "../types/filter-mode";
-import { LfoDestination } from "../types/lfo-destination";
-
-function createStartMessage(time) {
-  return {
-    type: "START",
-    time,
-  };
-}
-
-function createStopMessage(time) {
-  return {
-    type: "STOP",
-    time,
-  };
-}
-
-function createWaveformMessage(target, waveform) {
-  return {
-    type: "WAVEFORM",
-    waveform,
-    target,
-  };
-}
-
-function createFilterModeMessage(mode: FilterMode) {
-  return {
-    type: "FILTER_MODE",
-    mode,
-  };
-}
-
-function createLfoDestinationMessage(target, destination: LfoDestination) {
-  return {
-    type: "LFO_DESTINATION",
-    destination,
-    target,
-  };
-}
-
 export class WasmVoiceNode extends AudioWorkletNode {
   private params: Map<string, AudioParam>;
 
@@ -47,11 +7,13 @@ export class WasmVoiceNode extends AudioWorkletNode {
   }
 
   start(time = this.context.currentTime) {
-    this.port.postMessage(createStartMessage(time));
+   this.params.get("startTime").value = time;
+   this.params.get("stopped").value = Number(false);
   }
 
   stop(time = this.context.currentTime) {
-    this.port.postMessage(createStopMessage(time));
+    this.params.get("stopTime").value = time;
+    this.params.get("stopped").value = Number(true);
   }
 
   get frequency() {
@@ -118,16 +80,16 @@ export class WasmVoiceNode extends AudioWorkletNode {
     return this.params.get("osc2Amplitude");
   }
 
-  set osc1(type: string) {
-    this.port.postMessage(createWaveformMessage("osc1", type));
+  get osc1() {
+    return this.params.get("osc1");
   }
 
-  set osc2(type: string) {
-    this.port.postMessage(createWaveformMessage("osc2", type));
+  get osc2() {
+    return this.params.get("osc2");
   }
 
-  set filterMode(mode: FilterMode) {
-    this.port.postMessage(createFilterModeMessage(mode));
+  get filterMode() {
+    return this.params.get("filterMode");
   }
 
   get lfo1Frequency() {
@@ -138,12 +100,12 @@ export class WasmVoiceNode extends AudioWorkletNode {
     return this.params.get("lfo1ModAmount");
   }
 
-  set lfo1Mode(mode: string) {
-    this.port.postMessage(createWaveformMessage("lfo1", mode));
+  get lfo1Mode() {
+    return this.params.get("lfo1Mode")
   }
 
-  set lfo1Destination(destination: LfoDestination) {
-    this.port.postMessage(createLfoDestinationMessage("lfo1", destination));
+  get lfo1Destination() {
+    return this.params.get("lfo1Destination");
   }
 
   get lfo2Frequency() {
@@ -154,11 +116,11 @@ export class WasmVoiceNode extends AudioWorkletNode {
     return this.params.get("lfo2ModAmount");
   }
 
-  set lfo2Mode(mode: string) {
-    this.port.postMessage(createWaveformMessage("lfo2", mode));
+  get lfo2Mode() {
+    return this.params.get("lfo2Mode");
   }
 
-  set lfo2Destination(destination: LfoDestination) {
-    this.port.postMessage(createLfoDestinationMessage("lfo2", destination));
+  get lfo2Destination() {
+    return this.params.get("lfo2Destination");
   }
 }

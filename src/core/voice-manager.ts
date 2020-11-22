@@ -126,10 +126,10 @@ export class VoiceManager extends Dispatcher {
     }
     const voice = this.voiceGenerator.next().value;
     voice.frequency.value = frequency;
-    voice.osc1 = this.state.osc1.mode.value;
+    voice.osc1.value = this.state.osc1.mode.value;
     voice.osc1SemiShift.value = this.state.osc1.semiShift.value;
     voice.osc1CentShift.value = this.state.osc1.centShift.value;
-    voice.osc2 = this.state.osc2.mode.value;
+    voice.osc2.value = this.state.osc2.mode.value;
     voice.osc2SemiShift.value = this.state.osc2.semiShift.value;
     voice.osc2CentShift.value = this.state.osc2.centShift.value;
     voice.osc2Amplitude.value = this.state.osc2Amplitude.value;
@@ -137,7 +137,7 @@ export class VoiceManager extends Dispatcher {
     voice.amplitudeDecay.value = this.state.envelope.decay.value;
     voice.amplitudeSustain.value = this.state.envelope.sustain.value;
     voice.amplitudeRelease.value = this.state.envelope.release.value;
-    voice.filterMode = this.state.filter.mode.value;
+    voice.filterMode.value = this.state.filter.mode.value;
     voice.cutoff.value = this.state.filter.cutoff.value;
     voice.resonance.value = this.state.filter.resonance.value;
     voice.cutoffAttack.value = this.state.cutoffMod.attack.value;
@@ -145,12 +145,12 @@ export class VoiceManager extends Dispatcher {
     voice.cutoffEnvelopeAmount.value = this.state.cutoffMod.amount.value;
     voice.lfo1Frequency.value = this.state.lfo1.frequency.value;
     voice.lfo1ModAmount.value = this.state.lfo1.modAmount.value;
-    voice.lfo1Mode = this.state.lfo1.mode.value;
-    voice.lfo1Destination = this.state.lfo1.destination.value;
+    voice.lfo1Mode.value = this.state.lfo1.mode.value;
+    voice.lfo1Destination.value = this.state.lfo1.destination.value;
     voice.lfo2Frequency.value = this.state.lfo2.frequency.value;
     voice.lfo2ModAmount.value = this.state.lfo2.modAmount.value;
-    voice.lfo2Mode = this.state.lfo2.mode.value;
-    voice.lfo2Destination = this.state.lfo2.destination.value;
+    voice.lfo2Mode.value = this.state.lfo2.mode.value;
+    voice.lfo2Destination.value = this.state.lfo2.destination.value;
     this.voices.set(midiValue, voice);
     voice.start();
     voice.connect(this.output);
@@ -308,7 +308,7 @@ export class VoiceManager extends Dispatcher {
 
   setOsc1Mode(newMode: OscillatorMode) {
     this.state.osc1.mode.value = newMode;
-    this.dispatchUpdate((voice) => (voice.osc1 = newMode));
+    this.dispatchUpdate((voice) => (voice.osc1.value = newMode));
     return this;
   }
 
@@ -330,7 +330,7 @@ export class VoiceManager extends Dispatcher {
 
   setOsc2Mode(newMode: OscillatorMode) {
     this.state.osc2.mode.value = newMode;
-    this.dispatchUpdate((voice) => (voice.osc2 = newMode));
+    this.dispatchUpdate((voice) => (voice.osc2.value = newMode));
     return this;
   }
 
@@ -388,7 +388,7 @@ export class VoiceManager extends Dispatcher {
 
   setFilterMode(newMode: FilterMode) {
     this.state.filter.mode.value = newMode;
-    this.dispatchUpdate((voice) => (voice.filterMode = newMode));
+    this.dispatchUpdate((voice) => (voice.filterMode.value = newMode));
     return this;
   }
 
@@ -425,7 +425,7 @@ export class VoiceManager extends Dispatcher {
 
   setLfo1Mode(newMode: OscillatorMode) {
     this.state.lfo1.mode.value = newMode;
-    this.dispatchUpdate((voice) => (voice.lfo1Mode = newMode));
+    this.dispatchUpdate((voice) => (voice.lfo1Mode.value = newMode));
     return this;
   }
 
@@ -435,7 +435,7 @@ export class VoiceManager extends Dispatcher {
 
   setLfo1Destination(newDestination: LfoDestination) {
     this.state.lfo1.destination.value = newDestination;
-    this.dispatchUpdate((voice) => (voice.lfo1Destination = newDestination));
+    this.dispatchUpdate((voice) => (voice.lfo1Destination.value = newDestination));
     return this;
   }
 
@@ -457,13 +457,13 @@ export class VoiceManager extends Dispatcher {
 
   setLfo2Mode(newMode: OscillatorMode) {
     this.state.lfo2.mode.value = newMode;
-    this.dispatchUpdate((voice) => (voice.lfo2Mode = newMode));
+    this.dispatchUpdate((voice) => (voice.lfo2Mode.value = newMode));
     return this;
   }
 
   setLfo2Destination(newDestination: LfoDestination) {
     this.state.lfo2.destination.value = newDestination;
-    this.dispatchUpdate((voice) => (voice.lfo2Destination = newDestination));
+    this.dispatchUpdate((voice) => (voice.lfo2Destination.value = newDestination));
     return this;
   }
 

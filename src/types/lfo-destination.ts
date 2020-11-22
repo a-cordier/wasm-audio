@@ -1,10 +1,10 @@
 import { SelectOptions } from "./select-option";
 
 export enum LfoDestination {
-  FREQUENCY = "FREQUENCY",
-  OSCILLATOR_MIX = "OSCILLATOR_MIX",
-  CUTOFF = "CUTOFF",
-  RESONANCE = "RESONANCE",
+  FREQUENCY = 0,
+  OSCILLATOR_MIX = 1,
+  CUTOFF = 2,
+  RESONANCE = 3,
 }
 
 export const lfoDestinations = new SelectOptions([

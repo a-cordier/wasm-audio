@@ -46,8 +46,8 @@ export interface VoiceState {
 }
 
 export interface Voice extends AudioNode {
-  osc1: OscillatorMode | string;
-  osc2: OscillatorMode | string;
+  osc1: AudioParam;
+  osc2: AudioParam;
   osc1SemiShift: AudioParam;
   osc2SemiShift: AudioParam;
   osc1CentShift: AudioParam;
@@ -57,7 +57,7 @@ export interface Voice extends AudioNode {
   amplitudeDecay: AudioParam;
   amplitudeSustain: AudioParam;
   amplitudeRelease: AudioParam;
-  filterMode: FilterMode;
+  filterMode: AudioParam;
   cutoff: AudioParam;
   resonance: AudioParam;
   cutoffAttack: AudioParam;
@@ -66,12 +66,12 @@ export interface Voice extends AudioNode {
   osc2Amplitude: AudioParam;
   lfo1Frequency: AudioParam;
   lfo1ModAmount: AudioParam;
-  lfo1Mode: OscillatorMode | string;
-  lfo1Destination: LfoDestination | string;
+  lfo1Mode: AudioParam;
+  lfo1Destination: AudioParam;
   lfo2Frequency: AudioParam;
   lfo2ModAmount: AudioParam;
-  lfo2Mode: OscillatorMode | string;
-  lfo2Destination: LfoDestination | string;
+  lfo2Mode: AudioParam;
+  lfo2Destination: AudioParam;
   start(time?: number): void;
   stop(time?: number): void;
 }

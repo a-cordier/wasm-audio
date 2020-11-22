@@ -25,6 +25,7 @@ struct SampleParameters {
 	float *lfo2FrequencyValues;
 	float *lfo2ModAmountValues;
 
+	public:
 	float frequency;
 	float osc1SemiShift;
 	float osc1CentShift;

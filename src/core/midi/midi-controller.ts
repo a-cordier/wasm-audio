@@ -45,6 +45,10 @@ export async function createMidiController(
   }
 
   function dispatchMessageIfNeeded(message: Partial<MidiMessage>) {
+    if (!message) {
+      return;
+    }
+
     const messageChannel = message.data.channel;
     if (
       messageChannel !== currentChannel &&

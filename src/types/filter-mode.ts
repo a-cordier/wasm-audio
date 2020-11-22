@@ -1,6 +1,6 @@
 export enum FilterMode {
-  LOWPASS_PLUS = "LOWPASS_PLUS",
-  LOWPASS = "LOWPASS",
-  BANDPASS = "BANDPASS",
-  HIGHPASS = "HIGHPASS",
+  LOWPASS = 0,
+  LOWPASS_PLUS = 1,
+  BANDPASS = 2,
+  HIGHPASS = 3,
 }

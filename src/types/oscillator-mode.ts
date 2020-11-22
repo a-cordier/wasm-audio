@@ -1,6 +1,6 @@
 export enum OscillatorMode {
-  SINE = "sine",
-  SQUARE = "square",
-  SAWTOOTH = "sawtooth",
-  TRIANGLE = "triangle",
+  SINE = 0,
+  SAWTOOTH = 1,
+  SQUARE = 2,
+  TRIANGLE = 3,
 }
