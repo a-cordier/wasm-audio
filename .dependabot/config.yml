@@ -1,0 +1,16 @@
+version: 2
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    assignees:
+      - "a-cordier"
+    reviewers:
+      - "a-cordier"
+    labels:
+      - "npm"
+      - "dependencies"
+    commit-message:
+      prefix: ":arrow_up:"
