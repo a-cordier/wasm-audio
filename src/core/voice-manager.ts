@@ -37,12 +37,12 @@ export class VoiceManager extends Dispatcher {
       semiShift: { value: 127 / 2 },
       centShift: { value: 127 - 127 / 3 },
     },
-    osc2Amplitude: { value: 0 },
+    osc2Amplitude: { value: 127 / 2 },
     envelope: {
-      attack: { value: 1 },
-      decay: { value: 127 / 2 },
+      attack: { value: 0 },
+      decay: { value: 127 / 16 },
       sustain: { value: 127 / 4 },
-      release: { value: 1 },
+      release: { value: 127 / 4 },
     },
     filter: {
       mode: { value: FilterMode.LOWPASS_PLUS },

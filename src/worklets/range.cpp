@@ -25,7 +25,7 @@ const Range zeroOneRange{ 0.f, 1.f };
 const Range attackRange{ Constants::epsilon, 1.f };
 const Range decayRange{ 0.1f, 4.f };
 const Range sustainRange{ 0.1f, 1.f };
-const Range releaseRange{ 0.1f, 4.f };
+const Range releaseRange{ Constants::epsilon, .25f };
 const Range cutoffRange{ Constants::epsilon, 1.f - Constants::epsilon };
 const Range resonanceRange{ 0.f, 0.9f };
 const Range envelopeAmountRange{ 0.f, 1.f };
