@@ -11,7 +11,12 @@ namespace Filter {
 	class Kernel {
 		public:
 		Kernel() :
-			mode(Mode::LOWPASS),
+			Kernel(Mode::LOWPASS) {
+		}
+
+		public:
+		Kernel(Mode mode) :
+			mode(mode),
 			buf0(0.0),
 			buf1(0.0),
 			buf2(0.0),
@@ -25,7 +30,6 @@ namespace Filter {
 
 		public:
 		float nextSample(float sample, float cutoff, float resonance) {
-			static bool logged = false;
 			float feedbackAmount = resonance + resonance / (1.0 - cutoff);
 			buf0 += cutoff * (sample - buf0 + feedbackAmount * (buf0 - buf1));
 			buf1 += cutoff * (buf0 - buf1);

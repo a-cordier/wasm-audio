@@ -83,9 +83,9 @@ enum class LfoDestination {
 
 class VoiceKernel {
 	public:
-	VoiceKernel(float sampleRate, float kRenderQuantumFrames) :
+	VoiceKernel(float sampleRate, float renderFrames) :
 		sampleRate(sampleRate),
-		kRenderQuantumFrames(kRenderQuantumFrames),
+		renderFrames(renderFrames),
 		osc1(Oscillator::Kernel{ sampleRate }),
 		osc2(Oscillator::Kernel{ sampleRate }),
 		lfo1(Oscillator::Kernel{ sampleRate }),
@@ -102,9 +102,9 @@ class VoiceKernel {
 		float *frequencyValues = reinterpret_cast<float *>(frequencyValuesPtr);
 
 		for (unsigned channel = 0; channel < channelCount; ++channel) {
-			float *channelBuffer = outputBuffer + channel * kRenderQuantumFrames;
+			float *channelBuffer = outputBuffer + channel * renderFrames;
 
-			for (auto sample = 0; sample < kRenderQuantumFrames; ++sample) {
+			for (auto sample = 0; sample < renderFrames; ++sample) {
 				startIfNecessary();
 				preCompute(frequencyValues, sample);
 				channelBuffer[sample] = computeSample();
@@ -360,6 +360,7 @@ class VoiceKernel {
 	Envelope::Kernel amplitudeEnvelope;
 
 	Filter::Kernel filter;
+
 	Envelope::Kernel cutoffEnvelope;
 
 	VoiceState state;
@@ -367,7 +368,7 @@ class VoiceKernel {
 	SampleParameters sampleParameters;
 
 	float sampleRate = Constants::sampleRate;
-	unsigned kRenderQuantumFrames = Constants::kRenderQuantumFrames;
+	unsigned renderFrames = Constants::renderFrames;
 };
 
 EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
