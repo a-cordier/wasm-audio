@@ -100,7 +100,7 @@ export const automatedParameterDescriptors = [
     name: "frequency",
     defaultValue: 440,
     minValue: 0,
-    maxValue: 16_744,
+    maxValue: 16744,
     automationRate: "a-rate",
   },
   {
