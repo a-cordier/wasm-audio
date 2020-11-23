@@ -93,8 +93,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.kernel.setOsc2Mode(waveforms[kValueOf(parameters.osc2)]);
     this.kernel.setFilterMode(FilterMode[kValueOf(parameters.filterMode)]);
     this.kernel.setLfo1Mode(waveforms[kValueOf(parameters.lfo1Mode)]);
-    this.kernel.setLfo1Mode(waveforms[kValueOf(parameters.lfo2Mode)]);
-    this.kernel.setLfo2Destination(LfoDestination[kValueOf(parameters.lfo1Destination)]);
+    this.kernel.setLfo2Mode(waveforms[kValueOf(parameters.lfo2Mode)]);
+    this.kernel.setLfo1Destination(LfoDestination[kValueOf(parameters.lfo1Destination)]);
     this.kernel.setLfo2Destination(LfoDestination[kValueOf(parameters.lfo2Destination)]);
 
     // Oscillators parameters
