@@ -1,7 +1,6 @@
 import { MidiOmniChannel } from "./midi-channels";
 import {
   newMidiMessage,
-  isNote,
   isControlChange,
   Status,
 } from "./midi-message";
@@ -26,14 +25,14 @@ export async function createMidiController(
   let currentChannel = channel;
 
   if (!midiNavigator.requestMIDIAccess) {
-    return Promise.reject("MIDI is not supported, returning a noop dispatcher");
+    return Promise.reject("MIDI is not supported");
   }
 
   try {
     midiAccess = await midiNavigator.requestMIDIAccess();
   } catch (error) {
     return Promise.reject(
-      "Error requesting MIDI access, returning a noop dispatcher"
+      "Error requesting MIDI access"
     );
   }
 
@@ -50,10 +49,7 @@ export async function createMidiController(
     }
 
     const messageChannel = message.data.channel;
-    if (
-      messageChannel !== currentChannel &&
-      currentChannel !== MidiOmniChannel
-    ) {
+    if (messageChannel !== currentChannel && currentChannel !== MidiOmniChannel) {
       return;
     }
     if (message.status === Status.NOTE_ON) {

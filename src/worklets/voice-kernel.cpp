@@ -53,7 +53,7 @@ namespace Voice {
 
 				for (auto sample = 0; sample < renderFrames; ++sample) {
 					startIfNecessary();
-					preCompute(frequencyValues, sample);
+					assignParameters(frequencyValues, sample);
 					channelBuffer[sample] = computeSample();
 					stopIfNecessary();
 				}
@@ -199,7 +199,7 @@ namespace Voice {
 		}
 
 		private:
-		inline void preCompute(float *frequencyValues, unsigned int sampleCursor) {
+		inline void assignParameters(float *frequencyValues, unsigned int sampleCursor) {
 			sampleParameters.withFrequencyValues(frequencyValues).fetchValues(sampleCursor);
 			osc1.setSemiShift(sampleParameters.osc1SemiShift);
 			subOsc.setOsc1SemiShift(sampleParameters.osc1SemiShift);
