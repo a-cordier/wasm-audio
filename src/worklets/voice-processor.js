@@ -80,6 +80,15 @@ class VoiceProcessor extends AudioWorkletProcessor {
     }
 
     if (isStopping(parameters)) {
+      /*
+       * Idea
+       * In order to avoid overflowing the buffer two many voices in release stage,
+       * we could somehow set releease time to a very low value if the number of
+       * voices is above a certain treshold (eg MAX_VOICE_COUNT = 12)
+       *
+       * Might look as well at how to implement a proper look ahead limiter and
+       * make it it's own module
+       */
       this.kernel.enterReleaseStage();
     }
 

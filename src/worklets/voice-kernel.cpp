@@ -28,6 +28,7 @@ namespace Voice {
 		CUTOFF = 2,
 		RESONANCE = 3
 	};
+
 	class Kernel {
 		public:
 		Kernel(float sampleRate, float renderFrames) :
