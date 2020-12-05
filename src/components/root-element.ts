@@ -33,9 +33,8 @@ import { VoiceEvent } from "../types/voice-event";
 import { VoiceState } from "../types/voice";
 import { MidiControlID } from "../types/midi-learn-options";
 import { KeyBoardController } from "../core/keyboard-controller";
-import { times } from "../core/midi/midi-util";
 
-@customElement("child-element")
+@customElement("root-element")
 export class Root extends LitElement {
   private audioContext: AudioContext;
   private analyzer: AnalyserNode;
@@ -246,10 +245,12 @@ export class Root extends LitElement {
     const { type, option } = event.detail;
     switch (type) {
       case MenuMode.MIDI_LEARN:
-        this.midiController.setCurrentLearnerID(option.value);
         this.currentLearnerID = option.value;
+        this.midiController.setCurrentLearnerID(this.currentLearnerID);
         break;
       case MenuMode.MIDI_CHANNEL:
+        this.currentLearnerID = MidiControlID.NONE;
+        this.midiController.setCurrentLearnerID(this.currentLearnerID);
         this.midiController.setCurrentChannel(option.value);
         break;
     }

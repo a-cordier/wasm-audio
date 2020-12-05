@@ -17,7 +17,7 @@
 
   <body>
     <div class="content">
-      <child-element></child-element>
+      <root-element></root-element>
     </div>
     <script>
       (function () {
@@ -44,16 +44,11 @@
 
         function isChrome() {
           var runtimeWindow = window;
-          return (
-            !!runtimeWindow.chrome &&
-            (!!runtimeWindow.chrome.webstore || !!runtimeWindow.chrome.runtime)
-          );
+          return !!runtimeWindow.chrome && (!!runtimeWindow.chrome.webstore || !!runtimeWindow.chrome.runtime);
         }
 
         function isUpToDate() {
-          var version = navigator.userAgent.match(
-            /Chrom(?:e|ium)\/([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)/
-          );
+          var version = navigator.userAgent.match(/Chrom(?:e|ium)\/([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)/);
           if (version == null || version.length != 5) {
             return false;
           }
@@ -76,9 +71,7 @@
             [
               "WARNING!",
               "This application uses recent Web API and should be run in an up to date Chromium browser.",
-              "For now it has been succesfully tested in major version " +
-                wasmTestedVersion +
-                " only.",
+              "For now it has been succesfully tested in major version " + wasmTestedVersion + " only.",
               "You are adviced to update your browser before going further.",
             ].join("\n")
           );
