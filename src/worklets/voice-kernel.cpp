@@ -200,7 +200,7 @@ namespace Voice {
 		}
 
 		private:
-		inline void assignParameters(float *frequencyValues, unsigned int sampleCursor) {
+		void assignParameters(float *frequencyValues, unsigned int sampleCursor) {
 			sampleParameters.withFrequencyValues(frequencyValues).fetchValues(sampleCursor);
 			osc1.setSemiShift(sampleParameters.osc1SemiShift);
 			subOsc.setOsc1SemiShift(sampleParameters.osc1SemiShift);
@@ -220,13 +220,13 @@ namespace Voice {
 		}
 
 		private:
-		inline float computeSample() {
+		float computeSample() {
 			float sample = computeRawSample() * amplitudeEnvelope.nextLevel() * Constants::voiceGain;
 			return filter.nextSample(sample, sampleParameters.cutoff, sampleParameters.resonance);
 		}
 
 		private:
-		inline float computeRawSample() {
+		float computeRawSample() {
 			float osc1Sample = osc1.nextSample(sampleParameters.frequency) * sampleParameters.osc1Amplitude;
 			float osc2Sample = osc2.nextSample(sampleParameters.frequency) * sampleParameters.osc2Amplitude;
 			subOsc.setOsc2Amplitude(sampleParameters.osc2Amplitude);
@@ -235,7 +235,7 @@ namespace Voice {
 		}
 
 		private:
-		inline void applyModulations() {
+		void applyModulations() {
 			float lfo1Mod = sampleParameters.lfo1ModAmount * lfo1.nextSample(sampleParameters.lfo1Frequency);
 			float lfo2Mod = sampleParameters.lfo2ModAmount * lfo2.nextSample(sampleParameters.lfo2Frequency);
 			float cutoffMod = sampleParameters.cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
@@ -245,7 +245,7 @@ namespace Voice {
 		}
 
 		private:
-		inline void applyLFO(LfoDestination destination, float mod) {
+		void applyLFO(LfoDestination destination, float mod) {
 			switch (destination) {
 				case LfoDestination::FREQUENCY:
 					sampleParameters.frequency += mod * sampleParameters.frequency;
@@ -263,7 +263,7 @@ namespace Voice {
 		}
 
 		private:
-		inline void startIfNecessary() {
+		void startIfNecessary() {
 			if (state == State::DISPOSED) {
 				amplitudeEnvelope.enterAttackStage();
 				cutoffEnvelope.enterAttackStage();
@@ -272,25 +272,25 @@ namespace Voice {
 		}
 
 		private:
-		inline void stopIfNecessary() {
+		void stopIfNecessary() {
 			if (state == State::STOPPING && amplitudeEnvelope.isDone()) {
 				state = State::STOPPED;
 			}
 		}
 
 		private:
-		inline float getCurrentValue(float *valuesPtr, unsigned int i) {
+		float getCurrentValue(float *valuesPtr, unsigned int i) {
 			return hasConstantValue(valuesPtr) ? valuesPtr[0] : valuesPtr[i];
 		}
 
 		private:
-		inline float getCurrentValue(float *valuesPtr, unsigned int i, Range sourceRange, Range targetRange) {
+		float getCurrentValue(float *valuesPtr, unsigned int i, Range sourceRange, Range targetRange) {
 			auto value = getCurrentValue(valuesPtr, i);
 			return targetRange.map(value, sourceRange);
 		}
 
 		private:
-		inline bool hasConstantValue(float *valuesPtr) {
+		bool hasConstantValue(float *valuesPtr) {
 			return sizeof(valuesPtr) == sizeof(valuesPtr[0]);
 		}
 

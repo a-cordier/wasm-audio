@@ -58,7 +58,7 @@ namespace Oscillator {
 		}
 
 		private:
-		inline float computeSample() {
+		float computeSample() {
 			switch (mode) {
 				case Mode::SINE:
 					return computeSine();
@@ -72,18 +72,18 @@ namespace Oscillator {
 		}
 
 		private:
-		inline float computeSine() {
+		float computeSine() {
 			return std::sin(phase);
 		}
 
 		private:
-		inline float computeSaw() {
+		float computeSaw() {
 			float value = 1.0 - (2.0 * phase / Constants::twoPi);
 			return value - computePolyBLEP(phase / Constants::twoPi, phaseIncrement / Constants::twoPi);
 		}
 
 		private:
-		inline float computeSquare() {
+		float computeSquare() {
 			auto value = phase <= Constants::pi ? 1 : -1;
 			value += computePolyBLEP(phase / Constants::twoPi, phaseIncrement / Constants::twoPi);
 			value -= computePolyBLEP(fmod(phase / Constants::twoPi + 0.5, 1.0), phaseIncrement / Constants::twoPi);
@@ -91,7 +91,7 @@ namespace Oscillator {
 		}
 
 		private:
-		inline float computeTriangle() {
+		float computeTriangle() {
 			auto value = computeSquare();
 			value = phaseIncrement * value + (1.f - phaseIncrement) * lastValue;
 			lastValue = value;
@@ -99,12 +99,12 @@ namespace Oscillator {
 		}
 
 		private:
-		inline float computePhaseIncrement(float frequency) {
+		float computePhaseIncrement(float frequency) {
 			return frequency * Constants::twoPi / sampleRate;
 		}
 
 		private:
-		inline float computePolyBLEP(float t, float dt) {
+		float computePolyBLEP(float t, float dt) {
 			if (t < dt) {
 				t /= dt;
 				return t + t - t * t - 1.f;
@@ -117,29 +117,29 @@ namespace Oscillator {
 		}
 
 		private:
-		inline void updatePhase(float frequency) {
+		void updatePhase(float frequency) {
 			phase += phaseIncrement;
 			if (phase >= Constants::twoPi) phase -= Constants::twoPi;
 		}
 
 		private:
-		inline float shiftFrequency(float frequency) {
+		float shiftFrequency(float frequency) {
 			auto semiShited = shiftFrequency(frequency, Constants::semiFactor, semiShift);
 			return shiftFrequency(semiShited, Constants::centFactor, centShift);
 		}
 
 		private:
-		inline float shiftFrequency(float frequency, float factor, int steps) {
+		float shiftFrequency(float frequency, float factor, int steps) {
 			return steps < 0 ? shiftLeft(frequency, factor, steps) : shiftRight(frequency, factor, steps);
 		}
 
 		private:
-		inline float shiftLeft(float frequency, float factor, int steps) {
+		float shiftLeft(float frequency, float factor, int steps) {
 			return frequency / std::pow(factor, -steps);
 		}
 
 		private:
-		inline float shiftRight(float frequency, float factor, int steps) {
+		float shiftRight(float frequency, float factor, int steps) {
 			return frequency * std::pow(factor, steps);
 		}
 

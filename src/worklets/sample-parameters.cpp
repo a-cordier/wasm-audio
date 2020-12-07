@@ -78,7 +78,7 @@ struct SampleParameters {
 	}
 
 	private:
-	inline float getCurrentValue(float *valuesPtr, unsigned int i) {
+	float getCurrentValue(float *valuesPtr, unsigned int i) {
 		if (valuesPtr == nullptr) {
 			return 0.f;
 		}
@@ -86,13 +86,13 @@ struct SampleParameters {
 	}
 
 	private:
-	inline float getCurrentValue(float *valuesPtr, unsigned int i, Range sourceRange, Range targetRange) {
+	float getCurrentValue(float *valuesPtr, unsigned int i, Range sourceRange, Range targetRange) {
 		auto value = getCurrentValue(valuesPtr, i);
 		return targetRange.map(value, sourceRange);
 	}
 
 	private:
-	inline bool hasConstantValue(float *valuesPtr) {
+	bool hasConstantValue(float *valuesPtr) {
 		return sizeof(valuesPtr) == sizeof(valuesPtr[0]);
 	}
 };
