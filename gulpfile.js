@@ -14,9 +14,7 @@ gulp.task("copy-html", () => {
 });
 
 gulp.task("copy-worklets", () => {
-  return isProduction
-    ? Promise.resolve()
-    : gulp.src(["src/worklets/**/*.js"]).pipe(gulp.dest("dist"));
+  return isProduction ? Promise.resolve() : gulp.src(["src/worklets/**/*.js"]).pipe(gulp.dest("dist"));
 });
 
 gulp.task("copy-fonts", () => {
@@ -96,24 +94,19 @@ gulp.task("build", async () => {
   await bundleApplication();
 });
 
-gulp.task(
-  "bundle",
-  gulp.series(gulp.parallel("copy-html", "copy-worklets"), "build")
-);
+gulp.task("bundle", gulp.series(gulp.parallel("copy-html", "copy-worklets"), "build"));
 
 gulp.task("reload", async () => browserSync.reload());
 
 gulp.task("serve", () => {
   browserSync.init({
+    browser: ["google chrome"],
     server: "./dist",
   });
 
   gulp.watch("./src/**/*.cpp", gulp.series("compile"));
 
-  return gulp.watch(
-    ["./src/**/*.ts", "./src/**/*.js", "./src/**/*.html"],
-    gulp.series("clean", "bundle", "reload")
-  );
+  return gulp.watch(["./src/**/*.ts", "./src/**/*.js", "./src/**/*.html"], gulp.series("clean", "bundle", "reload"));
 });
 
 gulp.task("build", gulp.series("clean", "compile", "bundle"));
