@@ -57,6 +57,16 @@ function isStopping(parameters) {
   return kValueOf(parameters.stopped) === BooleanParam.TRUE && parameters.stopTime <= currentTime;
 }
 
+/**
+ * When a number of voices are stacked together,
+ * long time release values may lead to buffer overflow.
+ * Let's start with a dummy way of mitigating this by
+ * lower release value for each new voice we stack.
+ */
+let voiceCount = 0;
+function adaptRelease(parameters) {
+  return [kValueOf(parameters.amplitudeRelease) / voiceCount];
+}
 class VoiceProcessor extends AudioWorkletProcessor {
   outputBuffer = new HeapAudioBuffer(wasm, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);
 
@@ -64,6 +74,9 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
   // noinspection JSUnresolvedFunction
   kernel = new wasm.VoiceKernel(sampleRate, RENDER_QUANTUM_FRAMES);
+
+  isStopping = false;
+  isStarted = false;
 
   static get parameterDescriptors() {
     return [...staticParameterDescriptors, ...automatedParameterDescriptors];
@@ -74,28 +87,25 @@ class VoiceProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    if (this.kernel.isStopped()) {
-      this.freeBuffers();
-      return false;
+    if (!this.isStarted) {
+      this.isStarted = true;
+      ++voiceCount;
     }
 
-    if (isStopping(parameters)) {
-      /*
-       * Idea
-       * In order to avoid overflowing the buffer two many voices in release stage,
-       * we could somehow set releease time to a very low value if the number of
-       * voices is above a certain treshold (eg MAX_VOICE_COUNT = 12)
-       *
-       * Might look as well at how to implement a proper look ahead limiter and
-       * make it it's own module
-       */
-      this.kernel.enterReleaseStage();
+    if (this.kernel.isStopped()) {
+      this.freeBuffers();
+      --voiceCount;
+      return false;
     }
 
     const output = outputs[0];
     const channelCount = output.length;
-
     this.allocateBuffers(channelCount, parameters);
+
+    if (isStopping(parameters) && !this.isStopping) {
+      this.kernel.enterReleaseStage();
+      this.isStopping = true;
+    }
 
     // Static parameters
     this.kernel.setOsc1Mode(waveforms[kValueOf(parameters.osc1)]);
@@ -147,7 +157,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
   allocateBuffers(channelCount, parameters) {
     this.outputBuffer.adaptChannel(channelCount);
     this.parameterBuffers.forEach((buffer, name) => {
-      buffer.getData().set(parameters[name]);
+      const values = name === "amplitudeRelease" ? adaptRelease(parameters) : parameters[name];
+      buffer.getData().set(values);
     });
   }
 
