@@ -2,19 +2,20 @@
 
 #include "constants.cpp"
 #include <cmath>
-
+#include <ctime>
 namespace Oscillator {
 	enum class Mode {
 		SAW,
 		SINE,
 		SQUARE,
-		TRIANGLE
+		TRIANGLE,
+		NOISE,
 	};
 
 	class Kernel {
 		public:
 		Kernel(float sampleRate) :
-			sampleRate(sampleRate) {}
+			sampleRate(sampleRate) { srand(time(NULL)); }
 
 		public:
 		float nextSample(float frequency) {
@@ -68,6 +69,8 @@ namespace Oscillator {
 					return computeSquare();
 				case Mode::TRIANGLE:
 					return computeTriangle();
+				case Mode::NOISE:
+					return computeNoise();
 			}
 		}
 
@@ -99,6 +102,25 @@ namespace Oscillator {
 		}
 
 		private:
+		float computeNoise() {
+			const static int q = 15;
+			const static float c1 = (1 << q) - 1;
+			const static float c2 = ((int)(c1 / 3)) + 1;
+			const static float c3 = 1.f / c1;
+			const static float c4 = c2 - 1.f;
+			float random = computeRandomValue();
+			float c5 = 6.f * random * c2;
+			float c6 = 3.f * c4;
+			return (c5 - c6) * c3;
+		}
+
+		private:
+		float computeRandomValue() {
+			const static float max = static_cast<float>(RAND_MAX + 1);
+			return static_cast<float>(rand()) / max;
+		}
+
+		private:
 		float computePhaseIncrement(float frequency) {
 			return frequency * Constants::twoPi / sampleRate;
 		}
@@ -119,7 +141,9 @@ namespace Oscillator {
 		private:
 		void updatePhase(float frequency) {
 			phase += phaseIncrement;
-			if (phase >= Constants::twoPi) phase -= Constants::twoPi;
+			if (phase >= Constants::twoPi) {
+				phase -= Constants::twoPi;
+			}
 		}
 
 		private:
