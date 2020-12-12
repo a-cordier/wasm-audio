@@ -47,6 +47,11 @@ namespace Oscillator {
 		}
 
 		public:
+		void setDutyCycle(float newDutyCycle) {
+			dutyCycle = newDutyCycle;
+		}
+
+		public:
 		void setSampleRate(float newSampleRate) {
 			sampleRate = newSampleRate;
 		}
@@ -87,7 +92,7 @@ namespace Oscillator {
 
 		private:
 		float computeSquare() {
-			auto value = phase <= Constants::pi ? 1 : -1;
+			auto value = phase <= Constants::twoPi * dutyCycle ? 1 : -1;
 			value += computePolyBLEP(phase / Constants::twoPi, phaseIncrement / Constants::twoPi);
 			value -= computePolyBLEP(fmod(phase / Constants::twoPi + 0.5, 1.0), phaseIncrement / Constants::twoPi);
 			return value;
@@ -178,6 +183,8 @@ namespace Oscillator {
 		float centShift = 0.f;
 
 		float amplitude = 0.5f;
+
+		float dutyCycle = 0.5f;
 
 		float sampleRate = Constants::sampleRate;
 	};
