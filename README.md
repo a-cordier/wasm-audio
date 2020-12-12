@@ -4,7 +4,7 @@ This project aims to showcase the use of Web Assembly modules in AudioWorklets (
 
 ## :building_construction: Project Goal
 
-Assemble a simple synth using in house (read "stolen here and there on the web") DSP algorithm written in C++ and exposed to the Web Audio API (using AudioWorklets) through Web Assembly.
+Assemble a simple synth using in house (read "stolen here and there on the web") DSP algorithms written in C++ and exposed to the Web Audio API (using AudioWorklets) through Web Assembly.
 
 ## :alembic: Project Requirements
 
