@@ -2,7 +2,9 @@
 
 #include "constants.cpp"
 #include <cmath>
+#include <cstdlib>
 #include <ctime>
+
 namespace Oscillator {
 	enum class Mode {
 		SAW,
@@ -113,15 +115,14 @@ namespace Oscillator {
 			const static float c2 = ((int)(c1 / 3)) + 1;
 			const static float c3 = 1.f / c1;
 			const static float c4 = c2 - 1.f;
-			float random = computeRandomValue();
-			float c5 = 6.f * random * c2;
+			float c5 = 6.f * computeRandomValue() * c2;
 			float c6 = 3.f * c4;
 			return (c5 - c6) * c3;
 		}
 
 		private:
 		float computeRandomValue() {
-			const static float max = static_cast<float>(RAND_MAX + 1);
+			const static float max = static_cast<float>(RAND_MAX);
 			return static_cast<float>(rand()) / max;
 		}
 
@@ -184,7 +185,7 @@ namespace Oscillator {
 
 		float amplitude = 0.5f;
 
-		float dutyCycle = 0.5f;
+		float dutyCycle = 0.2f;
 
 		float sampleRate = Constants::sampleRate;
 	};
