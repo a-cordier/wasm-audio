@@ -9,6 +9,7 @@ import "./common/icons/sine-wave-icon";
 import "./common/icons/triangle-wave-icon";
 import "./panels/oscillator/wave-selector-element";
 import "./panels/oscillator/oscillator-element";
+import "./panels/oscillator-mix/oscillator-mix";
 import "./panels/filter/filter-element";
 import "./panels/envelope/envelope-element";
 import "./panels/filter-mod/filter-envelope-element";
@@ -164,6 +165,7 @@ export class Root extends LitElement {
   }
 
   onOscMixChange(event: CustomEvent) {
+    console.log(event)
     this.voiceManager.setOsc2Amplitude(event.detail.value);
   }
 
@@ -290,22 +292,11 @@ export class Root extends LitElement {
               .state=${this.state.osc1}
               @change=${this.onOsc1Change}
             ></oscillator-element>
-            <div class="oscillator-mix">
-              <panel-wrapper-element class="oscillator-mix-wrapper">
-                <div class="oscillator-mix-control">
-                  <midi-control-wrapper
-                    .controlID=${MidiControlID.OSC_MIX}
-                    .currentLearnerID=${this.currentLearnerID}
-                  >
-                    <knob-element
-                      label="osc mix"
-                      .value=${this.state.osc2Amplitude.value as number}
-                      @change=${this.onOscMixChange}
-                    ></knob-element>
-                  </midi-control-wrapper>
-                </div>
-              </panel-wrapper-element>
-            </div>
+            <oscillator-mix-element 
+              .state=${this.state} 
+              .currentLearnerID=${this.currentLearnerID}
+              @change=${this.onOscMixChange}
+            ></oscillator-mix-element>
             <oscillator-element
               .currentLearnerID=${this.currentLearnerID}
               .semiControlID=${MidiControlID.OSC2_SEMI}
@@ -401,29 +392,11 @@ export class Root extends LitElement {
         align-items: center;
       }
 
-      .synth .oscillator-mix {
-        --knob-size: 60px;
-        --panel-wrapper-background-color: var(--oscillator-mix-panel-color);
-        display: inline-flex;
-        justify-content: center;
-      }
-
-      .synth .oscillator-mix.focused {
-        animation: control-focus 1s ease-in-out infinite;
-      }
-
       @keyframes control-focus {
         to {
           --control-handle-color: #abbdcd;
           --control-top-color: #252525;
         }
-      }
-
-      .synth .oscillator-mix .oscillator-mix-control {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 100%;
       }
 
       .synth .envelopes {
