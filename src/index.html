@@ -82,31 +82,45 @@
 
   <style>
     :root {
+      /* TODO: replace with gray scale */
       --light-color: #68718a;
       --lighter-color: #e8eaec;
       --darker-color: #110517;
 
-      --control-background-color: #110517;
-      --control-top-color: #1f262e;
+      /* this color is used to emphasis the control when midi learn is toggled => todo rename ? */
       --control-hander-color-focused: var(--lighter-color);
       --control-handle-color: #c5d7e4;
       --control-cursor-color: #110517;
+      --control-top-color: #1f262e;
       --control-label-color: var(--control-handle-color);
+
+      --button-disposed-background-color: white;
+      --button-disposed-label-color: black;
+      --button-active-background-color: red;
+      --button-active-label-color: white;
+      --button-border: 1px solid var(--light-color);
 
       --key-sharp-color: var(--control-top-color);
       --key-whole-color: var(--lighter-color);
       --keyboard-panel-color: var(--control-top-color);
 
-      --overlay-color: var(--light-color);
+      --lcd-led-on-color: #b4d455;
+      --lcd-screen-border-color: #2c2c31;
+      --lcd-screen-background: #090816;
+
+      --oscillator-panel-color: #145a6a;
+      --oscillator-mix-panel-color: var(--oscillator-panel-color);
+      --envelope-panel-color: var(--oscillator-panel-color);
+      --filter-panel-color: #ac8f1d;
+      --filter-mod-panel-color: var(--filter-panel-color);
+      --lfo-panel-color: #9a1a40;
+      --main-panel-color: #272324;
+
+      /* todo not used at the moment => keep or throw away */
+      --box-shadow-color: red;
+      --box-shadow: 0px 0px 0px 0px var(--box-shadow-color);
 
       --ui-transition-time: 0.4s;
-
-      --oscillator-panel-color: #7a1621;
-      --filter-panel-color: #334452;
-      --lfo-panel-color: #b13f1a;
-
-      --lcd-led-on-color: #b4d455;
-      --lcd-screen-background: darkslategray;
     }
 
     html {

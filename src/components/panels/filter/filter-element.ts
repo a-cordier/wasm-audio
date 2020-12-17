@@ -80,7 +80,7 @@ export class Filter extends LitElement {
     // noinspection CssUnresolvedCustomProperty
     return css`
       :host {
-        --panel-wrapper-background-color: #334452;
+        --panel-wrapper-background-color: var(--filter-panel-color);
       }
 
       .filter-controls {

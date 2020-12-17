@@ -95,6 +95,20 @@ export class Oscillator extends LitElement {
               </div>
               <label>cents</label>
             </div>
+            <div class="shift-control">
+              <div class="cycle-shift-control cycle">
+                <midi-control-wrapper
+                  controlID=${this.centControlID}
+                  currentLearnerID=${this.currentLearnerID}
+                >
+                  <knob-element
+                    .value=${this.centShiftValue}
+                    @change=${this.onCentShift}
+                  ></knob-element>
+                </midi-control-wrapper>
+              </div>
+              <label>cycle</label>
+            </div>
           </div>
         </div>
       </panel-wrapper-element>
@@ -105,7 +119,7 @@ export class Oscillator extends LitElement {
     // noinspection CssUnresolvedCustomProperty
     return css`
       :host {
-        --panel-wrapper-background-color: #7a1621;
+        --panel-wrapper-background-color: var(--oscillator-panel-color);
       }
 
       .oscillator-controls {
@@ -148,6 +162,16 @@ export class Oscillator extends LitElement {
         width: 100%;
         height: 90%;
         --knob-size: 40px;
+      }
+
+      .oscillator-controls .tone-controls .cycle-shift-control {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        width: 100%;
+        height: 90%;
+        --knob-size: 30px;
       }
 
       label {

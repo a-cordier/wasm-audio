@@ -87,9 +87,9 @@ export class LCDSelector extends LitElement {
       button {
         font-size: var(--button-font-size, 0.5em);
 
-        background-color: var(--lighter-color);
-        border: 1px solid var(--light-color, #ccc);
-        box-shadow: 0px 1px 1px 1px var(--control-background-color, #ccc);
+        background-color: var(--button-disposed-background-color);
+        border: var(--button-border);
+        box-shadow: var(--box-shadow);
         transition: all 0.1s ease-in-out;
 
         display: inline-flex;
@@ -98,7 +98,7 @@ export class LCDSelector extends LitElement {
 
         cursor: pointer;
 
-        color: black;
+        color: var(--button-disposed-label-color);
       }
 
       button:focus {
@@ -106,8 +106,8 @@ export class LCDSelector extends LitElement {
       }
 
       button.active {
-        background-color: var(--control-handle-color);
-        color: white;
+        background-color: var(--button-active-background-color);
+        color: var(--button-active-label-color);
         border-color: white;
         box-shadow: none;
 

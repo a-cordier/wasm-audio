@@ -94,7 +94,7 @@ export class Envelope extends LitElement {
     // noinspection CssUnresolvedCustomProperty
     return css`
       :host {
-        --panel-wrapper-background-color: #7a1621;
+        --panel-wrapper-background-color: var(--envelope-panel-color);
         --fader-height: 120px;
       }
 

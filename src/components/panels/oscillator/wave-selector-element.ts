@@ -9,7 +9,7 @@ import "../../common/icons/triangle-wave-icon";
 
 @customElement("wave-selector-element")
 export class WaveSelector extends LitElement {
-  @property({ type: String })
+  @property({ type: Number })
   public value = OscillatorMode.SINE;
 
   async onSawSelect() {
@@ -94,10 +94,10 @@ export class WaveSelector extends LitElement {
         height: var(--button-height, 25px);
         font-size: var(--button-font-size, 1.5em);
 
-        background-color: var(--lighter-color);
+        background-color: var(--button-disposed-background-color);
         border: 1px solid #ccc;
         border-radius: 50%;
-        box-shadow: 0px 1px 1px 1px 1 #ccc;
+        box-shadow: var(--box-shadow);
         transition: all 0.1s ease-in-out;
 
         display: inline-flex;
@@ -105,7 +105,7 @@ export class WaveSelector extends LitElement {
 
         cursor: pointer;
 
-        --stroke-color: black;
+        --stroke-color: var(--button-disposed-label-color);
       }
 
       button .icon {
@@ -117,8 +117,8 @@ export class WaveSelector extends LitElement {
       }
 
       button.active {
-        background-color: var(--control-handle-color);
-        --stroke-color: white;
+        background-color:  var(--button-active-background-color);
+        --stroke-color: var(--button-active-label-color);
         border-color: white;
       }
     `;

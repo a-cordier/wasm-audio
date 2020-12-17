@@ -91,10 +91,10 @@ export class FilterSelector extends LitElement {
 
         font-size: var(--button-font-size, 1.5em);
 
-        background-color: var(--lighter-color);
+        background-color: var(--button-disposed-background-color);
         border: 1px solid var(--light-color, #ccc);
         border-radius: 50%;
-        box-shadow: 0px 1px 1px 1px var(--control-background-color, #ccc);
+        box-shadow: var(--box-shadow);
         transition: all 0.1s ease-in-out;
 
         display: inline-flex;
@@ -102,7 +102,7 @@ export class FilterSelector extends LitElement {
 
         cursor: pointer;
 
-        color: black;
+        color: var(--button-disposed-label-color);
       }
 
       button:focus {
@@ -110,9 +110,9 @@ export class FilterSelector extends LitElement {
       }
 
       button.active {
-        background-color: var(--control-handle-color);
+        background-color: var(--button-active-background-color);
         color: white;
-        border-color: white;
+        border-color: var(--button-active-label-color);
       }
     `;
   }

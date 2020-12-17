@@ -185,7 +185,7 @@ namespace Oscillator {
 
 		float amplitude = 0.5f;
 
-		float dutyCycle = 0.2f;
+		float dutyCycle = 0.5f;
 
 		float sampleRate = Constants::sampleRate;
 	};

@@ -115,7 +115,7 @@ export class Lfo extends LitElement {
     // noinspection CssUnresolvedCustomProperty
     return css`
       :host {
-        --panel-wrapper-background-color: #b13f1a;
+        --panel-wrapper-background-color: var(--lfo-panel-color);
       }
 
       .lfo-controls {

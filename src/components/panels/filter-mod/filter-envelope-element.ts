@@ -77,7 +77,7 @@ export class FilterEnvelope extends LitElement {
     // noinspection CssUnresolvedCustomProperty
     return css`
       :host {
-        --panel-wrapper-background-color: #334452;
+        --panel-wrapper-background-color: var(--filter-mod-panel-color);
         --fader-height: 120px;
         --knob-size: 50px;
       }

@@ -388,7 +388,7 @@ export class Root extends LitElement {
         margin: 20px auto;
         width: 650px;
 
-        background-color: #d7893b;
+        background-color: var(--main-panel-color);
 
         border-radius: 0.5rem;
         padding: 1rem;
@@ -403,7 +403,7 @@ export class Root extends LitElement {
 
       .synth .oscillator-mix {
         --knob-size: 60px;
-        --panel-wrapper-background-color: #7a1621;
+        --panel-wrapper-background-color: var(--oscillator-mix-panel-color);
         display: inline-flex;
         justify-content: center;
       }
