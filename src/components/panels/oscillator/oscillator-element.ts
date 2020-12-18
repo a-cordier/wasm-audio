@@ -24,6 +24,9 @@ export class Oscillator extends LitElement {
   @property({ type: Number })
   private centControlID = MidiControlID.OSC1_CENT;
 
+  @property({ type: Number })
+  private cycleControlID = MidiControlID.OSC1_CYCLE;
+
   constructor() {
     super();
   }
@@ -46,6 +49,14 @@ export class Oscillator extends LitElement {
 
   get centShiftValue() {
     return this.state.centShift.value;
+  }
+
+  onCycleChange(event: CustomEvent) {
+    this.dispatchChange(OscillatorEvent.CYCLE, event.detail.value);    
+  }
+
+  get cycleValue() {
+    return this.state.cycle.value;
   }
 
   onWaveFormChange(event: CustomEvent) {
@@ -98,12 +109,12 @@ export class Oscillator extends LitElement {
             <div class="shift-control">
               <div class="cycle-shift-control cycle">
                 <midi-control-wrapper
-                  controlID=${this.centControlID}
+                  controlID=${this.cycleControlID}
                   currentLearnerID=${this.currentLearnerID}
                 >
                   <knob-element
-                    .value=${this.centShiftValue}
-                    @change=${this.onCentShift}
+                    .value=${this.cycleValue}
+                    @change=${this.onCycleChange}
                   ></knob-element>
                 </midi-control-wrapper>
               </div>

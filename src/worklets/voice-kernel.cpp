@@ -78,6 +78,11 @@ namespace Voice {
 		}
 
 		public:
+		void setOsc1Cycle(uintptr_t newCycleValuesPtr) {
+			sampleParameters.osc1CycleValues = reinterpret_cast<float *>(newCycleValuesPtr);
+		}
+
+		public:
 		void setOsc2Mode(Oscillator::Mode newMode) {
 			osc2.setMode(newMode);
 			subOsc.setOsc2Mode(newMode);
@@ -91,6 +96,11 @@ namespace Voice {
 		public:
 		void setOsc2CentShift(uintptr_t newCentShiftValuesPtr) {
 			sampleParameters.osc2CentShiftValues = reinterpret_cast<float *>(newCentShiftValuesPtr);
+		}
+
+		public:
+		void setOsc2Cycle(uintptr_t newCycleValuesPtr) {
+			sampleParameters.osc2CycleValues = reinterpret_cast<float *>(newCycleValuesPtr);
 		}
 
 		public:
@@ -206,10 +216,14 @@ namespace Voice {
 			subOsc.setOsc1SemiShift(sampleParameters.osc1SemiShift);
 			osc1.setCentShift(sampleParameters.osc1CentShift);
 			subOsc.setOsc1CentShift(sampleParameters.osc1CentShift);
+			osc1.setDutyCycle(sampleParameters.osc1Cycle);
+			subOsc.setOsc1Cycle(sampleParameters.osc1Cycle);
 			osc2.setSemiShift(sampleParameters.osc2SemiShift);
 			subOsc.setOsc2SemiShift(sampleParameters.osc2SemiShift);
 			osc2.setCentShift(sampleParameters.osc2CentShift);
 			subOsc.setOsc2CentShift(sampleParameters.osc2CentShift);
+			osc2.setDutyCycle(sampleParameters.osc2Cycle);
+			subOsc.setOsc2Cycle(sampleParameters.osc2Cycle);
 			amplitudeEnvelope.setAttackTime(sampleParameters.amplitudeEnvelopeAttack);
 			amplitudeEnvelope.setDecayTime(sampleParameters.amplitudeEnvelopeDecay);
 			amplitudeEnvelope.setSustainLevel(sampleParameters.amplitudeEnvelopeSustain);
@@ -279,22 +293,6 @@ namespace Voice {
 		}
 
 		private:
-		float getCurrentValue(float *valuesPtr, unsigned int i) {
-			return hasConstantValue(valuesPtr) ? valuesPtr[0] : valuesPtr[i];
-		}
-
-		private:
-		float getCurrentValue(float *valuesPtr, unsigned int i, Range sourceRange, Range targetRange) {
-			auto value = getCurrentValue(valuesPtr, i);
-			return targetRange.map(value, sourceRange);
-		}
-
-		private:
-		bool hasConstantValue(float *valuesPtr) {
-			return sizeof(valuesPtr) == sizeof(valuesPtr[0]);
-		}
-
-		private:
 		Oscillator::Kernel osc1;
 		Oscillator::Kernel osc2;
 		SubOsc subOsc;
@@ -326,9 +324,11 @@ namespace Voice {
 						.function("setOsc1Mode", &Voice::Kernel::setOsc1Mode)
 						.function("setOsc1SemiShift", &Voice::Kernel::setOsc1SemiShift, allow_raw_pointers())
 						.function("setOsc1CentShift", &Voice::Kernel::setOsc1CentShift, allow_raw_pointers())
+						.function("setOsc1Cycle", &Voice::Kernel::setOsc1Cycle, allow_raw_pointers())
 						.function("setOsc2Mode", &Voice::Kernel::setOsc2Mode)
 						.function("setOsc2SemiShift", &Voice::Kernel::setOsc2SemiShift, allow_raw_pointers())
 						.function("setOsc2CentShift", &Voice::Kernel::setOsc2CentShift, allow_raw_pointers())
+						.function("setOsc2Cycle", &Voice::Kernel::setOsc2Cycle, allow_raw_pointers())
 						.function("setOsc2Amplitude", &Voice::Kernel::setOsc2Amplitude, allow_raw_pointers())
 						.function("setAmplitudeAttack", &Voice::Kernel::setAmplitudeAttack, allow_raw_pointers())
 						.function("setAmplitudeDecay", &Voice::Kernel::setAmplitudeDecay, allow_raw_pointers())

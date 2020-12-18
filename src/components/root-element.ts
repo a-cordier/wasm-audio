@@ -45,7 +45,7 @@ export class Root extends LitElement {
 
   private currentLearnerID = MidiControlID.NONE;
 
-  private showVizualizer = false;
+  private showVizualizer = true;
 
   @property({ type: Object })
   private pressedKeys = new Set<number>();
@@ -144,6 +144,8 @@ export class Root extends LitElement {
       case OscillatorEvent.CENT_SHIFT:
         this.voiceManager.setOsc1CentShift(event.detail.value);
         break;
+      case OscillatorEvent.CYCLE:
+        this.voiceManager.setOsc1Cycle(event.detail.value);  
     }
   }
 
@@ -165,7 +167,6 @@ export class Root extends LitElement {
   }
 
   onOscMixChange(event: CustomEvent) {
-    console.log(event)
     this.voiceManager.setOsc2Amplitude(event.detail.value);
   }
 
@@ -179,6 +180,9 @@ export class Root extends LitElement {
         break;
       case OscillatorEvent.CENT_SHIFT:
         this.voiceManager.setOsc2CentShift(event.detail.value);
+        break;
+      case OscillatorEvent.CYCLE:
+        this.voiceManager.setOsc2Cycle(event.detail.value);    
         break;
     }
   }
@@ -288,6 +292,7 @@ export class Root extends LitElement {
               .currentLearnerID=${this.currentLearnerID}
               .semiControlID=${MidiControlID.OSC1_SEMI}
               .centControlID=${MidiControlID.OSC1_CENT}
+              .cycleControlID=${MidiControlID.OSC1_CYCLE}
               label="Osc 1"
               .state=${this.state.osc1}
               @change=${this.onOsc1Change}
@@ -301,6 +306,7 @@ export class Root extends LitElement {
               .currentLearnerID=${this.currentLearnerID}
               .semiControlID=${MidiControlID.OSC2_SEMI}
               .centControlID=${MidiControlID.OSC2_CENT}
+              .cycleControlID=${MidiControlID.OSC2_CYCLE}
               label="Osc 2"
               .state=${this.state.osc2}
               @change=${this.onOsc2Change}

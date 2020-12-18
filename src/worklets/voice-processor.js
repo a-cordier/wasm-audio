@@ -107,46 +107,55 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.isStopping = true;
     }
 
-    // Static parameters
-    this.kernel.setOsc1Mode(waveforms[kValueOf(parameters.osc1)]);
-    this.kernel.setOsc2Mode(waveforms[kValueOf(parameters.osc2)]);
-    this.kernel.setFilterMode(FilterMode[kValueOf(parameters.filterMode)]);
-    this.kernel.setLfo1Mode(waveforms[kValueOf(parameters.lfo1Mode)]);
-    this.kernel.setLfo2Mode(waveforms[kValueOf(parameters.lfo2Mode)]);
-    this.kernel.setLfo1Destination(LfoDestination[kValueOf(parameters.lfo1Destination)]);
-    this.kernel.setLfo2Destination(LfoDestination[kValueOf(parameters.lfo2Destination)]);
-
-    // Oscillators parameters
+    // Envelope parameters
     this.kernel.setAmplitudeAttack(this.parameterBuffers.get("amplitudeAttack").getHeapAddress());
     this.kernel.setAmplitudeDecay(this.parameterBuffers.get("amplitudeDecay").getHeapAddress());
     this.kernel.setAmplitudeSustain(this.parameterBuffers.get("amplitudeSustain").getHeapAddress());
     this.kernel.setAmplitudeRelease(this.parameterBuffers.get("amplitudeRelease").getHeapAddress());
+
+    // First oscillator parameters
+    this.kernel.setOsc1Mode(waveforms[kValueOf(parameters.osc1)]);
     this.kernel.setOsc1SemiShift(this.parameterBuffers.get("osc1SemiShift").getHeapAddress());
     this.kernel.setOsc1CentShift(this.parameterBuffers.get("osc1CentShift").getHeapAddress());
+    this.kernel.setOsc1Cycle(this.parameterBuffers.get("osc1Cycle").getHeapAddress());
+
+    // Second oscillator parameters
+    this.kernel.setOsc2Mode(waveforms[kValueOf(parameters.osc2)]);
     this.kernel.setOsc2SemiShift(this.parameterBuffers.get("osc2SemiShift").getHeapAddress());
     this.kernel.setOsc2CentShift(this.parameterBuffers.get("osc2CentShift").getHeapAddress());
+    this.kernel.setOsc2Cycle(this.parameterBuffers.get("osc2Cycle").getHeapAddress());
     this.kernel.setOsc2Amplitude(this.parameterBuffers.get("osc2Amplitude").getHeapAddress());
 
     // Filter parameters
+    this.kernel.setFilterMode(FilterMode[kValueOf(parameters.filterMode)]);
     this.kernel.setCutoff(this.parameterBuffers.get("cutoff").getHeapAddress());
     this.kernel.setResonance(this.parameterBuffers.get("resonance").getHeapAddress());
+
+    // Filter cutoff modulation parameters
     this.kernel.setCutoffEnvelopeAmount(this.parameterBuffers.get("cutoffEnvelopeAmount").getHeapAddress());
     this.kernel.setCutoffEnvelopeAttack(this.parameterBuffers.get("cutoffAttack").getHeapAddress());
     this.kernel.setCutoffEnvelopeDecay(this.parameterBuffers.get("cutoffDecay").getHeapAddress());
 
-    // LFO parameters
+    // First LFO parameters
+    this.kernel.setLfo1Destination(LfoDestination[kValueOf(parameters.lfo1Destination)]);
+    this.kernel.setLfo1Mode(waveforms[kValueOf(parameters.lfo1Mode)]);
     this.kernel.setLfo1Frequency(this.parameterBuffers.get("lfo1Frequency").getHeapAddress());
     this.kernel.setLfo1ModAmount(this.parameterBuffers.get("lfo1ModAmount").getHeapAddress());
+
+    // Second LFO parameters
+    this.kernel.setLfo2Destination(LfoDestination[kValueOf(parameters.lfo2Destination)]);
+    this.kernel.setLfo2Mode(waveforms[kValueOf(parameters.lfo2Mode)]);
     this.kernel.setLfo2Frequency(this.parameterBuffers.get("lfo2Frequency").getHeapAddress());
     this.kernel.setLfo2ModAmount(this.parameterBuffers.get("lfo2ModAmount").getHeapAddress());
 
-    // Web Assembly rendering
+    // Web Assembly computation
     this.kernel.process(
       this.outputBuffer.getHeapAddress(),
       channelCount,
       this.parameterBuffers.get("frequency").getHeapAddress()
     );
 
+    // Web Audio rendering
     for (let channel = 0; channel < channelCount; ++channel) {
       output[channel].set(this.outputBuffer.getChannelData(channel));
     }

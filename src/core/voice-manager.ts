@@ -31,11 +31,13 @@ export class VoiceManager extends Dispatcher {
       mode: { value: OscillatorMode.SINE },
       semiShift: { value: 127 - 127 / 4 },
       centShift: { value: 127 / 2 },
+      cycle: { value: 127 / 2 },
     },
     osc2: {
       mode: { value: OscillatorMode.SINE },
       semiShift: { value: 127 / 2 },
       centShift: { value: 127 - 127 / 3 },
+      cycle: { value: 127 / 2 },
     },
     osc2Amplitude: { value: 127 / 2 },
     envelope: {
@@ -73,11 +75,13 @@ export class VoiceManager extends Dispatcher {
       mode: { value: OscillatorMode.SAWTOOTH },
       semiShift: { value: 127 - 127 / 4 },
       centShift: { value: 127 / 2 },
+      cycle: { value: 127 / 2 },
     },
     osc2: {
       mode: { value: OscillatorMode.SINE },
       semiShift: { value: 127 / 2 },
       centShift: { value: 127 - 127 / 3 },
+      cycle: { value: 127 / 2 },
     },
     osc2Amplitude: { value: 127 - 127 / 4 },
     envelope: {
@@ -129,9 +133,11 @@ export class VoiceManager extends Dispatcher {
     voice.osc1.value = this.state.osc1.mode.value;
     voice.osc1SemiShift.value = this.state.osc1.semiShift.value;
     voice.osc1CentShift.value = this.state.osc1.centShift.value;
+    voice.osc1Cycle.value = this.state.osc1.cycle.value;
     voice.osc2.value = this.state.osc2.mode.value;
     voice.osc2SemiShift.value = this.state.osc2.semiShift.value;
     voice.osc2CentShift.value = this.state.osc2.centShift.value;
+    voice.osc2Cycle.value = this.state.osc2.cycle.value;
     voice.osc2Amplitude.value = this.state.osc2Amplitude.value;
     voice.amplitudeAttack.value = this.state.envelope.attack.value;
     voice.amplitudeDecay.value = this.state.envelope.decay.value;
@@ -324,6 +330,12 @@ export class VoiceManager extends Dispatcher {
     return this;
   }
 
+  setOsc1Cycle(newCycle: number) {
+    this.state.osc1.cycle.value = newCycle;
+    this.dispatchUpdate((voice) => (voice.osc1Cycle.value = newCycle));
+    return this;
+  }
+
   get osc1() {
     return this.state.osc1;
   }
@@ -343,6 +355,12 @@ export class VoiceManager extends Dispatcher {
   setOsc2CentShift(newCentShift: number) {
     this.state.osc2.centShift.value = newCentShift;
     this.dispatchUpdate((voice) => (voice.osc2CentShift.value = newCentShift));
+    return this;
+  }
+
+  setOsc2Cycle(newCycle: number) {
+    this.state.osc2.cycle.value = newCycle;
+    this.dispatchUpdate((voice) => (voice.osc2Cycle.value = newCycle));
     return this;
   }
 

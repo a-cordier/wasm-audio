@@ -8,9 +8,11 @@ struct SampleParameters {
 	float *frequencyValues;
 	float *osc1SemiShiftValues;
 	float *osc1CentShiftValues;
+	float *osc1CycleValues;
 	float *osc2AmplitudeValues;
 	float *osc2SemiShiftValues;
 	float *osc2CentShiftValues;
+	float *osc2CycleValues;
 	float *amplitudeEnvelopeAttackValues;
 	float *amplitudeEnvelopeDecayValues;
 	float *amplitudeEnvelopeSustainValues;
@@ -29,8 +31,10 @@ struct SampleParameters {
 	float frequency;
 	float osc1SemiShift;
 	float osc1CentShift;
+	float osc1Cycle;
 	float osc2SemiShift;
 	float osc2CentShift;
+	float osc2Cycle;
 	float osc2Amplitude;
 	float osc1Amplitude;
 	float amplitudeEnvelopeAttack;
@@ -58,8 +62,10 @@ struct SampleParameters {
 		frequency = getCurrentValue(frequencyValues, sample);
 		osc1SemiShift = getCurrentValue(osc1SemiShiftValues, sample, midiRange, semiShiftRange);
 		osc1CentShift = getCurrentValue(osc1CentShiftValues, sample, midiRange, centShiftRange);
+		osc1Cycle = getCurrentValue(osc1CycleValues, sample, midiRange, zeroOneRange);
 		osc2SemiShift = getCurrentValue(osc2SemiShiftValues, sample, midiRange, semiShiftRange);
 		osc2CentShift = getCurrentValue(osc2CentShiftValues, sample, midiRange, centShiftRange);
+		osc2Cycle = getCurrentValue(osc2CycleValues, sample, midiRange, zeroOneRange);
 		osc2Amplitude = getCurrentValue(osc2AmplitudeValues, sample, midiRange, zeroOneRange);
 		amplitudeEnvelopeAttack = getCurrentValue(amplitudeEnvelopeAttackValues, sample, midiRange, attackRange);
 		amplitudeEnvelopeDecay = getCurrentValue(amplitudeEnvelopeDecayValues, sample, midiRange, decayRange);

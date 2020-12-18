@@ -11,6 +11,7 @@ export interface OscillatorState {
   mode: Control;
   semiShift: Control;
   centShift: Control;
+  cycle: Control;
 }
 
 export interface EnvelopeState {
@@ -52,6 +53,8 @@ export interface Voice extends AudioNode {
   osc2SemiShift: AudioParam;
   osc1CentShift: AudioParam;
   osc2CentShift: AudioParam;
+  osc1Cycle: AudioParam;
+  osc2Cycle: AudioParam;
   frequency: AudioParam;
   amplitudeAttack: AudioParam;
   amplitudeDecay: AudioParam;
@@ -105,6 +108,10 @@ export function mapState(state: Partial<VoiceState>): Partial<VoiceState> {
         MidiControlID.OSC1_CENT,
         state.osc1.centShift.value
       ),
+      cycle: new MidiControl(
+        MidiControlID.OSC1_CYCLE,
+        state.osc1.cycle.value
+      )
     },
     osc2: {
       mode: new SelectControl(state.osc2.mode.value),
@@ -116,6 +123,10 @@ export function mapState(state: Partial<VoiceState>): Partial<VoiceState> {
         MidiControlID.OSC2_CENT,
         state.osc2.centShift.value
       ),
+      cycle: new MidiControl(
+        MidiControlID.OSC2_CYCLE,
+        state.osc2.cycle.value
+      )
     },
     osc2Amplitude: new MidiControl(
       MidiControlID.OSC_MIX,

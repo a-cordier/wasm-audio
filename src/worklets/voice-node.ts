@@ -68,12 +68,20 @@ export class WasmVoiceNode extends AudioWorkletNode {
     return this.params.get("osc1CentShift");
   }
 
+  get osc1Cycle() {
+    return this.params.get("osc1Cycle");
+  }
+
   get osc2SemiShift() {
     return this.params.get("osc2SemiShift");
   }
 
   get osc2CentShift() {
     return this.params.get("osc2CentShift");
+  }
+
+  get osc2Cycle() {
+    return this.params.get("osc2Cycle");
   }
 
   get osc2Amplitude() {

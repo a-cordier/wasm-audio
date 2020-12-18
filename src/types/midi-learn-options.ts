@@ -5,9 +5,11 @@ export enum MidiControlID {
 
   OSC1_SEMI,
   OSC1_CENT,
+  OSC1_CYCLE,
   OSC_MIX,
   OSC2_SEMI,
   OSC2_CENT,
+  OSC2_CYCLE,
   CUTOFF,
   RESONANCE,
   ATTACK,
@@ -33,9 +35,11 @@ function toSelectOption(option: MidiControlID) {
 export const MidiLearnOptions = new SelectOptions([
   toSelectOption(MidiControlID.OSC1_SEMI),
   toSelectOption(MidiControlID.OSC1_CENT),
+  toSelectOption(MidiControlID.OSC1_CYCLE),
   toSelectOption(MidiControlID.OSC_MIX),
   toSelectOption(MidiControlID.OSC2_SEMI),
   toSelectOption(MidiControlID.OSC2_CENT),
+  toSelectOption(MidiControlID.OSC2_CYCLE),
   toSelectOption(MidiControlID.ATTACK),
   toSelectOption(MidiControlID.DECAY),
   toSelectOption(MidiControlID.SUSTAIN),

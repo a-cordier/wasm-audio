@@ -188,6 +188,13 @@ export const automatedParameterDescriptors = [
     automationRate: "k-rate",
   },
   {
+    name: "osc1Cycle",
+    defaultValue: 127 / 2,
+    minValue: 1,
+    maxValue: 126,
+    automationRate: "k-rate",
+  },
+  {
     name: "osc2SemiShift",
     defaultValue: 0,
     minValue: 0,
@@ -199,6 +206,13 @@ export const automatedParameterDescriptors = [
     defaultValue: 0,
     minValue: 0,
     maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "osc2Cycle",
+    defaultValue: 127 / 2,
+    minValue: 1,
+    maxValue: 126,
     automationRate: "k-rate",
   },
   {

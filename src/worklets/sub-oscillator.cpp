@@ -31,6 +31,11 @@ class SubOsc {
 	}
 
 	public:
+	void setOsc1Cycle(float newCycle) {
+		osc1.setDutyCycle(newCycle);
+	}
+
+	public:
 	void setOsc2Mode(Oscillator::Mode newMode) {
 		osc2.setMode(newMode);
 	}
@@ -43,6 +48,11 @@ class SubOsc {
 	public:
 	void setOsc2CentShift(float newCentShift) {
 		osc2.setCentShift(newCentShift);
+	}
+
+	public:
+	void setOsc2Cycle(float newCycle) {
+		osc2.setDutyCycle(newCycle);
 	}
 
 	public:
