@@ -217,6 +217,11 @@ export class VoiceManager extends Dispatcher {
           ...this.state.osc1,
           ...{ centShift: control.clone() },
         });
+      case MidiControlID.OSC1_CYCLE:
+        return this.dispatch(VoiceEvent.OSC1, {
+          ...this.state.osc1,
+          ...{ cycle: control.clone() },
+        });        
       case MidiControlID.OSC2_SEMI:
         return this.dispatch(VoiceEvent.OSC2, {
           ...this.state.osc2,
@@ -224,8 +229,13 @@ export class VoiceManager extends Dispatcher {
         });
       case MidiControlID.OSC2_CENT:
         return this.dispatch(VoiceEvent.OSC2, {
-          ...this.state.osc1,
+          ...this.state.osc2,
           ...{ centShift: control.clone() },
+        });
+      case MidiControlID.OSC2_CYCLE:
+        return this.dispatch(VoiceEvent.OSC2, {
+          ...this.state.osc2,
+          ...{ cycle: control.clone() },
         });
       case MidiControlID.OSC_MIX:
         return this.dispatch(VoiceEvent.OSC_MIX, control.clone());
