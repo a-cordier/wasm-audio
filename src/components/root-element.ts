@@ -2,11 +2,6 @@ import { LitElement, html, css, customElement, property } from "lit-element";
 
 import "./common/controls/keys-element";
 import "./visualizer-element";
-import "./common/controls/knob-element";
-import "./common/icons/sawtooth-wave-icon";
-import "./common/icons/square-wave-icon";
-import "./common/icons/sine-wave-icon";
-import "./common/icons/triangle-wave-icon";
 import "./panels/oscillator/wave-selector-element";
 import "./panels/oscillator/oscillator-element";
 import "./panels/oscillator-mix/oscillator-mix";
@@ -45,7 +40,7 @@ export class Root extends LitElement {
 
   private currentLearnerID = MidiControlID.NONE;
 
-  private showVizualizer = true;
+  private showVizualizer = false;
 
   @property({ type: Object })
   private pressedKeys = new Set<number>();
@@ -167,7 +162,14 @@ export class Root extends LitElement {
   }
 
   onOscMixChange(event: CustomEvent) {
-    this.voiceManager.setOsc2Amplitude(event.detail.value);
+    switch (event.detail.type) {
+      case OscillatorEvent.MIX:
+        this.voiceManager.setOsc2Amplitude(event.detail.value);
+        break;
+      case OscillatorEvent.NOISE:
+        this.voiceManager.setNoiseLevel(event.detail.value);
+        break;
+    }
   }
 
   onOsc2Change(event: CustomEvent) {
@@ -287,7 +289,7 @@ export class Root extends LitElement {
               @change=${this.onMenuChange}
             ></menu-element>
           </div>
-          <div class="oscillators">
+          <div class="panels-row">
             <oscillator-element
               .currentLearnerID=${this.currentLearnerID}
               .semiControlID=${MidiControlID.OSC1_SEMI}
@@ -317,7 +319,7 @@ export class Root extends LitElement {
               @change=${this.onFilterChange}
             ></filter-element>
           </div>
-          <div class="envelopes">
+          <div class="panels-row lower">
             <envelope-element
               .currentLearnerID=${this.currentLearnerID}
               label="envelope"
@@ -378,7 +380,7 @@ export class Root extends LitElement {
       }
 
       .menu {
-        margin: 0 0 10px 0;
+        margin: 0 0 15px 0;
       }
 
       .synth {
@@ -388,28 +390,16 @@ export class Root extends LitElement {
         background-color: var(--main-panel-color);
 
         border-radius: 0.5rem;
-        padding: 1rem;
+        padding: 1.5em;
       }
 
-      .synth .oscillators {
-        display: flex;
-
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      @keyframes control-focus {
-        to {
-          --control-handle-color: #abbdcd;
-          --control-top-color: #252525;
-        }
-      }
-
-      .synth .envelopes {
+      .synth .panels-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: center; 
+      }
 
+      .synth .panels-row.lower {
         margin-top: 1em;
       }
 
@@ -419,7 +409,7 @@ export class Root extends LitElement {
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-top: 0.5em;
+        margin-top: 15px;
       }
 
       .synth .keyboard .keys {

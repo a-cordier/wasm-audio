@@ -40,6 +40,7 @@ export class VoiceManager extends Dispatcher {
       cycle: { value: 127 / 2 },
     },
     osc2Amplitude: { value: 127 / 2 },
+    noiseLevel: { value: 0 }, 
     envelope: {
       attack: { value: 0 },
       decay: { value: 127 / 16 },
@@ -70,50 +71,6 @@ export class VoiceManager extends Dispatcher {
     },
   });
 
-  private _state = createVoiceState({
-    osc1: {
-      mode: { value: OscillatorMode.SAWTOOTH },
-      semiShift: { value: 127 - 127 / 4 },
-      centShift: { value: 127 / 2 },
-      cycle: { value: 127 / 2 },
-    },
-    osc2: {
-      mode: { value: OscillatorMode.SINE },
-      semiShift: { value: 127 / 2 },
-      centShift: { value: 127 - 127 / 3 },
-      cycle: { value: 127 / 2 },
-    },
-    osc2Amplitude: { value: 127 - 127 / 4 },
-    envelope: {
-      attack: { value: 0 },
-      decay: { value: 127 / 4 },
-      sustain: { value: 127 / 2 },
-      release: { value: 0 },
-    },
-    filter: {
-      mode: { value: FilterMode.LOWPASS_PLUS },
-      cutoff: { value: 127 / 4 },
-      resonance: { value: 127 - 127 / 4 },
-    },
-    cutoffMod: {
-      attack: { value: 127 / 8 },
-      decay: { value: 127 / 3 },
-      amount: { value: 127 / 4 },
-    },
-    lfo1: {
-      mode: { value: OscillatorMode.SQUARE },
-      frequency: { value: 127 / 8 },
-      modAmount: { value: 127 },
-      destination: { value: LfoDestination.FREQUENCY },
-    },
-    lfo2: {
-      mode: { value: OscillatorMode.SQUARE },
-      frequency: { value: 127 / 4 },
-      modAmount: { value: 127 / 12 },
-      destination: { value: LfoDestination.CUTOFF },
-    },
-  });
-
   constructor(audioContext: AudioContext) {
     super();
     this.voiceGenerator = createVoiceGenerator(audioContext);
@@ -139,6 +96,7 @@ export class VoiceManager extends Dispatcher {
     voice.osc2CentShift.value = this.state.osc2.centShift.value;
     voice.osc2Cycle.value = this.state.osc2.cycle.value;
     voice.osc2Amplitude.value = this.state.osc2Amplitude.value;
+    voice.noiseLevel.value = this.state.noiseLevel.value;
     voice.amplitudeAttack.value = this.state.envelope.attack.value;
     voice.amplitudeDecay.value = this.state.envelope.decay.value;
     voice.amplitudeSustain.value = this.state.envelope.sustain.value;
@@ -239,6 +197,8 @@ export class VoiceManager extends Dispatcher {
         });
       case MidiControlID.OSC_MIX:
         return this.dispatch(VoiceEvent.OSC_MIX, control.clone());
+      case MidiControlID.NOISE_LEVEL:
+        return this.dispatch(VoiceEvent.NOISE, control.clone());
       case MidiControlID.CUTOFF:
         return this.dispatch(VoiceEvent.FILTER, {
           ...this.state.filter,
@@ -376,6 +336,12 @@ export class VoiceManager extends Dispatcher {
 
   get osc2() {
     return this.state.osc2;
+  }
+
+  setNoiseLevel(newLevel: number) {
+    this.state.noiseLevel.value = newLevel;
+    this.dispatchUpdate((voice) => (voice.noiseLevel.value = newLevel));
+    return this;
   }
 
   setAmplitudeEnvelopeAttack(newAttackTime: number) {

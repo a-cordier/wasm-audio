@@ -41,9 +41,8 @@ export class PanelWrapper extends LitElement {
       label {
         display: block;
         color: var(--panel-wrapper-label-color, white);
-        margin: 0.25em auto 1em auto;
+        margin: 0 auto 0.5em auto;
         text-align: center;
-        text-transform: uppercase;
       }
     `;
   }

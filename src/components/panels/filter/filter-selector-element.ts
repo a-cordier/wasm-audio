@@ -4,7 +4,7 @@ import { FilterMode } from "../../../types/filter-mode";
 
 @customElement("filter-selector-element")
 export class FilterSelector extends LitElement {
-  @property({ type: String })
+  @property({ type: Number })
   public value = FilterMode.LOWPASS;
 
   async onLpSelect() {
@@ -113,6 +113,7 @@ export class FilterSelector extends LitElement {
         background-color: var(--button-active-background-color);
         color: white;
         border-color: var(--button-active-label-color);
+        color: var(--button-active-label-color);
       }
     `;
   }

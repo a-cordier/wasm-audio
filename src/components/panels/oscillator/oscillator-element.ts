@@ -27,6 +27,8 @@ export class Oscillator extends LitElement {
   @property({ type: Number })
   private cycleControlID = MidiControlID.OSC1_CYCLE;
 
+  private cycleRange = { min: 5, max: 122 };
+
   constructor() {
     super();
   }
@@ -113,6 +115,7 @@ export class Oscillator extends LitElement {
                   currentLearnerID=${this.currentLearnerID}
                 >
                   <knob-element
+                    .range=${this.cycleRange}
                     .value=${this.cycleValue}
                     @change=${this.onCycleChange}
                   ></knob-element>
@@ -137,7 +140,7 @@ export class Oscillator extends LitElement {
         position: relative;
 
         width: 160px;
-        height: 130px;
+        height: 120px;
       }
 
       .oscillator-controls .tone-controls {
@@ -182,13 +185,13 @@ export class Oscillator extends LitElement {
 
         width: 100%;
         height: 90%;
-        --knob-size: 30px;
+        --knob-size: 35px;
       }
 
       label {
         display: block;
         color: var(--control-label-color);
-        font-size: 0.8em;
+        font-size: var(--control-label-font-size);
       }
     `;
   }

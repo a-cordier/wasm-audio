@@ -190,8 +190,8 @@ export const automatedParameterDescriptors = [
   {
     name: "osc1Cycle",
     defaultValue: 127 / 2,
-    minValue: 1,
-    maxValue: 126,
+    minValue: 5,
+    maxValue: 122,
     automationRate: "k-rate",
   },
   {
@@ -211,13 +211,20 @@ export const automatedParameterDescriptors = [
   {
     name: "osc2Cycle",
     defaultValue: 127 / 2,
-    minValue: 1,
-    maxValue: 126,
+    minValue: 5,
+    maxValue: 122,
     automationRate: "k-rate",
   },
   {
     name: "osc2Amplitude",
     defaultValue: 127 / 2,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "a-rate",
+  },
+  {
+    name: "noiseLevel",
+    defaultValue: 0,
     minValue: 0,
     maxValue: 127,
     automationRate: "a-rate",

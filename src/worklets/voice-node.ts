@@ -88,6 +88,10 @@ export class WasmVoiceNode extends AudioWorkletNode {
     return this.params.get("osc2Amplitude");
   }
 
+  get noiseLevel() {
+    return this.params.get("noiseLevel");
+  }
+
   get osc1() {
     return this.params.get("osc1");
   }

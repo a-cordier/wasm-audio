@@ -126,6 +126,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.kernel.setOsc2Cycle(this.parameterBuffers.get("osc2Cycle").getHeapAddress());
     this.kernel.setOsc2Amplitude(this.parameterBuffers.get("osc2Amplitude").getHeapAddress());
 
+    this.kernel.setNoiseLevel(this.parameterBuffers.get("noiseLevel").getHeapAddress());
+
     // Filter parameters
     this.kernel.setFilterMode(FilterMode[kValueOf(parameters.filterMode)]);
     this.kernel.setCutoff(this.parameterBuffers.get("cutoff").getHeapAddress());

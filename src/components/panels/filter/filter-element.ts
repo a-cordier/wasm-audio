@@ -84,8 +84,8 @@ export class Filter extends LitElement {
       }
 
       .filter-controls {
-        width: 160px;
-        height: 130px;
+        width: 150px;
+        height: 120px;
       }
 
       .filter-controls .mode-control {
@@ -116,6 +116,10 @@ export class Filter extends LitElement {
         display: flex;
         flex-direction: row;
         align-items: center;
+      }
+
+      .frequency-controls .resonance-control {
+        --knob-size: 50px;
       }
 
       label {

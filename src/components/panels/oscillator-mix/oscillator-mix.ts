@@ -21,33 +21,68 @@ export class OscillatorMix extends LitElement {
                 .currentLearnerID=${this.currentLearnerID}
                 >
                 <knob-element
-                    label="osc mix"
+                    class="mix"
+                    label="mix"
                     .value=${this.state.osc2Amplitude.value as number}
                     @change=${this.onMixChange}
                 ></knob-element>
                 </midi-control-wrapper>
+                <midi-control-wrapper
+                .controlID=${MidiControlID.NOISE_LEVEL}
+                .currentLearnerID=${this.currentLearnerID}
+                >
+                <knob-element
+                    class="noise"
+                    label="noise"
+                    .value=${this.state.noiseLevel.value as number}
+                    @change=${this.onNoiseChange}
+                ></knob-element>
+                </midi-control-wrapper>
+            </div>
+            <div class="noise-control">
+                
             </div>
         </panel-wrapper-element>
     `;
   }
 
   onMixChange(event: CustomEvent) {
-    this.dispatchEvent(new CustomEvent("change", event));
+    this.dispatchChange(OscillatorEvent.MIX, event.detail.value);
+  }
+
+  onNoiseChange(event: CustomEvent) {
+    this.dispatchChange(OscillatorEvent.NOISE, event.detail.value);
+  }
+
+  dispatchChange(type: OscillatorEvent, value: number | string) {
+    this.dispatchEvent(new CustomEvent("change", { detail: { type, value } }));
   }
 
   static get styles() {
     // noinspection CssUnresolvedCustomProperty
     return css`
       .oscillator-mix {
-        --knob-size: 60px;
         --panel-wrapper-background-color: var(--oscillator-mix-panel-color);
-        display: inline-flex;
-        justify-content: center;
+
       }
 
-      .synth .oscillator-mix.focused {
-        animation: control-focus 1s ease-in-out infinite;
+      .oscillator-mix-control {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-evenly;
+
+        width: 60px; 
+        height: 130px;
       }
+
+      .oscillator-mix .mix {
+        --knob-size: 40px;
+      }
+
+      .oscillator-mix .noise {
+        --knob-size: 30px;
+      }     
     `;
   }
 }

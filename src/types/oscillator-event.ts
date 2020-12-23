@@ -4,4 +4,5 @@ export enum OscillatorEvent {
   CENT_SHIFT,
   CYCLE,
   MIX,
+  NOISE,
 }

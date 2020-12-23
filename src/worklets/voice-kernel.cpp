@@ -36,12 +36,14 @@ namespace Voice {
 			renderFrames(renderFrames),
 			osc1(Oscillator::Kernel{ sampleRate }),
 			osc2(Oscillator::Kernel{ sampleRate }),
+			noise(Oscillator::Kernel{ sampleRate }),
 			lfo1(Oscillator::Kernel{ sampleRate }),
 			lfo2(Oscillator::Kernel{ sampleRate }),
 			subOsc(sampleRate),
 			amplitudeEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.5f, 0.5f, 0.9f }),
 			cutoffEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.01f, 2.f, 0.f }),
 			state(State::DISPOSED) {
+			noise.setMode(Oscillator::Mode::NOISE);
 		}
 
 		public:
@@ -106,6 +108,11 @@ namespace Voice {
 		public:
 		void setOsc2Amplitude(uintptr_t osc2AmplitudeValuesPtr) {
 			sampleParameters.osc2AmplitudeValues = reinterpret_cast<float *>(osc2AmplitudeValuesPtr);
+		}
+
+		public:
+		void setNoiseLevel(uintptr_t newLevelValuesPtr) {
+			sampleParameters.noiseLevelValues = reinterpret_cast<float *>(newLevelValuesPtr);
 		}
 
 		public:
@@ -243,9 +250,10 @@ namespace Voice {
 		float computeRawSample() {
 			float osc1Sample = osc1.nextSample(sampleParameters.frequency) * sampleParameters.osc1Amplitude;
 			float osc2Sample = osc2.nextSample(sampleParameters.frequency) * sampleParameters.osc2Amplitude;
+			float noiseSample = noise.nextSample(sampleParameters.frequency) * sampleParameters.noiseLevel;
 			subOsc.setOsc2Amplitude(sampleParameters.osc2Amplitude);
-			float subOscSample = subOsc.nextSample(sampleParameters.frequency);
-			return (1 - Constants::subOscPresence) * (osc1Sample + osc2Sample) + Constants::subOscPresence * subOscSample;
+			float subOscSample = subOsc.nextSample(sampleParameters.frequency) * Constants::subOscPresence;
+			return (1 - Constants::subOscPresence) * (osc1Sample + osc2Sample) + subOscSample + noiseSample;
 		}
 
 		private:
@@ -295,6 +303,7 @@ namespace Voice {
 		private:
 		Oscillator::Kernel osc1;
 		Oscillator::Kernel osc2;
+		Oscillator::Kernel noise;
 		SubOsc subOsc;
 
 		Oscillator::Kernel lfo1;
@@ -330,6 +339,7 @@ namespace Voice {
 						.function("setOsc2CentShift", &Voice::Kernel::setOsc2CentShift, allow_raw_pointers())
 						.function("setOsc2Cycle", &Voice::Kernel::setOsc2Cycle, allow_raw_pointers())
 						.function("setOsc2Amplitude", &Voice::Kernel::setOsc2Amplitude, allow_raw_pointers())
+						.function("setNoiseLevel", &Voice::Kernel::setNoiseLevel, allow_raw_pointers())
 						.function("setAmplitudeAttack", &Voice::Kernel::setAmplitudeAttack, allow_raw_pointers())
 						.function("setAmplitudeDecay", &Voice::Kernel::setAmplitudeDecay, allow_raw_pointers())
 						.function("setAmplitudeSustain", &Voice::Kernel::setAmplitudeSustain, allow_raw_pointers())

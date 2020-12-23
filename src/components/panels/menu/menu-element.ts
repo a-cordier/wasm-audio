@@ -102,6 +102,14 @@ export class Menu extends LitElement {
     );
   }
 
+  toggleActive() {
+
+  }
+
+  toggleInactive() {
+
+  }
+
   get options() {
     switch (this.mode) {
       case MenuMode.MIDI_CHANNEL:
@@ -163,18 +171,22 @@ export class Menu extends LitElement {
       }
 
       .menu .button-wrapper.select button:active {
-        transform: scale(0.999);
+        transform: scale(0.99);
+        background-color: var(--button-active-background-color);
+        color: var(--button-active-label-color);  
       }
 
       .menu .label {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 2em;
+        font-size: 2.3em;
         font-weight: 700;
         line-height: 1em;
-        color: var(--control-top-color);
-        margin-left: 1em;
+        color: var(--main-panel-label-color);
+        font-family: var(--main-panel-label-font-family);
+        margin-left: 0.5em;
+        letter-spacing: 0.1em;
       }
     `;
   }

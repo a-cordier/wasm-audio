@@ -10,6 +10,7 @@ export enum MidiControlID {
   OSC2_SEMI,
   OSC2_CENT,
   OSC2_CYCLE,
+  NOISE_LEVEL,
   CUTOFF,
   RESONANCE,
   ATTACK,

@@ -8,10 +8,12 @@
     <title></title>
     <meta name="description" content="" />
     <meta name="author" content="36ve" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Monoton&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
+    <link href="https://fonts.googleapis.com/css2?family=Bungee+Outline&display=swap" rel="stylesheet" />
     <script src="index.js"></script>
   </head>
 
@@ -87,26 +89,38 @@
       --lighter-color: #e8eaec;
       --darker-color: #110517;
 
-      /* this color is used to emphasis the control when midi learn is toggled => todo rename ? */
-      --control-hander-color-focused: var(--lighter-color);
-      --control-handle-color: #c5d7e4;
-      --control-cursor-color: #110517;
-      --control-top-color: #1f262e;
-      --control-label-color: var(--control-handle-color);
+      /* gray scale */
+      --darker: #15202b;
+      --dark-secondary: #192734;
+      --medium: #22303c;
+      --light-secondary: #8899a6;
+      --lighter: #ffffff;
 
-      --button-disposed-background-color: #e8eaec;
-      --button-disposed-label-color: #1f262e;
-      --button-active-background-color: #090816;
+      /* this color is used to emphasis the control when midi learn is toggled => todo rename ? */
+      --control-hander-color-focused: var(--lighter);
+      --control-handle-color: var(--dark-secondary);
+      --control-cursor-color: var(--light-secondary);
+      --control-top-color: var(--light-secondary);
+      --control-label-color: var(--darker);
+      --control-label-font-size: 0.8em;
+
+      --button-disposed-background-color: var(--light-secondary);
+      --button-disposed-label-color: var(--darker);
+      --button-active-background-color: var(--dark-secondary);
       --button-active-label-color: #b4d455;
       --button-border: 1px solid var(--light-color);
 
-      --key-sharp-color: var(--control-top-color);
-      --key-whole-color: var(--lighter-color);
-      --keyboard-panel-color: var(--control-top-color);
+      --key-sharp-color: var(--dark-secondary);
+      --key-whole-color: var(--light-secondary);
+      --keyboard-panel-color: var(--darker);
 
       --lcd-led-on-color: #b4d455;
-      --lcd-screen-border-color: #2c2c31;
-      --lcd-screen-background: #090816;
+      --lcd-screen-border-color: var(--light-secondary);
+      --lcd-screen-background: var(--dark-secondary);
+
+      --main-panel-color: #181818;
+      --main-panel-label-font-family: "Bungee Outline", cursive;
+      --main-panel-label-color: var(--lighter);
 
       --oscillator-panel-color: #145a6a;
       --oscillator-mix-panel-color: var(--oscillator-panel-color);
@@ -114,11 +128,8 @@
       --filter-panel-color: #ac8f1d;
       --filter-mod-panel-color: var(--filter-panel-color);
       --lfo-panel-color: #9a1a40;
-      --main-panel-color: #272324;
 
-      /* todo not used at the moment => keep or throw away */
-      --box-shadow-color: red;
-      --box-shadow: 0px 0px 0px 0px var(--box-shadow-color);
+      --panel-wrapper-label-color: var(--lighter);
 
       --ui-transition-time: 0.4s;
     }
@@ -128,7 +139,7 @@
     }
 
     body {
-      background-color: var(--darker-color, black);
+      background-color: #121212;
     }
 
     .content {

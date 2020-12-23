@@ -38,6 +38,7 @@ export interface VoiceState {
   osc1: OscillatorState;
   osc2: OscillatorState;
   osc2Amplitude: Control;
+  noiseLevel: Control;
   envelope: EnvelopeState;
   filter: FilterState;
   cutoffMod: CutoffModState;
@@ -55,6 +56,7 @@ export interface Voice extends AudioNode {
   osc2CentShift: AudioParam;
   osc1Cycle: AudioParam;
   osc2Cycle: AudioParam;
+  noiseLevel: AudioParam;
   frequency: AudioParam;
   amplitudeAttack: AudioParam;
   amplitudeDecay: AudioParam;
@@ -131,6 +133,10 @@ export function mapState(state: Partial<VoiceState>): Partial<VoiceState> {
     osc2Amplitude: new MidiControl(
       MidiControlID.OSC_MIX,
       state.osc2Amplitude.value
+    ),
+    noiseLevel: new MidiControl(
+      MidiControlID.NOISE_LEVEL,
+      state.noiseLevel.value
     ),
     envelope: {
       attack: new MidiControl(

@@ -91,8 +91,8 @@ export class Fader extends LitElement {
       .fader-wrapper {
         width: var(--fader-width, 20px);
         height: var(--fader-height, 100px);
-        border: 1px solid var(--lighter-color, white);
-        border-radius: 2px;
+        border: 2px solid var(--lighter-color, white);
+        border-radius: 4px;
         padding: 1px;
       }
 
