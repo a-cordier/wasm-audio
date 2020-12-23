@@ -295,7 +295,7 @@ export class Root extends LitElement {
               .semiControlID=${MidiControlID.OSC1_SEMI}
               .centControlID=${MidiControlID.OSC1_CENT}
               .cycleControlID=${MidiControlID.OSC1_CYCLE}
-              label="Osc 1"
+              label="Osc. 1"
               .state=${this.state.osc1}
               @change=${this.onOsc1Change}
             ></oscillator-element>
@@ -309,7 +309,7 @@ export class Root extends LitElement {
               .semiControlID=${MidiControlID.OSC2_SEMI}
               .centControlID=${MidiControlID.OSC2_CENT}
               .cycleControlID=${MidiControlID.OSC2_CYCLE}
-              label="Osc 2"
+              label="Osc. 2"
               .state=${this.state.osc2}
               @change=${this.onOsc2Change}
             ></oscillator-element>
@@ -322,7 +322,7 @@ export class Root extends LitElement {
           <div class="panels-row lower">
             <envelope-element
               .currentLearnerID=${this.currentLearnerID}
-              label="envelope"
+              label="Envelope"
               .state=${this.state.envelope}
               @change=${this.onAmplitudeEnvelopeChange}
             ></envelope-element>
@@ -330,7 +330,7 @@ export class Root extends LitElement {
               .currentLearnerID=${this.currentLearnerID}
               .frequencyControlID=${MidiControlID.LFO1_FREQ}
               .modAmountControlID=${MidiControlID.LFO1_MOD}
-              label="lfo 1"
+              label="LFO 1"
               .state=${this.state.lfo1}
               @change=${this.onLfo1Change}
             ></lfo-element>
@@ -338,7 +338,7 @@ export class Root extends LitElement {
               .currentLearnerID=${this.currentLearnerID}
               .frequencyControlID=${MidiControlID.LFO2_FREQ}
               .modAmountControlID=${MidiControlID.LFO2_MOD}
-              label="lfo 2"
+              label="LFO 2"
               .state=${this.state.lfo2}
               @change=${this.onLfo2Change}
             ></lfo-element>
