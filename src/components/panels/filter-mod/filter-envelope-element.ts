@@ -32,7 +32,7 @@ export class FilterEnvelope extends LitElement {
 
   render() {
     return html`
-      <panel-wrapper-element label="Filter mod">
+      <panel-wrapper-element label="Filter Mod.">
         <div class="envelope-controls">
           <div class="time-controls">
             <midi-control-wrapper
