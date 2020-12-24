@@ -1,8 +1,7 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { classMap } from "lit-html/directives/class-map";
 
-import { MidiControlID } from "../../../types/midi-learn-options";
-import { OscillatorEvent } from "../../../types/oscillator-event";
+import { MidiControlID } from "../../../../types/midi-learn-options";
+import { OscillatorEvent } from "../../../../types/oscillator-event";
 
 @customElement("oscillator-mix-element")
 export class OscillatorMix extends LitElement {

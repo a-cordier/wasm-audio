@@ -1,14 +1,14 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { LfoEvent } from "../../../types/lfo-event";
-import { OscillatorMode } from "../../../types/oscillator-mode";
+import { LfoEvent } from "../../../../types/lfo-event";
+import { OscillatorMode } from "../../../../types/oscillator-mode";
 
 import "../oscillator/wave-selector-element";
-import "../../common/controls/knob-element";
+import "../../../common/controls/knob-element";
 import "../panel-wrapper-element";
 import "./lcd-selector-element";
-import { LfoDestination } from "../../../types/lfo-destination";
-import { SelectOptions } from "../../../types/select-option";
-import { MidiControlID } from "../../../types/midi-learn-options";
+import { LfoDestination } from "../../../../types/lfo-destination";
+import { SelectOptions } from "../../../../types/select-option";
+import { MidiControlID } from "../../../../types/midi-learn-options";
 
 @customElement("lfo-element")
 export class Lfo extends LitElement {

@@ -1,6 +1,6 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
-import { FilterMode } from "../../../types/filter-mode";
+import { FilterMode } from "../../../../types/filter-mode";
 
 @customElement("filter-selector-element")
 export class FilterSelector extends LitElement {

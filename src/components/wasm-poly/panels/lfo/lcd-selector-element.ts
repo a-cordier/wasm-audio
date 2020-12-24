@@ -1,8 +1,8 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
 
-import "../../common/lcd/lcd-element";
-import { SelectOptions } from "../../../types/select-option";
+import "../../../common/lcd/lcd-element";
+import { SelectOptions } from "../../../../types/select-option";
 
 @customElement("lcd-selector-element")
 export class LCDSelector extends LitElement {
@@ -108,8 +108,6 @@ export class LCDSelector extends LitElement {
       button.active {
         background-color: var(--button-active-background-color);
         color: var(--button-active-label-color);
-        border-color: white;
-        box-shadow: none;
 
         cursor: auto;
       }

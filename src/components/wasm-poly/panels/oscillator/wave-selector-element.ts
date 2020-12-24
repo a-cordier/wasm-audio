@@ -1,11 +1,11 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
-import { OscillatorMode } from "../../../types/oscillator-mode";
+import { OscillatorMode } from "../../../../types/oscillator-mode";
 
-import "../../common/icons/sine-wave-icon";
-import "../../common/icons/square-wave-icon";
-import "../../common/icons/sawtooth-wave-icon";
-import "../../common/icons/triangle-wave-icon";
+import "../../../common/icons/sine-wave-icon";
+import "../../../common/icons/square-wave-icon";
+import "../../../common/icons/sawtooth-wave-icon";
+import "../../../common/icons/triangle-wave-icon";
 
 @customElement("wave-selector-element")
 export class WaveSelector extends LitElement {

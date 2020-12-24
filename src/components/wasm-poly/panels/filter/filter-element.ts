@@ -1,11 +1,11 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { FilterEvent } from "../../../types/filter-event";
+import { FilterEvent } from "../../../../types/filter-event";
 
 import "../panel-wrapper-element";
-import "../../common/controls/midi-control-wrapper";
-import "../../common/controls/knob-element";
+import "../../../common/controls/midi-control-wrapper";
+import "../../../common/controls/knob-element";
 import "./filter-selector-element";
-import { MidiControlID } from "../../../types/midi-learn-options";
+import { MidiControlID } from "../../../../types/midi-learn-options";
 
 @customElement("filter-element")
 export class Filter extends LitElement {

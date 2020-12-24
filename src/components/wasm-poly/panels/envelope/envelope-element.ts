@@ -1,10 +1,10 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { OscillatorEnvelopeEvent } from "../../../types/oscillator-envelope-event";
-import { MidiControlID } from "../../../types/midi-learn-options";
+import { OscillatorEnvelopeEvent } from "../../../../types/oscillator-envelope-event";
+import { MidiControlID } from "../../../../types/midi-learn-options";
 
 import "../panel-wrapper-element";
-import "../../common/controls/midi-control-wrapper";
-import "../../common/controls/fader-element";
+import "../../../common/controls/midi-control-wrapper";
+import "../../../common/controls/fader-element";
 
 @customElement("envelope-element")
 export class Envelope extends LitElement {

@@ -9,10 +9,7 @@
     <meta name="description" content="" />
     <meta name="author" content="36ve" />
     <link rel="preconnect" href="https://fonts.gstatic.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Monoton&family=Space+Mono:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Bungee+Outline&display=swap" rel="stylesheet" />
     <script src="index.js"></script>
   </head>
@@ -43,58 +40,18 @@
           }
           return false;
         }
-
-        function isChrome() {
-          var runtimeWindow = window;
-          return !!runtimeWindow.chrome && (!!runtimeWindow.chrome.webstore || !!runtimeWindow.chrome.runtime);
-        }
-
-        function isUpToDate() {
-          var version = navigator.userAgent.match(/Chrom(?:e|ium)\/([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)/);
-          if (version == null || version.length != 5) {
-            return false;
-          }
-          version = version.map((v) => parseInt(v, 10));
-          var majorVersion = version[1];
-          return majorVersion >= wasmTestedVersion;
-        }
-
-        if (!isChrome()) {
-          alert(
-            [
-              "WARNING!",
-              "This application uses Web API that have not been properly standardized yet.",
-              "For now it has been succesfully tested in Chromium browsers only.",
-              "You are adviced to switch to a Chromium browser before going further.",
-            ].join("\n")
-          );
-        } else if (!isUpToDate()) {
-          alert(
-            [
-              "WARNING!",
-              "This application uses recent Web API and should be run in an up to date Chromium browser.",
-              "For now it has been succesfully tested in major version " + wasmTestedVersion + " only.",
-              "You are adviced to update your browser before going further.",
-            ].join("\n")
-          );
-        }
       })();
     </script>
   </body>
 
   <style>
     :root {
-      /* TODO: replace with gray scale */
-      --light-color: #68718a;
-      --lighter-color: #e8eaec;
-      --darker-color: #110517;
-
-      /* gray scale */
       --darker: #15202b;
       --dark-secondary: #192734;
       --medium: #22303c;
       --light-secondary: #8899a6;
       --lighter: #ffffff;
+      --focused: #b4d455;
 
       /* this color is used to emphasis the control when midi learn is toggled => todo rename ? */
       --control-hander-color-focused: var(--lighter);
@@ -107,14 +64,14 @@
       --button-disposed-background-color: var(--light-secondary);
       --button-disposed-label-color: var(--darker);
       --button-active-background-color: var(--dark-secondary);
-      --button-active-label-color: #b4d455;
+      --button-active-label-color: var(--focused);
       --button-border: 1px solid var(--light-color);
 
       --key-sharp-color: var(--dark-secondary);
       --key-whole-color: var(--light-secondary);
       --keyboard-panel-color: var(--darker);
 
-      --lcd-led-on-color: #b4d455;
+      --lcd-led-on-color: var(--focused);
       --lcd-screen-border-color: var(--light-secondary);
       --lcd-screen-background: var(--dark-secondary);
 

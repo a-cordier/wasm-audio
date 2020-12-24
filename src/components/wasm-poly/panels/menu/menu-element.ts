@@ -1,11 +1,11 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
 
-import { MidiLearnOptions } from "../../../types/midi-learn-options";
-import { MidiChannelOptions } from "../../../types/midi-channel-options";
-import { MenuMode } from "../../../types/menu-mode";
+import { MidiLearnOptions } from "../../../../types/midi-learn-options";
+import { MidiChannelOptions } from "../../../../types/midi-channel-options";
+import { MenuMode } from "../../../../types/menu-mode";
 
-import "../../common/lcd/lcd-element";
+import "../../../common/lcd/lcd-element";
 import "../../visualizer-element";
 @customElement("menu-element")
 export class Menu extends LitElement {
@@ -24,7 +24,7 @@ export class Menu extends LitElement {
             PRESET
           </button>
         </div>
-        <div class="button-wrapper">
+        <div class="button-wrapper channel">
           <button
             class="${this.computeButtonClasses(MenuMode.MIDI_CHANNEL)}"
             @click=${this.createSwitchModeHandler(MenuMode.MIDI_CHANNEL)}
@@ -102,14 +102,6 @@ export class Menu extends LitElement {
     );
   }
 
-  toggleActive() {
-
-  }
-
-  toggleInactive() {
-
-  }
-
   get options() {
     switch (this.mode) {
       case MenuMode.MIDI_CHANNEL:
@@ -168,6 +160,14 @@ export class Menu extends LitElement {
         box-shadow: var(--box-shadow);
         transition: all 0.1s ease-in-out;
         cursor: auto;
+      }
+
+      .menu .button-wrapper.channel {
+        margin: 0 1px;
+      }
+
+      .menu .button-wrapper.select {
+        margin: 0 1px;
       }
 
       .menu .button-wrapper.select button:active {

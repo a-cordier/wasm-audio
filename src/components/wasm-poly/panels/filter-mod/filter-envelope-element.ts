@@ -1,10 +1,10 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { FilterEnvelopeEvent } from "../../../types/filter-envelope-event";
+import { FilterEnvelopeEvent } from "../../../../types/filter-envelope-event";
 import "../panel-wrapper-element";
-import "../../common/controls/midi-control-wrapper";
-import "../../common/controls/fader-element";
-import "../../common/controls/knob-element";
-import { MidiControlID } from "../../../types/midi-learn-options";
+import "../../../common/controls/midi-control-wrapper";
+import "../../../common/controls/fader-element";
+import "../../../common/controls/knob-element";
+import { MidiControlID } from "../../../../types/midi-learn-options";
 
 @customElement("filter-envelope-element")
 export class FilterEnvelope extends LitElement {
