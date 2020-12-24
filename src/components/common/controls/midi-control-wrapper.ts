@@ -38,8 +38,7 @@ export class MidiControlWrapper extends LitElement {
 
       @keyframes control-focus {
         to {
-          --control-handle-color: var(--control-hander-color-focused);
-          --control-label-color: var(--control-hander-color-focused);
+          --control-handle-color: var(--control-hander-color-focused);  
         }
       }
     `;

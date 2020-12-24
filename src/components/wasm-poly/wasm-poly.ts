@@ -102,6 +102,10 @@ export class WasmPoly extends LitElement {
         this.state.osc2Amplitude = newState;
         this.requestUpdate();
       })
+      .subscribe(VoiceEvent.NOISE, (newState) => {
+        this.state.noiseLevel = newState;
+        this.requestUpdate();
+      })
       .subscribe(VoiceEvent.OSC2, (newState) => {
         this.state.osc2 = newState;
         this.requestUpdate();
@@ -300,7 +304,8 @@ export class WasmPoly extends LitElement {
               @change=${this.onOsc1Change}
             ></oscillator-element>
             <oscillator-mix-element 
-              .state=${this.state} 
+              .mix=${this.state.osc2Amplitude} 
+              .noise=${this.state.noiseLevel}
               .currentLearnerID=${this.currentLearnerID}
               @change=${this.onOscMixChange}
             ></oscillator-mix-element>

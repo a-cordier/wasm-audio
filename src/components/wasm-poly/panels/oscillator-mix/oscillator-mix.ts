@@ -9,7 +9,10 @@ export class OscillatorMix extends LitElement {
   private currentLearnerID = MidiControlID.NONE;
 
   @property({ type: Object })
-  private state: any;
+  private mix: any;
+
+  @property({ type: Object })
+  private noise: any;
 
   render() {
     return html`
@@ -22,18 +25,18 @@ export class OscillatorMix extends LitElement {
                 <knob-element
                     class="mix"
                     label="mix"
-                    .value=${this.state.osc2Amplitude.value as number}
+                    .value=${this.mix.value as number}
                     @change=${this.onMixChange}
                 ></knob-element>
                 </midi-control-wrapper>
                 <midi-control-wrapper
-                .controlID=${MidiControlID.NOISE_LEVEL}
+                .controlID=${MidiControlID.NOISE}
                 .currentLearnerID=${this.currentLearnerID}
                 >
                 <knob-element
                     class="noise"
                     label="noise"
-                    .value=${this.state.noiseLevel.value as number}
+                    .value=${this.noise.value as number}
                     @change=${this.onNoiseChange}
                 ></knob-element>
                 </midi-control-wrapper>

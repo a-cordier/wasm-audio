@@ -135,7 +135,7 @@ export function mapState(state: Partial<VoiceState>): Partial<VoiceState> {
       state.osc2Amplitude.value
     ),
     noiseLevel: new MidiControl(
-      MidiControlID.NOISE_LEVEL,
+      MidiControlID.NOISE,
       state.noiseLevel.value
     ),
     envelope: {

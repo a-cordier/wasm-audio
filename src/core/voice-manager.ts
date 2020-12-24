@@ -197,7 +197,7 @@ export class VoiceManager extends Dispatcher {
         });
       case MidiControlID.OSC_MIX:
         return this.dispatch(VoiceEvent.OSC_MIX, control.clone());
-      case MidiControlID.NOISE_LEVEL:
+      case MidiControlID.NOISE:
         return this.dispatch(VoiceEvent.NOISE, control.clone());
       case MidiControlID.CUTOFF:
         return this.dispatch(VoiceEvent.FILTER, {
