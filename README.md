@@ -2,6 +2,8 @@
 
 This project aims to showcase the use of Web Assembly modules in AudioWorklets (amongst other things I wanted to give a try, like for instance the Web Midi API).
 
+:monocle_face: [Try it!](https://a-cordier.github.io/wasm-audio/index.html)
+
 ## :building_construction: Project Goal
 
 Assemble a simple synth using in house (read "stolen here and there on the web") DSP algorithms written in C++ and exposed to the Web Audio API (using AudioWorklets) through Web Assembly.
