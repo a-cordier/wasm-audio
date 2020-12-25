@@ -22,7 +22,9 @@ export class Lfo extends LitElement {
     { value: LfoDestination.OSCILLATOR_MIX, name: "OSC MIX" },
     { value: LfoDestination.FREQUENCY, name: "FREQUENCY" },
     { value: LfoDestination.CUTOFF, name: "CUTOFF" },
-    { value: LfoDestination.RESONANCE, name: "RESONANCE" },
+   // { value: LfoDestination.RESONANCE, name: "RESONANCE" },
+    { value: LfoDestination.OSC1_CYCLE, name: "OSC1 CYCLE" },
+    { value: LfoDestination.OSC2_CYCLE, name: "OSC2 CYCLE" },
   ]);
 
   @property({ type: Boolean })

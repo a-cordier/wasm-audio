@@ -66,6 +66,7 @@ export class LCDSelector extends LitElement {
   }
 
   dispatchChange({ value }) {
+    console.log(value)
     this.dispatchEvent(new CustomEvent("change", { detail: { value } }));
   }
 

@@ -26,7 +26,9 @@ namespace Voice {
 		FREQUENCY = 0,
 		OSCILLATOR_MIX = 1,
 		CUTOFF = 2,
-		RESONANCE = 3
+		RESONANCE = 3,
+		OSC1_CYCLE = 4,
+		OSC2_CYCLE = 5,
 	};
 
 	class Kernel {
@@ -219,6 +221,7 @@ namespace Voice {
 		private:
 		void assignParameters(float *frequencyValues, unsigned int sampleCursor) {
 			sampleParameters.withFrequencyValues(frequencyValues).fetchValues(sampleCursor);
+			applyModulations();
 			osc1.setSemiShift(sampleParameters.osc1SemiShift);
 			subOsc.setOsc1SemiShift(sampleParameters.osc1SemiShift);
 			osc1.setCentShift(sampleParameters.osc1CentShift);
@@ -237,7 +240,6 @@ namespace Voice {
 			amplitudeEnvelope.setReleaseTime(sampleParameters.amplitudeEnvelopeRelease);
 			cutoffEnvelope.setAttackTime(sampleParameters.cutoffEnvelopeAttack);
 			cutoffEnvelope.setDecayTime(sampleParameters.cutoffEnvelopeDecay);
-			applyModulations();
 		}
 
 		private:
@@ -280,6 +282,12 @@ namespace Voice {
 					break;
 				case LfoDestination::OSCILLATOR_MIX:
 					sampleParameters.osc2Amplitude = zeroOneRange.clamp(sampleParameters.osc2Amplitude + mod);
+					break;
+				case LfoDestination::OSC1_CYCLE:
+					sampleParameters.osc1Cycle = oscCycleRange.clamp(sampleParameters.osc1Cycle + mod);
+					break;
+				case LfoDestination::OSC2_CYCLE:
+					sampleParameters.osc2Cycle = oscCycleRange.clamp(sampleParameters.osc2Cycle + mod);
 					break;
 			}
 		}
@@ -391,6 +399,8 @@ namespace Voice {
 						.value("FREQUENCY", Voice::LfoDestination::FREQUENCY)
 						.value("OSCILLATOR_MIX", Voice::LfoDestination::OSCILLATOR_MIX)
 						.value("CUTOFF", Voice::LfoDestination::CUTOFF)
-						.value("RESONANCE", Voice::LfoDestination::RESONANCE);
+						.value("RESONANCE", Voice::LfoDestination::RESONANCE)
+						.value("OSC1_CYCLE", Voice::LfoDestination::OSC1_CYCLE)
+						.value("OSC2_CYCLE", Voice::LfoDestination::OSC2_CYCLE);
 	}
 } // namespace Voice

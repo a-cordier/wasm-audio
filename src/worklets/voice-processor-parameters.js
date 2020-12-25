@@ -22,6 +22,8 @@ export const LfoDestinationParam = Object.freeze({
   OSCILLATOR_MIX: 1,
   CUTOFF: 2,
   RESONANCE: 3,
+  OSC1_CYCLE: 4,
+  OSC2_CYCLE: 5,
 });
 
 export const staticParameterDescriptors = [
@@ -76,14 +78,14 @@ export const staticParameterDescriptors = [
     name: "lfo1Destination",
     defaultValue: LfoDestinationParam.OSCILLATOR_MIX,
     minValue: LfoDestinationParam.FREQUENCY,
-    maxValue: LfoDestinationParam.RESONANCE,
+    maxValue: LfoDestinationParam.OSC_2_CYCLE,
     automationRate: "k-rate",
   },
   {
     name: "lfo2Destination",
     defaultValue: LfoDestinationParam.CUTOFF,
     minValue: LfoDestinationParam.FREQUENCY,
-    maxValue: LfoDestinationParam.RESONANCE,
+    maxValue: LfoDestinationParam.OSC_2_CYCLE,
     automationRate: "k-rate",
   },
   {

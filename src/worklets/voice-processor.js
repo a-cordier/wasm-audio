@@ -35,6 +35,8 @@ const LfoDestination = Object.freeze({
   [LfoDestinationParam.OSCILLATOR_MIX]: wasm.LfoDestination.OSCILLATOR_MIX,
   [LfoDestinationParam.CUTOFF]: wasm.LfoDestination.CUTOFF,
   [LfoDestinationParam.RESONANCE]: wasm.LfoDestination.RESONANCE,
+  [LfoDestinationParam.OSC1_CYCLE]: wasm.LfoDestination.OSC1_CYCLE,
+  [LfoDestinationParam.OSC2_CYCLE]: wasm.LfoDestination.OSC2_CYCLE,
 });
 
 function createParameterBuffers(parameterDescriptors = []) {

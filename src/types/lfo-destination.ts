@@ -5,11 +5,6 @@ export enum LfoDestination {
   OSCILLATOR_MIX = 1,
   CUTOFF = 2,
   RESONANCE = 3,
+  OSC1_CYCLE = 4,
+  OSC2_CYCLE = 5,
 }
-
-export const lfoDestinations = new SelectOptions([
-  { value: LfoDestination.OSCILLATOR_MIX, name: "OSC MIX" },
-  { value: LfoDestination.FREQUENCY, name: "FREQUENCY" },
-  { value: LfoDestination.CUTOFF, name: "CUTOFF" },
-  { value: LfoDestination.RESONANCE, name: "RESONANCE" },
-]);

@@ -32,3 +32,4 @@ const Range envelopeAmountRange{ 0.f, 1.f };
 const Range semiShiftRange{ -24.f, 24.f };
 const Range centShiftRange{ -50.f, 50.f };
 const Range lfoFrequencyRange{ 0.f, 25.f };
+const Range oscCycleRange{ 0.25f, 0.75f };
