@@ -1,12 +1,4 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
-import { classMap } from "lit-html/directives/class-map";
-
-import { createMidiController } from "../../../core/midi/midi-controller";
-import {
-  newMidiMessage,
-  isControlChange,
-} from "../../../core/midi/midi-message";
-import { GlobalDispatcher } from "../../../core/dispatcher";
 import { clamp } from "./clamp";
 
 function scale(value: number, range: ValueRange, newRange: ValueRange): number {
