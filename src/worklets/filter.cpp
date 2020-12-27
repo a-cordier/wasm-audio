@@ -144,12 +144,21 @@ namespace Filter {
 					delay[i] = state[i];
 				}
 
-				return state[3];
+				switch (mode) {
+					case Mode::LOWPASS_PLUS:
+						return state[4];
+					case Mode::LOWPASS:
+						return state[2];
+					case Mode::BANDPASS:
+						return state[0] - state[3];
+					case Mode::HIGHPASS:
+						return sample - state[1];
+				}
 			}
 
 			public:
-			virtual void setMode(Mode mode) override {
-				// TODO
+			virtual void setMode(Mode newMode) override {
+				mode = newMode;
 			}
 
 			private:
@@ -170,6 +179,8 @@ namespace Filter {
 			float drive;
 			std::array<float, 5> state;
 			std::array<float, 5> delay;
+
+			Mode mode = Mode::LOWPASS;
 		};
 	} // namespace Moog
 } // namespace Filter
