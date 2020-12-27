@@ -58,8 +58,9 @@ const browserState = getBrowserState();
 export class Root extends LitElement {
   render() {
     const { status, message } = browserState;
-    return status === BrowserStatus.NOK ? html`
-      <error-element .message=${message}></error-element>
-    ` : html`<wasm-poly-element></wasm-poly-element>`;
+    return status === BrowserStatus.OK ? 
+      html`<wasm-poly-element></wasm-poly-element>` :
+      html`<error-element .message=${message}></error-element>
+    `;
   }
 }
