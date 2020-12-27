@@ -29,7 +29,7 @@ export class LCD extends LitElement {
     return css`
       .lcd {
         width: var(--lcd-screen-width, 120px);
-        height: var(--lcd-screen-height, 12px);
+        height: var(--lcd-screen-height, 14px);
 
         display: grid;
         grid-template-columns: repeat(12, 1fr);
