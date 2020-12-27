@@ -41,6 +41,7 @@ namespace Voice {
 			noise(Oscillator::Kernel{ sampleRate }),
 			lfo1(Oscillator::Kernel{ sampleRate }),
 			lfo2(Oscillator::Kernel{ sampleRate }),
+			filter(std::make_unique<Filter::Moog::KrajeskiKernel>(sampleRate)),
 			subOsc(sampleRate),
 			amplitudeEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.5f, 0.5f, 0.9f }),
 			cutoffEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.01f, 2.f, 0.f }),
@@ -145,7 +146,7 @@ namespace Voice {
 
 		public:
 		void setFilterMode(Filter::Mode newFilterMode) {
-			filter.setMode(newFilterMode);
+			filter->setMode(newFilterMode);
 		}
 
 		public:
@@ -245,7 +246,7 @@ namespace Voice {
 		private:
 		float computeSample() {
 			float sample = computeRawSample() * amplitudeEnvelope.nextLevel() * Constants::voiceGain;
-			return filter.nextSample(sample, sampleParameters.cutoff, sampleParameters.resonance);
+			return filter->nextSample(sample, sampleParameters.cutoff, sampleParameters.resonance);
 		}
 
 		private:
@@ -322,7 +323,7 @@ namespace Voice {
 
 		Envelope::Kernel amplitudeEnvelope;
 
-		Filter::Kernel filter;
+		std::unique_ptr<Filter::Kernel> filter;
 
 		Envelope::Kernel cutoffEnvelope;
 
