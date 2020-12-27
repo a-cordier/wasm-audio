@@ -130,7 +130,7 @@ namespace Filter {
 				static auto resonanceLimit = 0.7f;
 
 				cutoff *= cutoffLimit;
-				resonance *= resonanceLimit;
+				resonance = resonance * resonanceLimit / drive;
 
 				float wc = Constants::twoPi * cutoff / sampleRate;
 
@@ -177,6 +177,7 @@ namespace Filter {
 			float gRes;
 			float gComp;
 			float drive;
+
 			std::array<float, 5> state;
 			std::array<float, 5> delay;
 

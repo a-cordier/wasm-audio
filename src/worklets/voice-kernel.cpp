@@ -41,7 +41,7 @@ namespace Voice {
 			noise(Oscillator::Kernel{ sampleRate }),
 			lfo1(Oscillator::Kernel{ sampleRate }),
 			lfo2(Oscillator::Kernel{ sampleRate }),
-			filter(std::make_unique<Filter::Moog::KrajeskiKernel>(sampleRate)),
+			filter(std::make_unique<Filter::ResonantKernel>()),
 			subOsc(sampleRate),
 			amplitudeEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.5f, 0.5f, 0.9f }),
 			cutoffEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.01f, 2.f, 0.f }),
