@@ -137,7 +137,7 @@ namespace Filter {
 				float g = derivateCutoff(cutoff, wc);
 				float gRes = derivateResonance(resonance, wc);
 
-				state[0] = tanh(drive * (sample - 4 * gRes * (state[4] - gComp * sample)));
+				state[0] = fastTanh(drive * (sample - 4 * gRes * (state[4] - gComp * sample)));
 
 				for (int i = 0; i < 4; ++i) {
 					state[i + 1] = g * (0.3 / 1.3 * state[i] + 1 / 1.3 * delay[i] - state[i + 1]) + state[i + 1];
