@@ -52,6 +52,7 @@ struct SampleParameters {
 	float lfo1ModAmount;
 	float lfo2Frequency;
 	float lfo2ModAmount;
+	float overdrive = 1.f;
 
 	public:
 	SampleParameters &withFrequencyValues(float *newFrequencyValues) {
