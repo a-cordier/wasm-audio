@@ -16,7 +16,7 @@ namespace Filter {
 		virtual float nextSample(float sample, float cutoff, float resonance) = 0;
 
 		public:
-		virtual void setMode(Mode newMode);
+		virtual void setMode(Mode newMode) = 0;
 	};
 
 	// Resonant Filter
@@ -64,6 +64,7 @@ namespace Filter {
 		private:
 		Mode mode;
 
+		// TODO: replace with array of states (see Moog implementations)
 		float buf0;
 		float buf1;
 		float buf2;
