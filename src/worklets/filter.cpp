@@ -13,31 +13,38 @@ namespace Filter {
 
 	class Kernel {
 		public:
+		virtual ~Kernel() = default;
+
+		protected:
+		Kernel(Mode mode) :
+			mode(mode) {}
+
+		public:
 		virtual float nextSample(float sample, float cutoff, float resonance) = 0;
 
 		public:
-		virtual void setMode(Mode newMode) = 0;
+		void setMode(Mode newMode) {
+			mode = newMode;
+		}
+
+		protected:
+		Mode mode = Mode::LOWPASS_PLUS;
 	};
 
 	// Resonant Filter
 	class ResonantKernel : public Kernel {
 		public:
 		ResonantKernel() :
-			ResonantKernel(Mode::LOWPASS) {
+			Kernel(Mode::LOWPASS) {
 		}
 
 		public:
 		ResonantKernel(Mode mode) :
-			mode(mode),
+			Kernel(mode),
 			buf0(0.0),
 			buf1(0.0),
 			buf2(0.0),
 			buf3(0.0) {
-		}
-
-		public:
-		virtual void setMode(Mode newMode) override {
-			mode = newMode;
 		}
 
 		public:
@@ -62,8 +69,6 @@ namespace Filter {
 		}
 
 		private:
-		Mode mode;
-
 		// TODO: replace with array of states (see Moog implementations)
 		float buf0;
 		float buf1;
@@ -118,6 +123,7 @@ namespace Filter {
 		class KrajeskiKernel : public Kernel {
 			public:
 			KrajeskiKernel(float sampleRate) :
+				Kernel(Mode::LOWPASS),
 				sampleRate{ sampleRate },
 				drive(1.f),
 				gComp(1.f) {
@@ -157,11 +163,6 @@ namespace Filter {
 				}
 			}
 
-			public:
-			virtual void setMode(Mode newMode) override {
-				mode = newMode;
-			}
-
 			private:
 			float derivateResonance(float resonance, float wc) {
 				return resonance * (1.0029 + 0.0526 * wc - 0.926 * pow(wc, 2) + 0.0218 * pow(wc, 3));
@@ -181,8 +182,6 @@ namespace Filter {
 
 			std::array<float, 5> state;
 			std::array<float, 5> delay;
-
-			Mode mode = Mode::LOWPASS;
 		};
 	} // namespace Moog
 } // namespace Filter
