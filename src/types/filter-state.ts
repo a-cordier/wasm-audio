@@ -4,4 +4,5 @@ export interface FilterState {
   mode: Control;
   cutoff: Control;
   resonance: Control;
+  drive: Control;
 }

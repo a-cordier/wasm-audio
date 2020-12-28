@@ -20,6 +20,7 @@ struct SampleParameters {
 	float *amplitudeEnvelopeReleaseValues;
 	float *cutoffValues;
 	float *resonanceValues;
+	float *driveValues;
 	float *cutoffEnvelopeAmountValues;
 	float *cutoffEnvelopeAttackValues;
 	float *cutoffEnvelopeDecayValues;
@@ -52,7 +53,7 @@ struct SampleParameters {
 	float lfo1ModAmount;
 	float lfo2Frequency;
 	float lfo2ModAmount;
-	float overdrive = 1.f;
+	float overdrive = 10.f;
 
 	public:
 	SampleParameters &withFrequencyValues(float *newFrequencyValues) {
@@ -77,6 +78,7 @@ struct SampleParameters {
 		amplitudeEnvelopeRelease = getCurrentValue(amplitudeEnvelopeReleaseValues, sample, midiRange, releaseRange);
 		cutoff = getCurrentValue(cutoffValues, sample, midiRange, cutoffRange);
 		resonance = getCurrentValue(resonanceValues, sample, midiRange, resonanceRange);
+		overdrive = getCurrentValue(driveValues, sample, midiRange, driveRange),
 		cutoffEnvelopeAmount = getCurrentValue(cutoffEnvelopeAmountValues, sample, midiRange, zeroOneRange);
 		cutoffEnvelopeAttack = getCurrentValue(cutoffEnvelopeAttackValues, sample, midiRange, attackRange);
 		cutoffEnvelopeDecay = getCurrentValue(cutoffEnvelopeDecayValues, sample, midiRange, decayRange);

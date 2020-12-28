@@ -28,6 +28,7 @@ const Range sustainRange{ 0.1f, 1.f };
 const Range releaseRange{ 0.1f, .75f };
 const Range cutoffRange{ 0.007f, 0.97f };
 const Range resonanceRange{ 0.f, 0.95f };
+const Range driveRange{ 1.f, 10.f };
 const Range envelopeAmountRange{ 0.f, 1.f };
 const Range semiShiftRange{ -24.f, 24.f };
 const Range centShiftRange{ -50.f, 50.f };

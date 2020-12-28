@@ -51,6 +51,7 @@ export class VoiceManager extends Dispatcher {
       mode: { value: FilterMode.LOWPASS_PLUS },
       cutoff: { value: 127 },
       resonance: { value: 0 },
+      drive: { value: 0 }, 
     },
     cutoffMod: {
       attack: { value: 127 / 8 },
@@ -104,6 +105,7 @@ export class VoiceManager extends Dispatcher {
     voice.filterMode.value = this.state.filter.mode.value;
     voice.cutoff.value = this.state.filter.cutoff.value;
     voice.resonance.value = this.state.filter.resonance.value;
+    voice.drive.value = this.state.filter.drive.value;
     voice.cutoffAttack.value = this.state.cutoffMod.attack.value;
     voice.cutoffDecay.value = this.state.cutoffMod.decay.value;
     voice.cutoffEnvelopeAmount.value = this.state.cutoffMod.amount.value;
@@ -208,6 +210,11 @@ export class VoiceManager extends Dispatcher {
         return this.dispatch(VoiceEvent.FILTER, {
           ...this.state.filter,
           ...{ resonance: control.clone() },
+        });
+      case MidiControlID.DRIVE:
+        return this.dispatch(VoiceEvent.FILTER, {
+          ...this.state.filter,
+          ...{ drive: control.clone() },
         });
       case MidiControlID.ATTACK:
         return this.dispatch(VoiceEvent.ENVELOPE, {
@@ -395,6 +402,12 @@ export class VoiceManager extends Dispatcher {
   setFilterResonance(newResonance: number) {
     this.state.filter.resonance.value = newResonance;
     this.dispatchUpdate((voice) => (voice.resonance.value = newResonance));
+    return this;
+  }
+
+  setDrive(newDrive: number) {
+    this.state.filter.drive.value = newDrive;
+    this.dispatchUpdate((voice) => (voice.drive.value = newDrive));
     return this;
   }
 

@@ -48,6 +48,10 @@ export class WasmVoiceNode extends AudioWorkletNode {
     return this.params.get("resonance");
   }
 
+  get drive() {
+    return this.params.get("drive");
+  }
+
   get cutoffEnvelopeAmount() {
     return this.params.get("cutoffEnvelopeAmount");
   }

@@ -81,7 +81,7 @@ export class Oscillator extends LitElement {
           </div>
           <div class="tone-controls">
             <div class="shift-control">
-              <div class="semi-shift-control">
+              <div class="knob-control semi-shift-control">
                 <midi-control-wrapper
                   controlID=${this.semiControlID}
                   currentLearnerID=${this.currentLearnerID}
@@ -95,7 +95,7 @@ export class Oscillator extends LitElement {
               <label>semi</label>
             </div>
             <div class="shift-control">
-              <div class="cent-shift-control cent">
+              <div class="knob-control cent-shift-control cent">
                 <midi-control-wrapper
                   controlID=${this.centControlID}
                   currentLearnerID=${this.currentLearnerID}
@@ -109,7 +109,7 @@ export class Oscillator extends LitElement {
               <label>cents</label>
             </div>
             <div class="shift-control">
-              <div class="cycle-shift-control cycle">
+              <div class="knob-control cycle-shift-control cycle">
                 <midi-control-wrapper
                   controlID=${this.cycleControlID}
                   currentLearnerID=${this.currentLearnerID}
@@ -157,34 +157,24 @@ export class Oscillator extends LitElement {
         justify-content: center;
       }
 
-      .oscillator-controls .tone-controls .semi-shift-control {
+      .oscillator-controls .tone-controls .knob-control {
         display: flex;
         flex-direction: row;
         align-items: center;
 
         width: 100%;
         height: 90%;
+      }
 
+      .oscillator-controls .tone-controls .semi-shift-control {
         --knob-size: 50px;
       }
 
       .oscillator-controls .tone-controls .cent-shift-control {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        width: 100%;
-        height: 90%;
         --knob-size: 40px;
       }
 
       .oscillator-controls .tone-controls .cycle-shift-control {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        width: 100%;
-        height: 90%;
         --knob-size: 35px;
       }
 

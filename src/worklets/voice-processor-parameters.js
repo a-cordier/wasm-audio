@@ -155,6 +155,13 @@ export const automatedParameterDescriptors = [
     automationRate: "a-rate",
   },
   {
+    name: "drive",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "a-rate",
+  },
+  {
     name: "cutoffAttack",
     defaultValue: 0,
     minValue: 0,

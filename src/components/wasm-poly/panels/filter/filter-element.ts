@@ -23,6 +23,10 @@ export class Filter extends LitElement {
     this.dispatchChange(FilterEvent.RESONANCE, event.detail.value);
   }
 
+  onDriveChange(event: CustomEvent) {
+    this.dispatchChange(FilterEvent.DRIVE, event.detail.value);
+  }
+
   onTypeChange(event: CustomEvent) {
     this.dispatchChange(FilterEvent.MODE, event.detail.value);
   }
@@ -43,32 +47,46 @@ export class Filter extends LitElement {
           </div>
           <div class="frequency-controls">
             <div class="frequency-control">
-              <div class="cutoff-control">
+              <div class="knob-control cutoff-control">
                 <midi-control-wrapper
                   controlID=${MidiControlID.CUTOFF}
                   currentLearnerID=${this.currentLearnerID}
                 >
                   <knob-element
-                    label="cutoff"
                     .value=${this.state.cutoff.value}
                     @change=${this.onCutoffChange}
                   ></knob-element>
                 </midi-control-wrapper>
               </div>
+              <label>cutoff</label>
             </div>
             <div class="frequency-control">
-              <div class="resonance-control">
+              <div class="knob-control resonance-control">
                 <midi-control-wrapper
                   controlID=${MidiControlID.RESONANCE}
                   currentLearnerID=${this.currentLearnerID}
                 >
                   <knob-element
-                    label="reson."
                     .value=${this.state.resonance.value}
                     @change=${this.onResonanceChange}
                   ></knob-element>
                 </midi-control-wrapper>
               </div>
+              <label>res.</label>
+            </div>
+            <div class="frequency-control">
+              <div class="knob-control drive-control">
+                <midi-control-wrapper
+                  controlID=${MidiControlID.DRIVE}
+                  currentLearnerID=${this.currentLearnerID}
+                >
+                  <knob-element
+                    .value=${this.state.drive.value}
+                    @change=${this.onDriveChange}
+                  ></knob-element>
+                </midi-control-wrapper>
+              </div>
+              <label>drive</label>
             </div>
           </div>
         </div>
@@ -84,7 +102,8 @@ export class Filter extends LitElement {
       }
 
       .filter-controls {
-        width: 150px;
+        position: relative;
+        width: 160px;
         height: 120px;
       }
 
@@ -95,37 +114,46 @@ export class Filter extends LitElement {
 
       .filter-controls .frequency-controls {
         display: flex;
-        align-items: center;
-        justify-content: center;
+        justify-content: space-around;
         width: 100%;
-
         margin-top: 1em;
       }
 
-      .frequency-controls .frequency-control {
-        width: 50%;
-        height: 90%;
-        --knob-size: 50px;
-
+      .filter-controls .frequency-control {
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
+      }
+
+      .filter-controls .frequency-controls .knob-control {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        width: 100%;
+        height: 90%;
       }
 
       .frequency-control .cutoff-control {
         display: flex;
         flex-direction: row;
         align-items: center;
+        --knob-size: 50px;
       }
 
-      .frequency-controls .resonance-control {
-        --knob-size: 50px;
+      .frequency-control .resonance-control {
+        --knob-size: 40px;
+      }
+
+      .frequency-control .drive-control {
+        --knob-size: 35px;
       }
 
       label {
         display: block;
-        color: white;
-        font-size: 0.8em;
+        color: var(--control-label-color);
+        font-size: var(--control-label-font-size);
       }
     `;
   }

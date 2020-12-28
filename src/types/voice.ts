@@ -65,6 +65,7 @@ export interface Voice extends AudioNode {
   filterMode: AudioParam;
   cutoff: AudioParam;
   resonance: AudioParam;
+  drive: AudioParam;
   cutoffAttack: AudioParam;
   cutoffDecay: AudioParam;
   cutoffEnvelopeAmount: AudioParam;
@@ -160,6 +161,10 @@ export function mapState(state: Partial<VoiceState>): Partial<VoiceState> {
         MidiControlID.RESONANCE,
         state.filter.resonance.value
       ),
+      drive: new MidiControl(
+        MidiControlID.DRIVE,
+        state.filter.drive.value,
+      )
     },
     cutoffMod: {
       attack: new MidiControl(

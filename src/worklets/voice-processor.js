@@ -134,6 +134,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.kernel.setFilterMode(FilterMode[kValueOf(parameters.filterMode)]);
     this.kernel.setCutoff(this.parameterBuffers.get("cutoff").getHeapAddress());
     this.kernel.setResonance(this.parameterBuffers.get("resonance").getHeapAddress());
+    this.kernel.setDrive(this.parameterBuffers.get("drive").getHeapAddress());
 
     // Filter cutoff modulation parameters
     this.kernel.setCutoffEnvelopeAmount(this.parameterBuffers.get("cutoffEnvelopeAmount").getHeapAddress());

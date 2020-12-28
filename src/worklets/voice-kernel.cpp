@@ -41,7 +41,7 @@ namespace Voice {
 			noise(Oscillator::Kernel{ sampleRate }),
 			lfo1(Oscillator::Kernel{ sampleRate }),
 			lfo2(Oscillator::Kernel{ sampleRate }),
-			filter(std::make_unique<Filter::Moog::KrajeskiKernel>(sampleRate)),
+			filter(std::make_unique<Filter::ResonantKernel>()),
 			subOsc(sampleRate),
 			amplitudeEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.5f, 0.5f, 0.9f }),
 			cutoffEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.01f, 2.f, 0.f }),
@@ -157,6 +157,11 @@ namespace Voice {
 		public:
 		void setResonance(uintptr_t newResonanceValuesPtr) {
 			sampleParameters.resonanceValues = reinterpret_cast<float *>(newResonanceValuesPtr);
+		}
+
+		public:
+		void setDrive(uintptr_t newDriveValuesPtr) {
+			sampleParameters.driveValues = reinterpret_cast<float *>(newDriveValuesPtr);
 		}
 
 		public:
@@ -362,6 +367,7 @@ namespace Voice {
 						.function("setFilterMode", &Voice::Kernel::setFilterMode)
 						.function("setCutoff", &Voice::Kernel::setCutoff, allow_raw_pointers())
 						.function("setResonance", &Voice::Kernel::setResonance, allow_raw_pointers())
+						.function("setDrive", &Voice::Kernel::setDrive, allow_raw_pointers())
 						.function("setCutoffEnvelopeAmount", &Voice::Kernel::setCutoffEnvelopeAmount, allow_raw_pointers())
 						.function("setCutoffEnvelopeAttack", &Voice::Kernel::setCutoffEnvelopeAttack, allow_raw_pointers())
 						.function("setCutoffEnvelopeDecay", &Voice::Kernel::setCutoffEnvelopeDecay, allow_raw_pointers())

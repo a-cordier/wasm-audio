@@ -204,6 +204,9 @@ export class WasmPoly extends LitElement {
       case FilterEvent.RESONANCE:
         this.voiceManager.setFilterResonance(event.detail.value);
         break;
+      case FilterEvent.DRIVE:
+        this.voiceManager.setDrive(event.detail.value);
+        break;
     }
   }
 
