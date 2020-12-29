@@ -250,14 +250,17 @@ namespace Voice {
 
 		private:
 		float computeSample() {
-			float sample = computeRawSample() * amplitudeEnvelope.nextLevel() * Constants::voiceGain;
-			return shape(filter->nextSample(sample, sampleParameters.cutoff, sampleParameters.resonance));
+			float sample = computeRawSample() * amplitudeEnvelope.nextLevel();
+			float filtered = filter->nextSample(sample, sampleParameters.cutoff, sampleParameters.resonance);
+			return shape(filtered);
 		}
 
 		private:
 		float shape(float input) {
 			float amount = sampleParameters.overdrive;
-			return input * (fabs(input) + amount) / (input * input + (amount - 1) * fabs(input) + 1);
+			float k = 2 * amount / (1 - amount);
+			float shaped = (1 + k) * input / (1 + k * abs(input));
+			return amplitudeRange.clamp(shaped);
 		}
 
 		private:
