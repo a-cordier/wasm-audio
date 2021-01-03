@@ -90,7 +90,7 @@ export class Lfo extends LitElement {
                   ></knob-element>
                 </midi-control-wrapper>
               </div>
-              <label>freq.</label>
+              <label>freq</label>
             </div>
             <div class="modulation-control">
               <div class="mod-amount-control">

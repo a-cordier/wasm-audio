@@ -20,6 +20,10 @@ export class WasmVoiceNode extends AudioWorkletNode {
     return this.params.get("frequency");
   }
 
+  get velocity() {
+    return this.params.get("velocity");
+  }
+
   get amplitude() {
     return this.params.get("amplitude");
   }
@@ -54,6 +58,10 @@ export class WasmVoiceNode extends AudioWorkletNode {
 
   get cutoffEnvelopeAmount() {
     return this.params.get("cutoffEnvelopeAmount");
+  }
+
+  get cutoffEnvelopeVelocity() {
+    return this.params.get("cutoffEnvelopeVelocity");
   }
 
   get cutoffAttack() {

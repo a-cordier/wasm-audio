@@ -17,6 +17,7 @@ export interface Note {
   octave: number;
   frequency: number;
   midiValue: number;
+  velocity: number;
 }
 
 /**
@@ -67,14 +68,15 @@ export function noteToMidi(pitchClass: PitchClass, octave: number): number {
  * @param {number} midiValue - midi value for note
  * @returns {Note}
  */
-export function midiToNote(midiValue: number): Note {
-  const pitchClassIndex = (midiValue - 12 * 2) % 12;
-  const octave = (midiValue - pitchClassIndex - 12) / 12;
+export function midiToNote({ value, velocity = 127 }): Note {
+  const pitchClassIndex = (value - 12 * 2) % 12;
+  const octave = (value - pitchClassIndex - 12) / 12;
   return {
     pitchClass: pitchClasses[pitchClassIndex],
     octave,
-    frequency: midiToFrequency(midiValue),
-    midiValue,
+    frequency: midiToFrequency(value),
+    midiValue: value,
+    velocity,
   };
 }
 
@@ -140,6 +142,7 @@ export function createNotes(octave, tuning = 440): Note[] {
         octave,
         frequency: symbolToFrequency(pitchClass, octave, tuning),
         midiValue: noteToMidi(pitchClass, octave),
+        velocity: 127, 
       };
     })
     .filter((note) => note.frequency !== null);

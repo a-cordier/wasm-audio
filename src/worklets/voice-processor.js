@@ -109,6 +109,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.isStopping = true;
     }
 
+    this.kernel.setVelocity(kValueOf(parameters.velocity));
+
     // Envelope parameters
     this.kernel.setAmplitudeAttack(this.parameterBuffers.get("amplitudeAttack").getHeapAddress());
     this.kernel.setAmplitudeDecay(this.parameterBuffers.get("amplitudeDecay").getHeapAddress());
@@ -138,6 +140,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
     // Filter cutoff modulation parameters
     this.kernel.setCutoffEnvelopeAmount(this.parameterBuffers.get("cutoffEnvelopeAmount").getHeapAddress());
+    this.kernel.setCutoffEnvelopeVelocity(this.parameterBuffers.get("cutoffEnvelopeVelocity").getHeapAddress());
     this.kernel.setCutoffEnvelopeAttack(this.parameterBuffers.get("cutoffAttack").getHeapAddress());
     this.kernel.setCutoffEnvelopeDecay(this.parameterBuffers.get("cutoffDecay").getHeapAddress());
 

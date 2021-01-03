@@ -57,7 +57,12 @@ export class WasmPoly extends LitElement {
     super.connectedCallback();
     this.midiController = await createMidiController(MidiOmniChannel);
     this.setUpVoiceManager();
-    this.analyzer.connect(this.audioContext.destination);
+    const outputFilter = this.audioContext.createBiquadFilter();
+    outputFilter.type = "highshelf";
+    outputFilter.frequency.value = 18000;
+    outputFilter.gain.value = -100;
+    this.analyzer.connect(outputFilter);
+    outputFilter.connect(this.audioContext.destination);
     await this.audioContext.audioWorklet.addModule("voice-processor.js");
     this.registerVoiceHandlers();
   }
@@ -221,6 +226,10 @@ export class WasmPoly extends LitElement {
       case FilterEnvelopeEvent.AMOUNT:
         this.voiceManager.setCutoffEnvelopeAmount(event.detail.value);
         break;
+      case FilterEnvelopeEvent.VELOCITY:
+        this.voiceManager.setCutoffEnvelopeVelocity(event.detail.value);
+        break;  
+          
     }
   }
 

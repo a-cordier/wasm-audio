@@ -25,6 +25,7 @@ export interface CutoffModState {
   attack: Control;
   decay: Control;
   amount: Control;
+  velocity: Control;
 }
 
 export interface LFOState {
@@ -179,6 +180,10 @@ export function mapState(state: Partial<VoiceState>): Partial<VoiceState> {
         MidiControlID.CUT_MOD,
         state.cutoffMod.amount.value
       ),
+      velocity: new MidiControl(
+        MidiControlID.CUT_VEL,
+        state.cutoffMod.velocity.value
+      )
     },
     lfo1: {
       mode: new SelectControl(state.lfo1.mode.value),

@@ -183,6 +183,7 @@ export class Knob extends LitElement {
         color: var(--control-label-color);
         display: flex;
         justify-content: center;
+        margin-top: -5px;
       }
     `;
   }

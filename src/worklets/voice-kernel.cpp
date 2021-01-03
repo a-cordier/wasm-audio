@@ -67,6 +67,11 @@ namespace Voice {
 		}
 
 		public:
+		void setVelocity(float velocityValue) {
+			velocity = zeroOneRange.map(velocityValue, midiRange);
+		}
+
+		public:
 		void setOsc1Mode(Oscillator::Mode newMode) {
 			osc1.setMode(newMode);
 			subOsc.setOsc1Mode(newMode);
@@ -170,6 +175,11 @@ namespace Voice {
 		}
 
 		public:
+		void setCutoffEnvelopeVelocity(uintptr_t newCutoffEnvelopeVelocityValuesPtr) {
+			sampleParameters.cutoffEnvelopeVelocityValues = reinterpret_cast<float *>(newCutoffEnvelopeVelocityValuesPtr);
+		}
+
+		public:
 		void setCutoffEnvelopeAttack(uintptr_t newCutoffEnvelopeAttackValuesPtr) {
 			sampleParameters.cutoffEnvelopeAttackValues = reinterpret_cast<float *>(newCutoffEnvelopeAttackValuesPtr);
 		}
@@ -250,17 +260,16 @@ namespace Voice {
 
 		private:
 		float computeSample() {
-			float sample = computeRawSample() * amplitudeEnvelope.nextLevel();
+			float sample = computeRawSample() * velocity * amplitudeEnvelope.nextLevel();
 			float filtered = filter->nextSample(sample, sampleParameters.cutoff, sampleParameters.resonance);
 			return shape(filtered);
 		}
 
-		private:
-		float shape(float input) {
+		private: // from https://www.musicdsp.org/en/latest/Effects/46-waveshaper.html
+		float shape(float sample) {
 			float amount = sampleParameters.overdrive;
-			float k = 2 * amount / (1 - amount);
-			float shaped = (1 + k) * input / (1 + k * abs(input));
-			return amplitudeRange.clamp(shaped);
+			float k = 2.f * amount / (1.f - amount);
+			return (1.f + k) * sample / (1.f + k * abs(sample));
 		}
 
 		private:
@@ -278,6 +287,7 @@ namespace Voice {
 			float lfo1Mod = sampleParameters.lfo1ModAmount * lfo1.nextSample(sampleParameters.lfo1Frequency);
 			float lfo2Mod = sampleParameters.lfo2ModAmount * lfo2.nextSample(sampleParameters.lfo2Frequency);
 			float cutoffMod = sampleParameters.cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
+			cutoffMod += velocity * sampleParameters.cutoffEnvelopeVelocity;
 			applyLFO(lfo1Destination, lfo1Mod);
 			applyLFO(lfo2Destination, lfo2Mod);
 			sampleParameters.cutoff = cutoffRange.clamp(sampleParameters.cutoff + cutoffMod);
@@ -347,12 +357,14 @@ namespace Voice {
 
 		float sampleRate = Constants::sampleRate;
 		unsigned renderFrames = Constants::renderFrames;
+		float velocity = 1.f;
 	};
 
 	EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
 		class_<Voice::Kernel>("VoiceKernel")
 						.constructor<float, float>()
 						.function("process", &Voice::Kernel::process, allow_raw_pointers())
+						.function("setVelocity", &Voice::Kernel::setVelocity)
 						.function("setOsc1Mode", &Voice::Kernel::setOsc1Mode)
 						.function("setOsc1SemiShift", &Voice::Kernel::setOsc1SemiShift, allow_raw_pointers())
 						.function("setOsc1CentShift", &Voice::Kernel::setOsc1CentShift, allow_raw_pointers())
@@ -372,6 +384,7 @@ namespace Voice {
 						.function("setResonance", &Voice::Kernel::setResonance, allow_raw_pointers())
 						.function("setDrive", &Voice::Kernel::setDrive, allow_raw_pointers())
 						.function("setCutoffEnvelopeAmount", &Voice::Kernel::setCutoffEnvelopeAmount, allow_raw_pointers())
+						.function("setCutoffEnvelopeVelocity", &Voice::Kernel::setCutoffEnvelopeVelocity, allow_raw_pointers())
 						.function("setCutoffEnvelopeAttack", &Voice::Kernel::setCutoffEnvelopeAttack, allow_raw_pointers())
 						.function("setCutoffEnvelopeDecay", &Voice::Kernel::setCutoffEnvelopeDecay, allow_raw_pointers())
 						.function("setLfo1Frequency", &Voice::Kernel::setLfo1Frequency, allow_raw_pointers())

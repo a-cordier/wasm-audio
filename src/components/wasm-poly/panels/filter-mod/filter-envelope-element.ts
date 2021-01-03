@@ -26,6 +26,10 @@ export class FilterEnvelope extends LitElement {
     this.dispatchChange(FilterEnvelopeEvent.AMOUNT, event.detail.value);
   }
 
+  onVelocityChange(event: CustomEvent) {
+    this.dispatchChange(FilterEnvelopeEvent.VELOCITY, event.detail.value);
+  }
+
   dispatchChange(type: FilterEnvelopeEvent, value: number) {
     this.dispatchEvent(new CustomEvent("change", { detail: { type, value } }));
   }
@@ -56,18 +60,33 @@ export class FilterEnvelope extends LitElement {
               ></fader-element>
             </midi-control-wrapper>
           </div>
-          <div class="mod-control">
-            <midi-control-wrapper
-              controlID=${MidiControlID.CUT_MOD}
-              currentLearnerID=${this.currentLearnerID}
-            >
-              <knob-element
-                label="mod."
-                .value=${this.state.amount.value as number}
-                @change=${this.onAmountChange}
-              ></knob-element>
-            </midi-control-wrapper>
+          <div class="mod-controls">
+            <div class="mod-control mod">
+              <midi-control-wrapper
+                controlID=${MidiControlID.CUT_MOD}
+                currentLearnerID=${this.currentLearnerID}
+              >
+                <knob-element
+                  label="mod"
+                  .value=${this.state.amount.value as number}
+                  @change=${this.onAmountChange}
+                ></knob-element>
+              </midi-control-wrapper>
+            </div>
+            <div class="mod-control velocity">
+              <midi-control-wrapper
+                controlID=${MidiControlID.CUT_VEL}
+                currentLearnerID=${this.currentLearnerID}
+              >
+                <knob-element
+                  label="vel"
+                  .value=${this.state.velocity.value as number}
+                  @change=${this.onVelocityChange}
+                ></knob-element>
+              </midi-control-wrapper>
+            </div>
           </div>
+          
         </div>
       </panel-wrapper-element>
     `;
@@ -96,6 +115,23 @@ export class FilterEnvelope extends LitElement {
         justify-content: space-evenly;
 
         width: 60%;
+      }
+
+      .envelope-controls .mod-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        height: 70%;
+
+      }
+
+      .envelope-controls .mod-controls .mod {
+        --knob-size: 40px;
+      }
+
+      .envelope-controls .mod-controls .velocity {
+        --knob-size: 25px;
       }
     `;
   }

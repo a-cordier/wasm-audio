@@ -95,6 +95,13 @@ export const staticParameterDescriptors = [
     maxValue: FilterModeParam.HIGHPASS,
     automationRate: "k-rate",
   },
+  {
+    name: "velocity",
+    defaultValue: 127,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
 ];
 
 export const automatedParameterDescriptors = [
@@ -177,6 +184,13 @@ export const automatedParameterDescriptors = [
   },
   {
     name: "cutoffEnvelopeAmount",
+    defaultValue: 0,
+    minValue: 0,
+    maxValue: 127,
+    automationRate: "k-rate",
+  },
+  {
+    name: "cutoffEnvelopeVelocity",
     defaultValue: 0,
     minValue: 0,
     maxValue: 127,

@@ -57,6 +57,7 @@ export class VoiceManager extends Dispatcher {
       attack: { value: 127 / 8 },
       decay: { value: 127 / 3 },
       amount: { value: 0 },
+      velocity: { value: 0 },
     },
     lfo1: {
       mode: { value: OscillatorMode.SQUARE },
@@ -82,12 +83,13 @@ export class VoiceManager extends Dispatcher {
     this.onMidiCC = this.onMidiCC.bind(this);
   }
 
-  next({ frequency, midiValue }): Voice {
+  next({ frequency, midiValue, velocity = 127 }): Voice {
     if (this.voices.has(midiValue)) {
       return this.voices.get(midiValue);
     }
     const voice = this.voiceGenerator.next().value;
     voice.frequency.value = frequency;
+    voice.velocity.value = velocity;
     voice.osc1.value = this.state.osc1.mode.value;
     voice.osc1SemiShift.value = this.state.osc1.semiShift.value;
     voice.osc1CentShift.value = this.state.osc1.centShift.value;
@@ -109,6 +111,7 @@ export class VoiceManager extends Dispatcher {
     voice.cutoffAttack.value = this.state.cutoffMod.attack.value;
     voice.cutoffDecay.value = this.state.cutoffMod.decay.value;
     voice.cutoffEnvelopeAmount.value = this.state.cutoffMod.amount.value;
+    voice.cutoffEnvelopeVelocity.value = this.state.cutoffMod.velocity.value;
     voice.lfo1Frequency.value = this.state.lfo1.frequency.value;
     voice.lfo1ModAmount.value = this.state.lfo1.modAmount.value;
     voice.lfo1Mode.value = this.state.lfo1.mode.value;
@@ -139,7 +142,7 @@ export class VoiceManager extends Dispatcher {
   }
 
   onMidiNoteOn(message: MidiMessage) {
-    const note = midiToNote(message.data.value);
+    const note = midiToNote(message.data);
     this.next(note);
     this.dispatch(VoiceEvent.NOTE_ON, note);
   }
@@ -271,6 +274,11 @@ export class VoiceManager extends Dispatcher {
           ...this.state.cutoffMod,
           ...{ amount: control.clone() },
         });
+      case MidiControlID.CUT_VEL:
+        return this.dispatch(VoiceEvent.CUTOFF_MOD, {
+          ...this.state.cutoffMod,
+          ...{ velocity: control.clone() },
+        });  
     }
   }
 
@@ -417,6 +425,11 @@ export class VoiceManager extends Dispatcher {
 
   setCutoffEnvelopeAmount(newAmount: number) {
     this.state.cutoffMod.amount.value = newAmount;
+    return this;
+  }
+
+  setCutoffEnvelopeVelocity(newVelocity: number) {
+    this.state.cutoffMod.velocity.value = newVelocity;
     return this;
   }
 

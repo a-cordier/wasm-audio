@@ -23,6 +23,7 @@ export enum MidiControlID {
   LFO2_FREQ,
   LFO2_MOD,
   CUT_MOD,
+  CUT_VEL,
   CUT_ATTACK,
   CUT_DECAY,
 }
@@ -51,6 +52,7 @@ export const MidiLearnOptions = new SelectOptions([
   toSelectOption(MidiControlID.RESONANCE),
   toSelectOption(MidiControlID.DRIVE),
   toSelectOption(MidiControlID.CUT_MOD),
+  toSelectOption(MidiControlID.CUT_VEL),
   toSelectOption(MidiControlID.CUT_ATTACK),
   toSelectOption(MidiControlID.CUT_DECAY),
   toSelectOption(MidiControlID.LFO1_FREQ),

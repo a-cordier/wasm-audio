@@ -72,7 +72,7 @@ export class Filter extends LitElement {
                   ></knob-element>
                 </midi-control-wrapper>
               </div>
-              <label>res.</label>
+              <label>res</label>
             </div>
             <div class="frequency-control">
               <div class="knob-control drive-control">
