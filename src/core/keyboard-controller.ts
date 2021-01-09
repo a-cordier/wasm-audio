@@ -5,19 +5,7 @@ import { MidiOmniChannel } from "./midi/midi-channels";
 
 const midiOctaves = createMidiOctaves(440);
 
-type PitchClass =
-  | "C"
-  | "C#"
-  | "D"
-  | "D#"
-  | "E"
-  | "F"
-  | "F#"
-  | "G"
-  | "G#"
-  | "A"
-  | "A#"
-  | "B";
+type PitchClass = "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B";
 
 /* prettier-ignore */
 const keyMapping = new Map([
@@ -65,7 +53,7 @@ export class KeyBoardController extends Dispatcher {
         this.dispatch(KeyboardMessage.NOTE_ON, {
           data: {
             value: keyMapping.get(key).midiValue,
-            velocity: 127,
+            velocity: 60,
             channel: MidiOmniChannel,
           },
         });

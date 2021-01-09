@@ -2,11 +2,7 @@ import { LitElement, html, css, customElement, property } from "lit-element";
 import { clamp } from "./clamp";
 
 function scale(value: number, range: ValueRange, newRange: ValueRange): number {
-  return Math.round(
-    newRange.min +
-      ((value - range.min) * (newRange.max - newRange.min)) /
-        (range.max - range.min)
-  );
+  return Math.round(newRange.min + ((value - range.min) * (newRange.max - newRange.min)) / (range.max - range.min));
 }
 
 const ANGLE_RANGE = {
@@ -84,11 +80,9 @@ export class Knob extends LitElement {
   }
 
   updated(changedProperties) {
-    if (changedProperties.get("value")) {
+    if (changedProperties.has("value")) {
       this.updateAngle();
-      this.dispatchEvent(
-        new CustomEvent("change", { detail: { value: this.value } })
-      );
+      this.dispatchEvent(new CustomEvent("change", { detail: { value: this.value } }));
     }
   }
 

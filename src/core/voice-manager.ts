@@ -1,5 +1,5 @@
 import { WasmVoiceNode } from "../worklets/voice-node";
-import { Voice, createVoiceState } from "../types/voice";
+import { Voice, VoiceState, createVoiceState } from "../types/voice";
 import { OscillatorMode } from "../types/oscillator-mode";
 import { FilterMode } from "../types/filter-mode";
 import { LfoDestination } from "../types/lfo-destination";
@@ -11,10 +11,9 @@ import { midiToNote } from "./midi/midi-note";
 import { MidiController } from "../types/midi-controller";
 import { VoiceEvent } from "../types/voice-event";
 import { KeyboardMessage } from "../types/keyboard-messsage";
+import { PresetOptions } from "./presets/options";
 
-export function* createVoiceGenerator(
-  audioContext: AudioContext
-): IterableIterator<Voice> {
+export function* createVoiceGenerator(audioContext: AudioContext): IterableIterator<Voice> {
   for (;;) {
     yield new WasmVoiceNode(audioContext);
   }
@@ -26,52 +25,7 @@ export class VoiceManager extends Dispatcher {
   private output: GainNode;
   private midiController: MidiController & Dispatcher;
 
-  private state = createVoiceState({
-    osc1: {
-      mode: { value: OscillatorMode.SAWTOOTH },
-      semiShift: { value: 127 / 4 },
-      centShift: { value: 127 / 2 },
-      cycle: { value: 127 / 2 },
-    },
-    osc2: {
-      mode: { value: OscillatorMode.SINE },
-      semiShift: { value: 127 / 2 },
-      centShift: { value: 127 - 127 / 3 },
-      cycle: { value: 127 / 2 },
-    },
-    osc2Amplitude: { value: 0 },
-    noiseLevel: { value: 0 }, 
-    envelope: {
-      attack: { value: 0 },
-      decay: { value: 127 / 16 },
-      sustain: { value: 127 / 4 },
-      release: { value: 127 / 4 },
-    },
-    filter: {
-      mode: { value: FilterMode.LOWPASS_PLUS },
-      cutoff: { value: 12 },
-      resonance: { value: 127 },
-      drive: { value: 127 }, 
-    },
-    cutoffMod: {
-      attack: { value: 127 / 8 },
-      decay: { value: 127 / 3 },
-      amount: { value: 0 },
-      velocity: { value: 12 },
-    },
-    lfo1: {
-      mode: { value: OscillatorMode.SQUARE },
-      frequency: { value: 127 / 8 },
-      modAmount: { value: 0 },
-      destination: { value: LfoDestination.FREQUENCY },
-    },
-    lfo2: {
-      mode: { value: OscillatorMode.SQUARE },
-      frequency: { value: 127 / 4 },
-      modAmount: { value: 0 },
-      destination: { value: LfoDestination.CUTOFF },
-    },
-  });
+  private state = createVoiceState(PresetOptions.getCurrent().value as VoiceState);
 
   constructor(audioContext: AudioContext) {
     super();
@@ -83,7 +37,7 @@ export class VoiceManager extends Dispatcher {
     this.onMidiCC = this.onMidiCC.bind(this);
   }
 
-  next({ frequency, midiValue, velocity = 100 }): Voice {
+  next({ frequency, midiValue, velocity = 60 }): Voice {
     if (this.voices.has(midiValue)) {
       return this.voices.get(midiValue);
     }
@@ -184,7 +138,7 @@ export class VoiceManager extends Dispatcher {
         return this.dispatch(VoiceEvent.OSC1, {
           ...this.state.osc1,
           ...{ cycle: control.clone() },
-        });        
+        });
       case MidiControlID.OSC2_SEMI:
         return this.dispatch(VoiceEvent.OSC2, {
           ...this.state.osc2,
@@ -278,7 +232,7 @@ export class VoiceManager extends Dispatcher {
         return this.dispatch(VoiceEvent.CUTOFF_MOD, {
           ...this.state.cutoffMod,
           ...{ velocity: control.clone() },
-        });  
+        });
     }
   }
 
@@ -295,6 +249,11 @@ export class VoiceManager extends Dispatcher {
 
   getState() {
     return { ...this.state };
+  }
+
+  setState(newState) {
+    this.state = createVoiceState(newState);
+    return this.getState();
   }
 
   setOsc1Mode(newMode: OscillatorMode) {
@@ -385,9 +344,7 @@ export class VoiceManager extends Dispatcher {
 
   setOsc2Amplitude(newOsc2Amplitude: number) {
     this.state.osc2Amplitude.value = newOsc2Amplitude;
-    this.dispatchUpdate(
-      (voice) => (voice.osc2Amplitude.value = newOsc2Amplitude)
-    );
+    this.dispatchUpdate((voice) => (voice.osc2Amplitude.value = newOsc2Amplitude));
     return this;
   }
 
@@ -507,5 +464,9 @@ export class VoiceManager extends Dispatcher {
     for (const voice of this.voices.values()) {
       doUpdate(voice);
     }
+  }
+
+  dumpState() {
+    console.log(JSON.stringify(this.state));
   }
 }

@@ -1,7 +1,7 @@
 import { LitElement, html, css, customElement, property } from "lit-element";
 
 import "../common/controls/keys-element";
-import "./visualizer-element";
+import "../visualizer-element";
 import "./panels/oscillator/wave-selector-element";
 import "./panels/oscillator/oscillator-element";
 import "./panels/oscillator-mix/oscillator-mix";
@@ -55,15 +55,10 @@ export class WasmPoly extends LitElement {
 
   async connectedCallback() {
     super.connectedCallback();
+    await this.audioContext.audioWorklet.addModule("voice-processor.js");
     this.midiController = await createMidiController(MidiOmniChannel);
     this.setUpVoiceManager();
-    const outputFilter = this.audioContext.createBiquadFilter();
-    outputFilter.type = "highshelf";
-    outputFilter.frequency.value = 18000;
-    outputFilter.gain.value = -100;
-    this.analyzer.connect(outputFilter);
-    outputFilter.connect(this.audioContext.destination);
-    await this.audioContext.audioWorklet.addModule("voice-processor.js");
+    this.analyzer.connect(this.audioContext.destination);
     this.registerVoiceHandlers();
   }
 
@@ -149,7 +144,7 @@ export class WasmPoly extends LitElement {
         this.voiceManager.setOsc1CentShift(event.detail.value);
         break;
       case OscillatorEvent.CYCLE:
-        this.voiceManager.setOsc1Cycle(event.detail.value);  
+        this.voiceManager.setOsc1Cycle(event.detail.value);
     }
   }
 
@@ -193,7 +188,7 @@ export class WasmPoly extends LitElement {
         this.voiceManager.setOsc2CentShift(event.detail.value);
         break;
       case OscillatorEvent.CYCLE:
-        this.voiceManager.setOsc2Cycle(event.detail.value);    
+        this.voiceManager.setOsc2Cycle(event.detail.value);
         break;
     }
   }
@@ -228,8 +223,7 @@ export class WasmPoly extends LitElement {
         break;
       case FilterEnvelopeEvent.VELOCITY:
         this.voiceManager.setCutoffEnvelopeVelocity(event.detail.value);
-        break;  
-          
+        break;
     }
   }
 
@@ -265,7 +259,7 @@ export class WasmPoly extends LitElement {
     }
   }
 
-  onMenuChange(event: CustomEvent) {
+  async onMenuChange(event: CustomEvent) {
     const { type, option } = event.detail;
     switch (type) {
       case MenuMode.MIDI_LEARN:
@@ -277,19 +271,18 @@ export class WasmPoly extends LitElement {
         this.midiController.setCurrentLearnerID(this.currentLearnerID);
         this.midiController.setCurrentChannel(option.value);
         break;
+      case MenuMode.PRESET:
+        this.state = this.voiceManager.setState(option.value);
+        break;
     }
-    this.requestUpdate();
+    await this.requestUpdate();
   }
 
   computeVizualizerIfEnabled() {
     if (this.showVizualizer) {
       return html`
         <div class="visualizer">
-          <visualizer-element
-            .analyser=${this.analyzer}
-            width="650"
-            height="200"
-          ></visualizer-element>
+          <visualizer-element .analyser=${this.analyzer} width="650" height="200"></visualizer-element>
         </div>
       `;
     }
@@ -300,10 +293,7 @@ export class WasmPoly extends LitElement {
       <div class="content">
         <div class="synth">
           <div class="menu">
-            <menu-element
-              .analyser=${this.analyzer}
-              @change=${this.onMenuChange}
-            ></menu-element>
+            <menu-element .analyser=${this.analyzer} @change=${this.onMenuChange}></menu-element>
           </div>
           <div class="panels-row">
             <oscillator-element
@@ -315,8 +305,8 @@ export class WasmPoly extends LitElement {
               .state=${this.state.osc1}
               @change=${this.onOsc1Change}
             ></oscillator-element>
-            <oscillator-mix-element 
-              .mix=${this.state.osc2Amplitude} 
+            <oscillator-mix-element
+              .mix=${this.state.osc2Amplitude}
               .noise=${this.state.noiseLevel}
               .currentLearnerID=${this.currentLearnerID}
               @change=${this.onOscMixChange}
@@ -413,7 +403,7 @@ export class WasmPoly extends LitElement {
       .synth .panels-row {
         display: flex;
         justify-content: space-between;
-        align-items: center; 
+        align-items: center;
       }
 
       .synth .panels-row.lower {

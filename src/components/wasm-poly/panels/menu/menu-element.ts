@@ -4,22 +4,26 @@ import { classMap } from "lit-html/directives/class-map";
 import { MidiLearnOptions } from "../../../../types/midi-learn-options";
 import { MidiChannelOptions } from "../../../../types/midi-channel-options";
 import { MenuMode } from "../../../../types/menu-mode";
+import { PresetOptions } from "../../../../core/presets/options";
 
 import "../../../common/lcd/lcd-element";
-import "../../visualizer-element";
 @customElement("menu-element")
 export class Menu extends LitElement {
   @property({ type: Number })
-  private mode = MenuMode.MIDI_CHANNEL;
+  private mode = MenuMode.PRESET;
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.dispatchChange();
+  }
 
   render() {
     return html`
       <div class="menu">
         <div class="button-wrapper">
           <button
-            disabled
             class="${this.computeButtonClasses(MenuMode.PRESET)}"
-            @click=${this.createSwitchModeHandler(MenuMode.MIDI_CHANNEL)}
+            @click=${this.createSwitchModeHandler(MenuMode.PRESET)}
           >
             PRESET
           </button>
@@ -49,9 +53,7 @@ export class Menu extends LitElement {
         <div class="button-wrapper select">
           <button @click=${this.nextOption}>NEXT</button>
         </div>
-        <div class="label">
-          WASM POLY
-        </div>
+        <div class="label">WASM POLY</div>
       </div>
     `;
   }
@@ -75,6 +77,10 @@ export class Menu extends LitElement {
           this.mode = MenuMode.MIDI_LEARN;
           this.dispatchChange();
           this.requestUpdate();
+        };
+      case MenuMode.PRESET:
+        return () => {
+          this.mode = MenuMode.PRESET;
         };
     }
   }
@@ -104,6 +110,8 @@ export class Menu extends LitElement {
 
   get options() {
     switch (this.mode) {
+      case MenuMode.PRESET:
+        return PresetOptions;
       case MenuMode.MIDI_CHANNEL:
         return MidiChannelOptions;
       case MenuMode.MIDI_LEARN:
@@ -173,7 +181,7 @@ export class Menu extends LitElement {
       .menu .button-wrapper.select button:active {
         transform: scale(0.99);
         background-color: var(--button-active-background-color);
-        color: var(--button-active-label-color);  
+        color: var(--button-active-label-color);
       }
 
       .menu .label {
