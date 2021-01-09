@@ -28,8 +28,8 @@ export class VoiceManager extends Dispatcher {
 
   private state = createVoiceState({
     osc1: {
-      mode: { value: OscillatorMode.SINE },
-      semiShift: { value: 127 - 127 / 4 },
+      mode: { value: OscillatorMode.SAWTOOTH },
+      semiShift: { value: 127 / 4 },
       centShift: { value: 127 / 2 },
       cycle: { value: 127 / 2 },
     },
@@ -39,7 +39,7 @@ export class VoiceManager extends Dispatcher {
       centShift: { value: 127 - 127 / 3 },
       cycle: { value: 127 / 2 },
     },
-    osc2Amplitude: { value: 127 / 2 },
+    osc2Amplitude: { value: 0 },
     noiseLevel: { value: 0 }, 
     envelope: {
       attack: { value: 0 },
@@ -49,15 +49,15 @@ export class VoiceManager extends Dispatcher {
     },
     filter: {
       mode: { value: FilterMode.LOWPASS_PLUS },
-      cutoff: { value: 127 },
-      resonance: { value: 0 },
-      drive: { value: 0 }, 
+      cutoff: { value: 12 },
+      resonance: { value: 127 },
+      drive: { value: 127 }, 
     },
     cutoffMod: {
       attack: { value: 127 / 8 },
       decay: { value: 127 / 3 },
       amount: { value: 0 },
-      velocity: { value: 0 },
+      velocity: { value: 12 },
     },
     lfo1: {
       mode: { value: OscillatorMode.SQUARE },
@@ -83,7 +83,7 @@ export class VoiceManager extends Dispatcher {
     this.onMidiCC = this.onMidiCC.bind(this);
   }
 
-  next({ frequency, midiValue, velocity = 127 }): Voice {
+  next({ frequency, midiValue, velocity = 100 }): Voice {
     if (this.voices.has(midiValue)) {
       return this.voices.get(midiValue);
     }

@@ -59,16 +59,6 @@ function isStopping(parameters) {
   return kValueOf(parameters.stopped) === BooleanParam.TRUE && parameters.stopTime <= currentTime;
 }
 
-/**
- * When a number of voices are stacked together,
- * long time release values may lead to buffer overflow.
- * Let's start with a dummy way of mitigating this by
- * lower release value for each new voice we stack.
- */
-let voiceCount = 0;
-function adaptRelease(parameters) {
-  return [kValueOf(parameters.amplitudeRelease) / voiceCount];
-}
 class VoiceProcessor extends AudioWorkletProcessor {
   outputBuffer = new HeapAudioBuffer(wasm, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);
 
@@ -91,12 +81,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
     if (!this.isStarted) {
       this.isStarted = true;
-      ++voiceCount;
     }
 
     if (this.kernel.isStopped()) {
       this.freeBuffers();
-      --voiceCount;
       return false;
     }
 
@@ -174,8 +162,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
   allocateBuffers(channelCount, parameters) {
     this.outputBuffer.adaptChannel(channelCount);
     this.parameterBuffers.forEach((buffer, name) => {
-      const values = name === "amplitudeRelease" ? adaptRelease(parameters) : parameters[name];
-      buffer.getData().set(values);
+      buffer.getData().set(parameters[name]);
     });
   }
 

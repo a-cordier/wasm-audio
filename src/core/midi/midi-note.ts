@@ -68,7 +68,7 @@ export function noteToMidi(pitchClass: PitchClass, octave: number): number {
  * @param {number} midiValue - midi value for note
  * @returns {Note}
  */
-export function midiToNote({ value, velocity = 127 }): Note {
+export function midiToNote({ value, velocity = 100 }): Note {
   const pitchClassIndex = (value - 12 * 2) % 12;
   const octave = (value - pitchClassIndex - 12) / 12;
   return {

@@ -24,7 +24,7 @@ const Range midiRange{ 0.f, 127.f };
 const Range amplitudeRange{ -Constants::voiceGain, Constants::voiceGain };
 const Range zeroOneRange{ 0.f, 1.f };
 const Range attackRange{ Constants::epsilon, .5f };
-const Range decayRange{ 0.05f, 1.f };
+const Range decayRange{ .1f, 8.f };
 const Range sustainRange{ 0.1f, 1.f };
 const Range releaseRange{ 0.1f, .75f };
 const Range cutoffRange{ 0.007f, 0.97f };
