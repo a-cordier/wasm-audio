@@ -234,6 +234,19 @@ namespace Voice {
 			return state == State::STOPPED;
 		}
 
+		public:
+		void reset() {
+			osc1.reset();
+			osc2.reset();
+			noise.reset();
+			lfo1.reset();
+			lfo2.reset();
+			filter->reset();
+			amplitudeEnvelope.reset();
+			cutoffEnvelope.reset();
+			state = State::DISPOSED;
+		}
+
 		private:
 		void assignParameters(float *frequencyValues, unsigned int sampleCursor) {
 			sampleParameters.withFrequencyValues(frequencyValues).fetchValues(sampleCursor);
@@ -396,7 +409,8 @@ namespace Voice {
 						.function("setLfo2Mode", &Voice::Kernel::setLfo2Mode)
 						.function("setLfo2Destination", &Voice::Kernel::setLfo2Destination)
 						.function("isStopped", &Voice::Kernel::isStopped)
-						.function("enterReleaseStage", &Voice::Kernel::enterReleaseStage);
+						.function("enterReleaseStage", &Voice::Kernel::enterReleaseStage)
+						.function("reset", &Voice::Kernel::reset);
 	}
 
 	EMSCRIPTEN_BINDINGS(ENUM_OscillatorMode) {

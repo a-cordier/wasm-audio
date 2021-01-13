@@ -60,6 +60,12 @@ class SubOsc {
 		osc2Amplitude = newOsc2Amplitude;
 	}
 
+	public:
+	void reset() {
+		osc1.reset();
+		osc2.reset();
+	}
+
 	private:
 	Oscillator::Kernel osc1;
 	Oscillator::Kernel osc2;

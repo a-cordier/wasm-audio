@@ -91,6 +91,11 @@ namespace Envelope {
 			type = newType;
 		}
 
+		public:
+		void reset() {
+			sample = 0;
+		}
+
 		private:
 		float ya;
 		float yb;
@@ -195,6 +200,14 @@ namespace Envelope {
 		public:
 		void setReleaseRampType(RampType newType) {
 			releaseTimeLine.setType(newType);
+		}
+
+		public:
+		void reset() {
+			attackTimeLine.reset();
+			decayTimeLine.reset();
+			releaseTimeLine.reset();
+			stage = Stage::OFF;
 		}
 
 		private:

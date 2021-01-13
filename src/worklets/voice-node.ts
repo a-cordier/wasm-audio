@@ -1,3 +1,4 @@
+import { VoiceState } from "./voice-processor-parameters";
 export class WasmVoiceNode extends AudioWorkletNode {
   private params: Map<string, AudioParam>;
 
@@ -6,14 +7,12 @@ export class WasmVoiceNode extends AudioWorkletNode {
     this.params = this.parameters as Map<string, AudioParam>;
   }
 
-  start(time = this.context.currentTime) {
-   this.params.get("startTime").value = time;
-   this.params.get("stopped").value = Number(false);
+  start() {
+    this.params.get("state").value = VoiceState.STARTED;
   }
 
-  stop(time = this.context.currentTime) {
-    this.params.get("stopTime").value = time;
-    this.params.get("stopped").value = Number(true);
+  stop() {
+    this.params.get("state").value = VoiceState.STOPPED;
   }
 
   get frequency() {
@@ -125,7 +124,7 @@ export class WasmVoiceNode extends AudioWorkletNode {
   }
 
   get lfo1Mode() {
-    return this.params.get("lfo1Mode")
+    return this.params.get("lfo1Mode");
   }
 
   get lfo1Destination() {

@@ -3,6 +3,12 @@ export const BooleanParam = Object.freeze({
   FALSE: 0,
 });
 
+export const VoiceState = Object.freeze({
+  DISPOSED: 0,
+  STARTED: 1,
+  STOPPED: 2,
+});
+
 export const WaveFormParam = Object.freeze({
   SINE: 0,
   SAWTOOTH: 1,
@@ -28,22 +34,10 @@ export const LfoDestinationParam = Object.freeze({
 
 export const staticParameterDescriptors = [
   {
-    name: "startTime",
-    defaultValue: -1,
-    minValue: 0,
-    automationRate: "k-rate",
-  },
-  {
-    name: "stopped",
-    defaultValue: BooleanParam.TRUE,
-    minValue: BooleanParam.FALSE,
-    maxValue: BooleanParam.TRUE,
-    automationRate: "k-rate",
-  },
-  {
-    name: "stopTime",
-    defaultValue: -1,
-    minValue: 0,
+    name: "state",
+    defaultValue: VoiceState.DISPOSED,
+    minValue: VoiceState.DISPOSED,
+    maxValue: VoiceState.STOPPED,
     automationRate: "k-rate",
   },
   {

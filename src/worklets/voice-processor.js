@@ -8,6 +8,7 @@ import {
 import {
   staticParameterDescriptors,
   automatedParameterDescriptors,
+  VoiceState,
   WaveFormParam,
   FilterModeParam,
   BooleanParam,
@@ -51,40 +52,65 @@ function kValueOf(param) {
   return param[0];
 }
 
-function isStarting(parameters) {
-  return parameters.startTime >= currentTime;
+function isStarted(parameters) {
+  return kValueOf(parameters.state) === VoiceState.STARTED;
 }
 
-function isStopping(parameters) {
-  return kValueOf(parameters.stopped) === BooleanParam.TRUE && parameters.stopTime <= currentTime;
+function isStopped(parameters) {
+  return kValueOf(parameters.state) === VoiceState.STOPPED;
 }
 
+const kernels = Array.from({ length: 2048 }).map(() => new wasm.VoiceKernel(sampleRate, RENDER_QUANTUM_FRAMES));
+
+class VoicePool {
+  voices = [];
+
+  constructor(length = 8) {
+    this.voices = Array.from({ length }).map(() => new wasm.VoiceKernel(sampleRate, RENDER_QUANTUM_FRAMES));
+  }
+
+  acquire() {
+    return this.voices.shift();
+  }
+
+  release(voice) {
+    voice.reset();
+    this.voices.push(voice);
+  }
+}
+
+const State = Object.freeze({
+  DISPOSED: 0,
+  STARTED: 1,
+  STOPPING: 2,
+});
+
+const voicePool = new VoicePool(64);
 class VoiceProcessor extends AudioWorkletProcessor {
   outputBuffer = new HeapAudioBuffer(wasm, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);
 
   parameterBuffers = createParameterBuffers(automatedParameterDescriptors);
 
   // noinspection JSUnresolvedFunction
-  kernel = new wasm.VoiceKernel(sampleRate, RENDER_QUANTUM_FRAMES);
+  kernel = voicePool.acquire();
 
-  isStopping = false;
-  isStarted = false;
+  state = State.DISPOSED;
 
   static get parameterDescriptors() {
     return [...staticParameterDescriptors, ...automatedParameterDescriptors];
   }
 
   process(inputs, outputs, parameters) {
-    if (isStarting(parameters)) {
+    if (!isStarted(parameters) && this.state === State.DISPOSED) {
       return true;
     }
 
-    if (!this.isStarted) {
-      this.isStarted = true;
+    if (this.state === State.DISPOSED) {
+      this.state = State.STARTED;
     }
 
     if (this.kernel.isStopped()) {
-      this.freeBuffers();
+      voicePool.release(this.kernel);
       return false;
     }
 
@@ -92,9 +118,9 @@ class VoiceProcessor extends AudioWorkletProcessor {
     const channelCount = output.length;
     this.allocateBuffers(channelCount, parameters);
 
-    if (isStopping(parameters) && !this.isStopping) {
+    if (isStopped(parameters) && this.state !== State.STOPPING) {
       this.kernel.enterReleaseStage();
-      this.isStopping = true;
+      this.state = State.STOPPING;
     }
 
     this.kernel.setVelocity(kValueOf(parameters.velocity));

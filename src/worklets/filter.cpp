@@ -23,6 +23,9 @@ namespace Filter {
 		virtual float nextSample(float sample, float cutoff, float resonance) = 0;
 
 		public:
+		virtual void reset() = 0;
+
+		public:
 		void setMode(Mode newMode) {
 			mode = newMode;
 		}
@@ -66,6 +69,14 @@ namespace Filter {
 				default:
 					return 0.0;
 			}
+		}
+
+		public:
+		void reset() override {
+			buf0 = 0;
+			buf1 = 0;
+			buf2 = 0;
+			buf3 = 0;
 		}
 
 		private:
@@ -161,6 +172,12 @@ namespace Filter {
 					case Mode::HIGHPASS:
 						return sample - state[1];
 				}
+			}
+
+			public:
+			void reset() override {
+				state.fill(0.f);
+				delay.fill(0.f);
 			}
 
 			private:

@@ -59,7 +59,7 @@ namespace Oscillator {
 		}
 
 		public:
-		void resetPhase() {
+		void reset() {
 			float phase = 0.f;
 			float phaseIncrement = 0.f;
 			float lastValue = 0.f;
