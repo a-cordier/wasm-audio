@@ -59,9 +59,6 @@ function isStarted(parameters) {
 function isStopped(parameters) {
   return kValueOf(parameters.state) === VoiceState.STOPPED;
 }
-
-const kernels = Array.from({ length: 2048 }).map(() => new wasm.VoiceKernel(sampleRate, RENDER_QUANTUM_FRAMES));
-
 class VoicePool {
   voices = [];
 
