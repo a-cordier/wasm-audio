@@ -34,7 +34,6 @@ namespace Filter {
 		Mode mode = Mode::LOWPASS_PLUS;
 	};
 
-	// Resonant Filter
 	class ResonantKernel : public Kernel {
 		public:
 		ResonantKernel() :
@@ -95,7 +94,6 @@ namespace Filter {
 			return x;
 		}
 
-		// former name : moog_lerp
 		float crossfade(float amount, float x, float y) {
 			return (1.f - amount) * x + amount * y;
 		}

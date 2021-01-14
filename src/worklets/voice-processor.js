@@ -1,9 +1,4 @@
-import {
-  RENDER_QUANTUM_FRAMES, // 128
-  MAX_CHANNEL_COUNT, // 32
-  HeapAudioBuffer,
-  HeapParameterBuffer,
-} from "./wasm-audio-helper.js";
+import { RENDER_QUANTUM_FRAMES, MAX_CHANNEL_COUNT, HeapAudioBuffer, HeapParameterBuffer } from "./wasm-audio-helper.js";
 
 import {
   staticParameterDescriptors,
@@ -59,6 +54,7 @@ function isStarted(parameters) {
 function isStopped(parameters) {
   return kValueOf(parameters.state) === VoiceState.STOPPED;
 }
+
 class KernelPool {
   pool = [];
 
@@ -76,7 +72,8 @@ class KernelPool {
   }
 }
 
-const pool = new KernelPool(64);
+const pool = new KernelPool(128);
+
 class VoiceProcessor extends AudioWorkletProcessor {
   outputBuffer = new HeapAudioBuffer(wasm, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);
 
