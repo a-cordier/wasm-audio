@@ -12,10 +12,7 @@ export const Status = Object.freeze({
 });
 
 export function isNote(message) {
-  return (
-    message &&
-    (message.status === Status.NOTE_ON || message.status === Status.NOTE_OFF)
-  );
+  return message && (message.status === Status.NOTE_ON || message.status === Status.NOTE_OFF);
 }
 
 export function isControlChange(message) {
@@ -91,7 +88,7 @@ export function ChannelAfterTouch(data, channel, offset) {
 export function newMidiMessage(data, offset = 0): Partial<MidiMessage> {
   /* eslint-disable no-param-reassign */
   const status = data.getUint8(offset) >> 4;
-  const channel = (data.getUint8(offset) & 0xf) + 1;
+  const channel = data.getUint8(offset) & 0xf;
 
   switch (status) {
     case Status.NOTE_ON:
