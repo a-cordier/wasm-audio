@@ -59,55 +59,50 @@ function isStarted(parameters) {
 function isStopped(parameters) {
   return kValueOf(parameters.state) === VoiceState.STOPPED;
 }
-class VoicePool {
-  voices = [];
+class KernelPool {
+  pool = [];
 
   constructor(length = 8) {
-    this.voices = Array.from({ length }).map(() => new wasm.VoiceKernel(sampleRate, RENDER_QUANTUM_FRAMES));
+    this.pool = Array.from({ length }).map(() => new wasm.VoiceKernel(sampleRate, RENDER_QUANTUM_FRAMES));
   }
 
   acquire() {
-    return this.voices.shift();
+    return this.pool.shift();
   }
 
-  release(voice) {
-    voice.reset();
-    this.voices.push(voice);
+  release(kernel) {
+    kernel.reset();
+    this.pool.push(kernel);
   }
 }
 
-const State = Object.freeze({
-  DISPOSED: 0,
-  STARTED: 1,
-  STOPPING: 2,
-});
-
-const voicePool = new VoicePool(64);
+const pool = new KernelPool(64);
 class VoiceProcessor extends AudioWorkletProcessor {
   outputBuffer = new HeapAudioBuffer(wasm, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);
 
   parameterBuffers = createParameterBuffers(automatedParameterDescriptors);
 
   // noinspection JSUnresolvedFunction
-  kernel = voicePool.acquire();
+  kernel = pool.acquire();
 
-  state = State.DISPOSED;
+  state = VoiceState.DISPOSED;
 
   static get parameterDescriptors() {
     return [...staticParameterDescriptors, ...automatedParameterDescriptors];
   }
 
   process(inputs, outputs, parameters) {
-    if (!isStarted(parameters) && this.state === State.DISPOSED) {
+    if (!isStarted(parameters) && this.state === VoiceState.DISPOSED) {
       return true;
     }
 
-    if (this.state === State.DISPOSED) {
-      this.state = State.STARTED;
+    if (this.state === VoiceState.DISPOSED) {
+      this.state = VoiceState.STARTED;
     }
 
     if (this.kernel.isStopped()) {
-      voicePool.release(this.kernel);
+      this.freeBuffers();
+      pool.release(this.kernel);
       return false;
     }
 
@@ -115,9 +110,9 @@ class VoiceProcessor extends AudioWorkletProcessor {
     const channelCount = output.length;
     this.allocateBuffers(channelCount, parameters);
 
-    if (isStopped(parameters) && this.state !== State.STOPPING) {
+    if (isStopped(parameters) && this.state !== VoiceState.STOPPING) {
       this.kernel.enterReleaseStage();
-      this.state = State.STOPPING;
+      this.state = VoiceState.STOPPING;
     }
 
     this.kernel.setVelocity(kValueOf(parameters.velocity));

@@ -6,7 +6,8 @@ export const BooleanParam = Object.freeze({
 export const VoiceState = Object.freeze({
   DISPOSED: 0,
   STARTED: 1,
-  STOPPED: 2,
+  STOPPING: 2,
+  STOPPED: 3,
 });
 
 export const WaveFormParam = Object.freeze({
