@@ -6,7 +6,6 @@ import {
   VoiceState,
   WaveFormParam,
   FilterModeParam,
-  BooleanParam,
   LfoDestinationParam,
 } from "./voice-processor-parameters.js";
 
@@ -79,7 +78,6 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
   parameterBuffers = createParameterBuffers(automatedParameterDescriptors);
 
-  // noinspection JSUnresolvedFunction
   kernel = pool.acquire();
 
   state = VoiceState.DISPOSED;
@@ -105,6 +103,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
     const output = outputs[0];
     const channelCount = output.length;
+
     this.allocateBuffers(channelCount, parameters);
 
     if (isStopped(parameters) && this.state !== VoiceState.STOPPING) {
@@ -188,5 +187,6 @@ class VoiceProcessor extends AudioWorkletProcessor {
     });
   }
 }
+
 // noinspection JSUnresolvedFunction
 registerProcessor("voice", VoiceProcessor);

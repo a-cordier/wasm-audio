@@ -12,11 +12,6 @@ export class Menu extends LitElement {
   @property({ type: Number })
   private mode = MenuMode.PRESET;
 
-  connectedCallback() {
-    super.connectedCallback();
-    this.dispatchChange();
-  }
-
   render() {
     return html`
       <div class="menu">
@@ -70,17 +65,16 @@ export class Menu extends LitElement {
         return () => {
           this.mode = MenuMode.MIDI_CHANNEL;
           this.dispatchChange();
-          this.requestUpdate();
         };
       case MenuMode.MIDI_LEARN:
         return () => {
           this.mode = MenuMode.MIDI_LEARN;
           this.dispatchChange();
-          this.requestUpdate();
         };
       case MenuMode.PRESET:
         return () => {
           this.mode = MenuMode.PRESET;
+          this.dispatchChange();
         };
     }
   }
