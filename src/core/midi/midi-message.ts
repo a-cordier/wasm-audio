@@ -86,7 +86,6 @@ export function ChannelAfterTouch(data, channel, offset) {
 }
 
 export function newMidiMessage(data, offset = 0): Partial<MidiMessage> {
-  /* eslint-disable no-param-reassign */
   const status = data.getUint8(offset) >> 4;
   const channel = data.getUint8(offset) & 0xf;
 

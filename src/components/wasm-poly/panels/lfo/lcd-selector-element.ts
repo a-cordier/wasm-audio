@@ -16,9 +16,7 @@ export class LCDSelector extends LitElement {
     return html`
       <div class="lcd-selector">
         <lcd-element .text=${this.options.getCurrent().name}></lcd-element>
-        <div class="options">
-          ${this.options.map(this.createOptionSelector.bind(this))}
-        </div>
+        <div class="options">${this.options.map(this.createOptionSelector.bind(this))}</div>
       </div>
     `;
   }
@@ -30,12 +28,7 @@ export class LCDSelector extends LitElement {
 
   createOptionSelector(_: never, index: number) {
     return html`
-      <button
-        @click=${this.createOptionHandler(index)}
-        class="${this.computeButtonClasses(index)}"
-      >
-        ${index}
-      </button>
+      <button @click=${this.createOptionHandler(index)} class="${this.computeButtonClasses(index)}">${index}</button>
     `;
   }
 
@@ -66,7 +59,6 @@ export class LCDSelector extends LitElement {
   }
 
   dispatchChange({ value }) {
-    console.log(value)
     this.dispatchEvent(new CustomEvent("change", { detail: { value } }));
   }
 
