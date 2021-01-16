@@ -1,9 +1,5 @@
 import { MidiOmniChannel } from "./midi-channels";
-import {
-  newMidiMessage,
-  isControlChange,
-  Status,
-} from "./midi-message";
+import { newMidiMessage, isControlChange, Status } from "./midi-message";
 import { Dispatcher } from "../dispatcher";
 import { MidiMessage, MidiMessageEvent } from "../../types/midi-message";
 import { MidiControlID } from "../../types/midi-learn-options";
@@ -13,9 +9,7 @@ interface NavigatorWithMidi extends Navigator {
   requestMIDIAccess?: Function;
 }
 
-export async function createMidiController(
-  channel = MidiOmniChannel
-): Promise<MidiController & Dispatcher> {
+export async function createMidiController(channel = MidiOmniChannel): Promise<MidiController & Dispatcher> {
   const midiNavigator = navigator as NavigatorWithMidi;
   const midiDispatcher = new Dispatcher();
   const controlMap = new Map<number, MidiControlID>();
@@ -31,9 +25,7 @@ export async function createMidiController(
   try {
     midiAccess = await midiNavigator.requestMIDIAccess();
   } catch (error) {
-    return Promise.reject(
-      "Error requesting MIDI access"
-    );
+    return Promise.reject("Error requesting MIDI access");
   }
 
   for (const input of midiAccess.inputs.values()) {
@@ -49,17 +41,21 @@ export async function createMidiController(
     }
 
     const messageChannel = message.data.channel;
+
+    if (isControlChange(message)) {
+      return dispatchControlChangeMessage(message);
+    }
+
     if (messageChannel !== currentChannel && currentChannel !== MidiOmniChannel) {
       return;
     }
+
     if (message.status === Status.NOTE_ON) {
       midiDispatcher.dispatch(MidiMessageEvent.NOTE_ON, message);
     }
+
     if (message.status === Status.NOTE_OFF) {
       midiDispatcher.dispatch(MidiMessageEvent.NOTE_OFF, message);
-    }
-    if (isControlChange(message)) {
-      dispatchControlChangeMessage(message);
     }
   }
 

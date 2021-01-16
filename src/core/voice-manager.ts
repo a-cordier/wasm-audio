@@ -25,7 +25,7 @@ export class VoiceManager extends Dispatcher {
   private output: GainNode;
   private midiController: MidiController & Dispatcher;
 
-  private state = createVoiceState(PresetOptions.getCurrent().value as VoiceState);
+  private state: VoiceState;
 
   constructor(audioContext: AudioContext) {
     super();
@@ -35,6 +35,7 @@ export class VoiceManager extends Dispatcher {
     this.onMidiNoteOn = this.onMidiNoteOn.bind(this);
     this.onMidiNoteOff = this.onMidiNoteOff.bind(this);
     this.onMidiCC = this.onMidiCC.bind(this);
+    this.setState(createVoiceState(PresetOptions.getCurrent().value as VoiceState));
   }
 
   next({ frequency, midiValue, velocity = 60 }): Voice {
@@ -85,6 +86,7 @@ export class VoiceManager extends Dispatcher {
       .subscribe(MidiMessageEvent.NOTE_ON, this.onMidiNoteOn)
       .subscribe(MidiMessageEvent.NOTE_OFF, this.onMidiNoteOff)
       .subscribe(MidiMessageEvent.CONTROL_CHANGE, this.onMidiCC);
+    this.bindMidiControls();
     return this;
   }
 
@@ -109,10 +111,12 @@ export class VoiceManager extends Dispatcher {
 
   onMidiCC(message: MidiMessage) {
     const midiControl = this.state.findMidiControlById(message.controlID);
+
     if (!midiControl) {
       return;
     }
 
+    midiControl.controller = message.data.control;
     midiControl.value = message.data.value;
 
     if (message.isMidiLearning) {
@@ -253,7 +257,20 @@ export class VoiceManager extends Dispatcher {
 
   setState(newState) {
     this.state = createVoiceState(newState);
+    this.bindMidiControls();
     return this.getState();
+  }
+
+  bindMidiControls() {
+    if (!this.state) {
+      return;
+    }
+    if (!this.midiController) {
+      return;
+    }
+    for (const control of this.state.getMidiControls()) {
+      this.midiController.mapControl(control.controller, control.id);
+    }
   }
 
   setOsc1Mode(newMode: OscillatorMode) {

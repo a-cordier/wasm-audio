@@ -46,6 +46,7 @@ export interface VoiceState {
   lfo1: LFOState;
   lfo2: LFOState;
   findMidiControlById(id: MidiControlID): MidiControl | undefined;
+  getMidiControls(): IterableIterator<MidiControl>;
 }
 
 export interface Voice extends AudioNode {
@@ -104,110 +105,59 @@ export function mapState(state: Partial<VoiceState>): Partial<VoiceState> {
   return {
     osc1: {
       mode: new SelectControl(state.osc1.mode.value),
-      semiShift: new MidiControl(
-        MidiControlID.OSC1_SEMI,
-        state.osc1.semiShift.value
-      ),
-      centShift: new MidiControl(
-        MidiControlID.OSC1_CENT,
-        state.osc1.centShift.value
-      ),
-      cycle: new MidiControl(
-        MidiControlID.OSC1_CYCLE,
-        state.osc1.cycle.value
-      )
+      semiShift: new MidiControl(MidiControlID.OSC1_SEMI, state.osc1.semiShift.value, state.osc1.semiShift.controller),
+      centShift: new MidiControl(MidiControlID.OSC1_CENT, state.osc1.centShift.value, state.osc1.centShift.controller),
+      cycle: new MidiControl(MidiControlID.OSC1_CYCLE, state.osc1.cycle.value, state.osc1.cycle.controller),
     },
     osc2: {
       mode: new SelectControl(state.osc2.mode.value),
-      semiShift: new MidiControl(
-        MidiControlID.OSC2_SEMI,
-        state.osc2.semiShift.value
-      ),
-      centShift: new MidiControl(
-        MidiControlID.OSC2_CENT,
-        state.osc2.centShift.value
-      ),
-      cycle: new MidiControl(
-        MidiControlID.OSC2_CYCLE,
-        state.osc2.cycle.value
-      )
+      semiShift: new MidiControl(MidiControlID.OSC2_SEMI, state.osc2.semiShift.value, state.osc2.semiShift.controller),
+      centShift: new MidiControl(MidiControlID.OSC2_CENT, state.osc2.centShift.value, state.osc2.centShift.controller),
+      cycle: new MidiControl(MidiControlID.OSC2_CYCLE, state.osc2.cycle.value, state.osc2.cycle.controller),
     },
-    osc2Amplitude: new MidiControl(
-      MidiControlID.OSC_MIX,
-      state.osc2Amplitude.value
-    ),
-    noiseLevel: new MidiControl(
-      MidiControlID.NOISE,
-      state.noiseLevel.value
-    ),
+    osc2Amplitude: new MidiControl(MidiControlID.OSC_MIX, state.osc2Amplitude.value, state.osc2Amplitude.controller),
+    noiseLevel: new MidiControl(MidiControlID.NOISE, state.noiseLevel.value, state.noiseLevel.controller),
     envelope: {
-      attack: new MidiControl(
-        MidiControlID.ATTACK,
-        state.envelope.attack.value
-      ),
-      decay: new MidiControl(MidiControlID.DECAY, state.envelope.decay.value),
-      sustain: new MidiControl(
-        MidiControlID.SUSTAIN,
-        state.envelope.sustain.value
-      ),
-      release: new MidiControl(
-        MidiControlID.RELEASE,
-        state.envelope.release.value
-      ),
+      attack: new MidiControl(MidiControlID.ATTACK, state.envelope.attack.value, state.envelope.attack.controller),
+      decay: new MidiControl(MidiControlID.DECAY, state.envelope.decay.value, state.envelope.decay.controller),
+      sustain: new MidiControl(MidiControlID.SUSTAIN, state.envelope.sustain.value, state.envelope.sustain.controller),
+      release: new MidiControl(MidiControlID.RELEASE, state.envelope.release.value, state.envelope.release.controller),
     },
     filter: {
       mode: new SelectControl(state.filter.mode.value),
-      cutoff: new MidiControl(MidiControlID.CUTOFF, state.filter.cutoff.value),
+      cutoff: new MidiControl(MidiControlID.CUTOFF, state.filter.cutoff.value, state.filter.cutoff.controller),
       resonance: new MidiControl(
         MidiControlID.RESONANCE,
-        state.filter.resonance.value
+        state.filter.resonance.value,
+        state.filter.resonance.controller
       ),
-      drive: new MidiControl(
-        MidiControlID.DRIVE,
-        state.filter.drive.value,
-      )
+      drive: new MidiControl(MidiControlID.DRIVE, state.filter.drive.value, state.filter.drive.controller),
     },
     cutoffMod: {
       attack: new MidiControl(
         MidiControlID.CUT_ATTACK,
-        state.cutoffMod.attack.value
+        state.cutoffMod.attack.value,
+        state.cutoffMod.attack.controller
       ),
-      decay: new MidiControl(
-        MidiControlID.CUT_DECAY,
-        state.cutoffMod.decay.value
-      ),
-      amount: new MidiControl(
-        MidiControlID.CUT_MOD,
-        state.cutoffMod.amount.value
-      ),
+      decay: new MidiControl(MidiControlID.CUT_DECAY, state.cutoffMod.decay.value, state.cutoffMod.decay.controller),
+      amount: new MidiControl(MidiControlID.CUT_MOD, state.cutoffMod.amount.value, state.cutoffMod.amount.controller),
       velocity: new MidiControl(
         MidiControlID.CUT_VEL,
-        state.cutoffMod.velocity.value
-      )
+        state.cutoffMod.velocity.value,
+        state.cutoffMod.velocity.controller
+      ),
     },
     lfo1: {
       mode: new SelectControl(state.lfo1.mode.value),
       destination: new SelectControl(state.lfo1.destination.value),
-      frequency: new MidiControl(
-        MidiControlID.LFO1_FREQ,
-        state.lfo1.frequency.value
-      ),
-      modAmount: new MidiControl(
-        MidiControlID.LFO1_MOD,
-        state.lfo1.modAmount.value
-      ),
+      frequency: new MidiControl(MidiControlID.LFO1_FREQ, state.lfo1.frequency.value, state.lfo1.frequency.controller),
+      modAmount: new MidiControl(MidiControlID.LFO1_MOD, state.lfo1.modAmount.value, state.lfo1.modAmount.controller),
     },
     lfo2: {
       mode: new SelectControl(state.lfo2.mode.value),
       destination: new SelectControl(state.lfo2.destination.value),
-      frequency: new MidiControl(
-        MidiControlID.LFO2_FREQ,
-        state.lfo2.frequency.value
-      ),
-      modAmount: new MidiControl(
-        MidiControlID.LFO2_MOD,
-        state.lfo2.modAmount.value
-      ),
+      frequency: new MidiControl(MidiControlID.LFO2_FREQ, state.lfo2.frequency.value, state.lfo2.frequency.controller),
+      modAmount: new MidiControl(MidiControlID.LFO2_MOD, state.lfo2.modAmount.value, state.lfo2.modAmount.controller),
     },
   };
 }
@@ -218,6 +168,9 @@ export function createVoiceState(state: Partial<VoiceState>): VoiceState {
   return Object.assign(newState as VoiceState, {
     findMidiControlById(id: MidiControlID): MidiControl {
       return midiControlMap.get(id);
+    },
+    getMidiControls(): IterableIterator<MidiControl> {
+      return midiControlMap.values();
     },
   });
 }

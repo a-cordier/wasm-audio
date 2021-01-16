@@ -3,14 +3,11 @@ import { FilterMode } from "./filter-mode";
 import { LfoDestination } from "./lfo-destination";
 import { MidiControlID } from "./midi-learn-options";
 
-export type ControlValue =
-  | number
-  | OscillatorMode
-  | FilterMode
-  | LfoDestination;
+export type ControlValue = number | OscillatorMode | FilterMode | LfoDestination;
 
 export interface Control {
   value: ControlValue;
+  controller?: number;
   clone?(): Control;
 }
 
@@ -30,13 +27,14 @@ export class SelectControl implements Control {
 export class MidiControl implements Control {
   id: MidiControlID;
   value: number;
-  controller = -1;
+  controller: number;
 
   private mapper: (input: ControlValue) => ControlValue;
 
-  constructor(id: MidiControlID, value: ControlValue) {
+  constructor(id: MidiControlID, value: ControlValue, controller = -1) {
     this.id = id;
     this.value = value as number;
+    this.controller = controller;
     this.clone = this.clone.bind(this);
   }
 
