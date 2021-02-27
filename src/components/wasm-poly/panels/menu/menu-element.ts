@@ -81,22 +81,23 @@ export class Menu extends LitElement {
 
   nextOption() {
     this.options.next();
-    this.dispatchChange();
+    this.dispatchChange(true);
     this.requestUpdate();
   }
 
   previousOption() {
     this.options.previous();
-    this.dispatchChange();
+    this.dispatchChange(true);
     this.requestUpdate();
   }
 
-  dispatchChange() {
+  dispatchChange(shouldUpdate = false) {
     this.dispatchEvent(
       new CustomEvent("change", {
         detail: {
           type: this.mode,
           option: this.options.getCurrent(),
+          shouldUpdate,
         },
       })
     );

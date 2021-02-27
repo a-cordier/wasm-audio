@@ -71,7 +71,7 @@ class KernelPool {
   }
 }
 
-const pool = new KernelPool(128);
+const pool = new KernelPool(16);
 
 class VoiceProcessor extends AudioWorkletProcessor {
   outputBuffer = new HeapAudioBuffer(wasm, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);

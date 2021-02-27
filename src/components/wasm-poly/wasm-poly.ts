@@ -41,6 +41,8 @@ export class WasmPoly extends LitElement {
 
   private showVizualizer = false;
 
+  private editMode = false;
+
   @property({ type: Object })
   private pressedKeys = new Set<number>();
 
@@ -259,19 +261,25 @@ export class WasmPoly extends LitElement {
   }
 
   async onMenuChange(event: CustomEvent) {
-    const { type, option } = event.detail;
+    const { type, option, shouldUpdate } = event.detail;
     switch (type) {
       case MenuMode.MIDI_LEARN:
         this.currentLearnerID = option.value;
-        this.midiController.setCurrentLearnerID(this.currentLearnerID);
+        if (shouldUpdate) {
+          this.midiController.setCurrentLearnerID(this.currentLearnerID);
+        }
         break;
       case MenuMode.MIDI_CHANNEL:
         this.unlearn();
-        this.midiController.setCurrentChannel(option.value);
+        if (shouldUpdate) {
+          this.midiController.setCurrentChannel(option.value);
+        }
         break;
       case MenuMode.PRESET:
         this.unlearn();
-        this.state = this.voiceManager.setState(option.value);
+        if (shouldUpdate) {
+          this.state = this.voiceManager.setState(option.value);
+        }
         break;
     }
     await this.requestUpdate();
@@ -286,9 +294,19 @@ export class WasmPoly extends LitElement {
     if (this.showVizualizer) {
       return html`
         <div class="visualizer">
-          <visualizer-element .analyser=${this.analyzer} width="650" height="200"></visualizer-element>
+          <visualizer-element
+            .analyser=${this.analyzer}
+            width="650"
+            height="200"
+          ></visualizer-element>
         </div>
       `;
+    }
+  }
+
+  computeDumpButtonIfEnabled() {
+    if (this.editMode) {
+      return html`<button @click=${this.voiceManager.dumpState}>Dump</button>`;
     }
   }
 
@@ -297,7 +315,10 @@ export class WasmPoly extends LitElement {
       <div class="content">
         <div class="synth">
           <div class="menu">
-            <menu-element .analyser=${this.analyzer} @change=${this.onMenuChange}></menu-element>
+            <menu-element
+              .analyser=${this.analyzer}
+              @change=${this.onMenuChange}
+            ></menu-element>
           </div>
           <div class="panels-row">
             <oscillator-element
@@ -372,6 +393,7 @@ export class WasmPoly extends LitElement {
           </div>
         </div>
         ${this.computeVizualizerIfEnabled()}
+        ${this.computeDumpButtonIfEnabled()}
       </div>
     `;
   }
