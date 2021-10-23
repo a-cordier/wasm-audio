@@ -12,8 +12,7 @@ interface BrowserState {
 }
 
 function isChrome(): boolean {
-  const runtimeWindow = window as any;
-  return !!runtimeWindow.chrome && (!!runtimeWindow.chrome.webstore || !!runtimeWindow.chrome.runtime);
+  return RegExp(/Chrom(?:e|ium)\/([0-9]+)/).test(navigator.userAgent);
 }
 
 function isUpToDate(): boolean {
