@@ -1,5 +1,7 @@
 # :loud_sound: Web Assembly + Web Audio = :green_heart:
 
+![Build](https://github.com/a-cordier/wasm-audio/actions/workflows/deploy.yaml/badge.svg)
+
 This project aims to showcase the use of Web Assembly modules in AudioWorklets (amongst other things I wanted to give a try, like for instance the Web Midi API).
 
 :monocle_face: [Try it!](https://a-cordier.github.io/wasm-audio/index.html)
