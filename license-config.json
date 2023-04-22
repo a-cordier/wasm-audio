@@ -1,0 +1,55 @@
+{
+    "ignore": [
+      "src/worklets/wasm-audio-helper.js",
+      "node_modules/**",
+      "**/*.json",
+      "**/*.md",
+      "**/*.txt",
+      "dist/**",
+      "dist-tsc/**",
+      "LICENSE.txt",
+      "package-json.lock",
+      ".tmp/**",
+      ".vscode/**",
+      ".clang-format",
+      "Makefile",
+      ".gitignore",
+      ".dependabot/**",
+      ".github/**",
+      "src/assets/fonts/**"
+    ],
+    "license": "LICENSE.txt",
+    "licenseFormats": {
+      "js|ts|cpp": {
+        "prepend": "/*",
+        "append": " */",
+        "eachLine": {
+          "prepend": " * "
+        }
+      },
+      "css": {
+        "prepend": "/**",
+        "append": " */",
+        "eachLine": {
+          "prepend": " * "
+        }
+      },
+      "html": {
+        "prepend": "<!--\n",
+        "append": "\n-->",
+        "eachLine": {
+          "prepend": "    "
+        }
+      },
+      "txt": {}
+    },
+    "defaultFormat": {
+      "prepend": "/*",
+      "append": " */",
+      "eachLine": {
+        "prepend": " * "
+      }
+    },
+    "regexIdentifier": "###"
+  }
+  

@@ -7,7 +7,9 @@
     "prestart": "make",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "gulp",
-    "build": "gulp --type=production build"
+    "build": "gulp --type=production build",
+    "license:check": "license-check-and-add check -f license-config.json",
+    "license:fix": "license-check-and-add add -f license-config.json -r"
   },
   "author": "",
   "license": "ISC",
@@ -24,6 +26,7 @@
     "gulp-clean": "^0.4.0",
     "gulp-cli": "^2.2.0",
     "gulp-util": "^3.0.8",
+    "license-check-and-add": "^4.0.5",
     "rollup": "^1.26.5",
     "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-node-resolve": "^5.2.0",
