@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup emsdk
-        uses: mymindstorm/setup-emsdk@v6
+        uses: mymindstorm/setup-emsdk@v12
         with:
           # Make sure to set a version number!
           version: 1.38.40
