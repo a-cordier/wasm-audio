@@ -156,6 +156,7 @@ class HeapAudioBuffer {
 /**
  * Simplified buffer used with parameters, that don't need to
  * account for channels
+ * @Author Antoine CORDIER
  */
 class HeapParameterBuffer extends HeapAudioBuffer {
   constructor(wasm, length) {
