@@ -1,0 +1,147 @@
+<!--
+
+    Copyright (C) 2020 Antoine CORDIER
+    
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+    
+            http://www.apache.org/licenses/LICENSE-2.0
+    
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<!DOCTYPE html>
+
+<!--suppress HtmlUnknownTarget -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <title></title>
+    <meta name="description" content="" />
+    <meta name="author" content="36ve" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+      rel="preload"
+      href="https://fonts.gstatic.com/s/bungeeoutline/v6/_6_mEDvmVP24UvU2MyiGDslL3TgwaBNIPmxp.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bungee+Outline&family=Space+Mono&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css"
+    />
+    <script src="index.js" defer></script>
+  </head>
+
+  <body>
+    <a
+      class="github-fork-ribbon"
+      href="https://github.com/a-cordier/wasm-audio"
+      data-ribbon="Fork me on GitHub"
+      title="Fork me on GitHub"
+      target="blank"
+      >Fork me on GitHub</a
+    >
+    <div class="content">
+      <root-element></root-element>
+    </div>
+    <script>
+      (function () {
+        var hosting = "a-cordier.github.io";
+        var wasmTestedVersion = 84;
+        var isDeployed = window.location.host === hosting;
+        var isHttps = window.location.protocol === "https:";
+
+        if (!isDeployed) {
+          return;
+        }
+
+        if (forceHttps()) {
+          return;
+        }
+
+        function forceHttps() {
+          if (isDeployed && !isHttps) {
+            window.location.protocol = "https";
+            return true;
+          }
+          return false;
+        }
+      })();
+    </script>
+  </body>
+
+  <style>
+    :root {
+      --darker: #15202b;
+      --dark-secondary: #192734;
+      --medium: #2b3844;
+      --light-secondary: #cbe2f3;
+      --lighter: #ffffff;
+
+      /* this color is used to emphasis the control when midi learn is toggled => todo rename ? */
+      --control-hander-color-focused: var(--medium);
+      --control-handle-color: var(--dark-secondary);
+      --control-cursor-color: var(--lighter);
+      --control-top-color: var(--light-secondary);
+      --control-label-color: var(--darker);
+      --control-label-font-size: 0.8em;
+
+      --button-disposed-background-color: var(--light-secondary);
+      --button-disposed-label-color: var(--darker);
+      --button-active-background-color: var(--dark-secondary);
+      --button-active-label-color: #b4d455;
+      --button-border: 1px solid var(--light-color);
+
+      --key-sharp-color: var(--dark-secondary);
+      --key-whole-color: var(--light-secondary);
+      --keyboard-panel-color: var(--darker);
+
+      --lcd-led-on-color: #b4d455;
+      --lcd-screen-border-color: var(--lighter);
+      --lcd-screen-background: var(--dark-secondary);
+
+      --main-panel-color: #181818;
+      --main-panel-label-font-family: "Bungee Outline", cursive;
+      --main-panel-label-color: var(--lighter);
+
+      --oscillator-panel-color: #145a6a;
+      --oscillator-mix-panel-color: var(--oscillator-panel-color);
+      --envelope-panel-color: var(--oscillator-panel-color);
+      --filter-panel-color: #ac8f1d;
+      --filter-mod-panel-color: var(--filter-panel-color);
+      --lfo-panel-color: #9a1a40;
+
+      --panel-wrapper-label-color: var(--darker);
+
+      --ui-transition-time: 0.4s;
+    }
+
+    html {
+      font-family: "Space Mono", monospace;
+    }
+
+    body {
+      background-color: #121212;
+    }
+
+    .github-fork-ribbon:before {
+      background-color: var(--main-panel-color);
+    }
+
+    .content {
+      width: 100%;
+    }
+  </style>
+</html>
