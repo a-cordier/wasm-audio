@@ -7,7 +7,7 @@
       "**/*.txt",
       "dist/**",
       "dist-tsc/**",
-      "LICENSE.txt",
+      "LICENSE",
       "package-json.lock",
       ".tmp/**",
       ".vscode/**",
