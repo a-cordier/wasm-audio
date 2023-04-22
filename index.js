@@ -7151,17 +7151,16 @@
      * limitations under the License.
      */
     async function createMidiController(channel = MidiOmniChannel) {
-        const midiNavigator = navigator;
         const midiDispatcher = new Dispatcher();
         const controlMap = new Map();
         let midiAccess;
         let currentLearnerID = MidiControlID.NONE;
         let currentChannel = channel;
-        if (!midiNavigator.requestMIDIAccess) {
+        if (!navigator.requestMIDIAccess) {
             return Promise.reject("MIDI is not supported");
         }
         try {
-            midiAccess = await midiNavigator.requestMIDIAccess();
+            midiAccess = await navigator.requestMIDIAccess();
         }
         catch (error) {
             return Promise.reject("Error requesting MIDI access");
