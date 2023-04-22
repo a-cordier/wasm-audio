@@ -20,12 +20,7 @@ import { MidiMessage, MidiMessageEvent } from "../../types/midi-message";
 import { MidiControlID } from "../../types/midi-learn-options";
 import { MidiController } from "../../types/midi-controller";
 
-interface NavigatorWithMidi extends Navigator {
-  requestMIDIAccess?: Function;
-}
-
 export async function createMidiController(channel = MidiOmniChannel): Promise<MidiController & Dispatcher> {
-  const midiNavigator = navigator as NavigatorWithMidi;
   const midiDispatcher = new Dispatcher();
   const controlMap = new Map<number, MidiControlID>();
 
@@ -33,12 +28,12 @@ export async function createMidiController(channel = MidiOmniChannel): Promise<M
   let currentLearnerID = MidiControlID.NONE;
   let currentChannel = channel;
 
-  if (!midiNavigator.requestMIDIAccess) {
+  if (!navigator.requestMIDIAccess) {
     return Promise.reject("MIDI is not supported");
   }
 
   try {
-    midiAccess = await midiNavigator.requestMIDIAccess();
+    midiAccess = await navigator.requestMIDIAccess();
   } catch (error) {
     return Promise.reject("Error requesting MIDI access");
   }
