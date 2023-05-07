@@ -105,7 +105,7 @@ export class VoiceManager extends Dispatcher {
     return this;
   }
 
-  setKeyBoardcontroller(keyBoardController: Dispatcher) {
+  setKeyBoardController(keyBoardController: Dispatcher) {
     keyBoardController
       .subscribe(KeyboardMessage.NOTE_ON, this.onMidiNoteOn)
       .subscribe(KeyboardMessage.NOTE_OFF, this.onMidiNoteOff);

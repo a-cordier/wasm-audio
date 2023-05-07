@@ -81,7 +81,7 @@ export class WasmPoly extends LitElement {
   setUpVoiceManager() {
     this.voiceManager
       .setMidiController(this.midiController)
-      .setKeyBoardcontroller(new KeyBoardController())
+      .setKeyBoardController(new KeyBoardController())
       .connect(this.analyzer);
   }
 
