@@ -1327,7 +1327,6 @@
       destructorFunction: null // This type does not need a destructor
     });
   }
-
   function ClassHandle_isAliasOf(other) {
     if (!(this instanceof ClassHandle)) {
       return false;
@@ -1389,7 +1388,6 @@
     if (undefined === desiredClass.baseClass) {
       return null; // no conversion
     }
-
     var rv = downcastPointer(ptr, ptrClass, desiredClass.baseClass);
     if (rv === null) {
       return null;
@@ -2284,7 +2282,6 @@
       // emval is passed into JS via an interface
     });
   }
-
   function enumReadValueFromPointer(name, shift, signed) {
     switch (shift) {
       case 0:
@@ -2391,7 +2388,6 @@
       destructorFunction: null // This type does not need a destructor
     });
   }
-
   function integerReadValueFromPointer(name, shift, signed) {
     // integers are quite common, so generate very specialized functions
     switch (shift) {
@@ -2454,7 +2450,6 @@
       destructorFunction: null // This type does not need a destructor
     });
   }
-
   function __embind_register_memory_view(rawType, dataTypeIndex, name) {
     var typeMapping = [Int8Array, Uint8Array, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array];
     var TA = typeMapping[dataTypeIndex];
@@ -3035,7 +3030,6 @@
     if (!calledRun) run();
     if (!calledRun) dependenciesFulfilled = runCaller; // try this again later, after new deps are fulfilled
   };
-
   function run() {
     if (runDependencies > 0) {
       return;
