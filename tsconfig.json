@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
-    "target": "es2017",
-    "module": "ESNext",
-    "isolatedModules": true,
+    "target": "ES2022",
+    "module": "ES2022",
     "moduleResolution": "bundler",
-    "lib": ["es2017", "dom"],
-    "emitDecoratorMetadata": true,
+    "strict": false,
+    "isolatedModules": true,
     "experimentalDecorators": true,
     "sourceMap": true,
+    "outDir": "./dist/js/",
+    "lib": ["ES2022", "DOM"],
     "skipLibCheck": true
   },
-  "include": ["./src/**/*.ts", "vite.config.ts"],
+  "include": ["./src/**/*.ts"],
   "exclude": ["node_modules", "**/*.spec.ts"]
 }
