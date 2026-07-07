@@ -57,11 +57,7 @@ namespace Filter {
 
 		public:
 		ResonantKernel(Mode mode) :
-			Kernel(mode),
-			buf0(0.0),
-			buf1(0.0),
-			buf2(0.0),
-			buf3(0.0) {
+			Kernel(mode) {
 		}
 
 		public:
@@ -95,10 +91,10 @@ namespace Filter {
 
 		private:
 		// TODO: replace with array of states (see Moog implementations)
-		float buf0;
-		float buf1;
-		float buf2;
-		float buf3;
+		float buf0 = 0.f;
+		float buf1 = 0.f;
+		float buf2 = 0.f;
+		float buf3 = 0.f;
 	};
 
 	namespace Moog {
