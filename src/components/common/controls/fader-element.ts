@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LitElement, html, css, customElement, property } from "lit-element";
-import { styleMap } from "lit-html/directives/style-map";
+import { LitElement, html, css } from "lit";
+import { customElement, property } from "lit/decorators.js";
+import { styleMap } from "lit/directives/style-map.js";
 import { clamp } from "./clamp";
 
 @customElement("fader-element")

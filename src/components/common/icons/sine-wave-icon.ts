@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LitElement, html, css, customElement } from "lit-element";
+import { LitElement, html, css } from "lit";
+import { customElement } from "lit/decorators.js";
 
 @customElement("sine-wave-icon")
 export class SineWaveIcon extends LitElement {

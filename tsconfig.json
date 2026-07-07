@@ -6,6 +6,7 @@
     "strict": false,
     "isolatedModules": true,
     "experimentalDecorators": true,
+    "useDefineForClassFields": false,
     "sourceMap": true,
     "outDir": "./dist/js/",
     "lib": ["ES2022", "DOM"],
