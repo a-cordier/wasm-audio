@@ -29,26 +29,64 @@ import createModule from "./voice-kernel.wasmmodule.js";
 const wasm = await createModule();
 
 const waveforms = Object.freeze({
-  [WaveFormParam.SINE]: wasm.WaveForm.SINE,
-  [WaveFormParam.SAWTOOTH]: wasm.WaveForm.SAW,
-  [WaveFormParam.SQUARE]: wasm.WaveForm.SQUARE,
-  [WaveFormParam.TRIANGLE]: wasm.WaveForm.TRIANGLE,
+  [WaveFormParam.SINE]: wasm.WaveForm.SINE.value,
+  [WaveFormParam.SAWTOOTH]: wasm.WaveForm.SAW.value,
+  [WaveFormParam.SQUARE]: wasm.WaveForm.SQUARE.value,
+  [WaveFormParam.TRIANGLE]: wasm.WaveForm.TRIANGLE.value,
 });
 
 const FilterMode = Object.freeze({
-  [FilterModeParam.LOWPASS]: wasm.FilterMode.LOWPASS,
-  [FilterModeParam.LOWPASS_PLUS]: wasm.FilterMode.LOWPASS_PLUS,
-  [FilterModeParam.BANDPASS]: wasm.FilterMode.BANDPASS,
-  [FilterModeParam.HIGHPASS]: wasm.FilterMode.HIGHPASS,
+  [FilterModeParam.LOWPASS]: wasm.FilterMode.LOWPASS.value,
+  [FilterModeParam.LOWPASS_PLUS]: wasm.FilterMode.LOWPASS_PLUS.value,
+  [FilterModeParam.BANDPASS]: wasm.FilterMode.BANDPASS.value,
+  [FilterModeParam.HIGHPASS]: wasm.FilterMode.HIGHPASS.value,
 });
 
 const LfoDestination = Object.freeze({
-  [LfoDestinationParam.FREQUENCY]: wasm.LfoDestination.FREQUENCY,
-  [LfoDestinationParam.OSCILLATOR_MIX]: wasm.LfoDestination.OSCILLATOR_MIX,
-  [LfoDestinationParam.CUTOFF]: wasm.LfoDestination.CUTOFF,
-  [LfoDestinationParam.RESONANCE]: wasm.LfoDestination.RESONANCE,
-  [LfoDestinationParam.OSC1_CYCLE]: wasm.LfoDestination.OSC1_CYCLE,
-  [LfoDestinationParam.OSC2_CYCLE]: wasm.LfoDestination.OSC2_CYCLE,
+  [LfoDestinationParam.FREQUENCY]: wasm.LfoDestination.FREQUENCY.value,
+  [LfoDestinationParam.OSCILLATOR_MIX]: wasm.LfoDestination.OSCILLATOR_MIX.value,
+  [LfoDestinationParam.CUTOFF]: wasm.LfoDestination.CUTOFF.value,
+  [LfoDestinationParam.RESONANCE]: wasm.LfoDestination.RESONANCE.value,
+  [LfoDestinationParam.OSC1_CYCLE]: wasm.LfoDestination.OSC1_CYCLE.value,
+  [LfoDestinationParam.OSC2_CYCLE]: wasm.LfoDestination.OSC2_CYCLE.value,
+});
+
+const PARAM_BLOCK_FIELDS = 32;
+const PARAM_BLOCK_BYTES = PARAM_BLOCK_FIELDS * 4;
+
+const PB = Object.freeze({
+  VELOCITY: 0,
+  OSC1_MODE: 1,
+  OSC2_MODE: 2,
+  FILTER_MODE: 3,
+  LFO1_MODE: 4,
+  LFO1_DESTINATION: 5,
+  LFO2_MODE: 6,
+  LFO2_DESTINATION: 7,
+  FREQUENCY: 8,
+  AMPLITUDE_ATTACK: 9,
+  AMPLITUDE_DECAY: 10,
+  AMPLITUDE_SUSTAIN: 11,
+  AMPLITUDE_RELEASE: 12,
+  OSC1_SEMI_SHIFT: 13,
+  OSC1_CENT_SHIFT: 14,
+  OSC1_CYCLE: 15,
+  OSC2_SEMI_SHIFT: 16,
+  OSC2_CENT_SHIFT: 17,
+  OSC2_CYCLE: 18,
+  OSC2_AMPLITUDE: 19,
+  NOISE_LEVEL: 20,
+  CUTOFF: 21,
+  RESONANCE: 22,
+  DRIVE: 23,
+  CUTOFF_ENV_AMOUNT: 24,
+  CUTOFF_ENV_VELOCITY: 25,
+  CUTOFF_ENV_ATTACK: 26,
+  CUTOFF_ENV_DECAY: 27,
+  LFO1_FREQUENCY: 28,
+  LFO1_MOD_AMOUNT: 29,
+  LFO2_FREQUENCY: 30,
+  LFO2_MOD_AMOUNT: 31,
 });
 
 function createParameterBuffers(parameterDescriptors = []) {
@@ -95,6 +133,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
   parameterBuffers = createParameterBuffers(automatedParameterDescriptors);
 
+  _paramBlockPtr = wasm._malloc(PARAM_BLOCK_BYTES);
+
   kernel = pool.acquire();
 
   state = VoiceState.DISPOSED;
@@ -128,59 +168,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.state = VoiceState.STOPPING;
     }
 
-    this.kernel.setVelocity(kValueOf(parameters.velocity));
+    this.writeParameterBlock(parameters);
+    this.kernel.setParameters(this._paramBlockPtr);
 
-    // Envelope parameters
-    this.kernel.setAmplitudeAttack(this.parameterBuffers.get("amplitudeAttack").getHeapAddress());
-    this.kernel.setAmplitudeDecay(this.parameterBuffers.get("amplitudeDecay").getHeapAddress());
-    this.kernel.setAmplitudeSustain(this.parameterBuffers.get("amplitudeSustain").getHeapAddress());
-    this.kernel.setAmplitudeRelease(this.parameterBuffers.get("amplitudeRelease").getHeapAddress());
-
-    // First oscillator parameters
-    this.kernel.setOsc1Mode(waveforms[kValueOf(parameters.osc1)]);
-    this.kernel.setOsc1SemiShift(this.parameterBuffers.get("osc1SemiShift").getHeapAddress());
-    this.kernel.setOsc1CentShift(this.parameterBuffers.get("osc1CentShift").getHeapAddress());
-    this.kernel.setOsc1Cycle(this.parameterBuffers.get("osc1Cycle").getHeapAddress());
-
-    // Second oscillator parameters
-    this.kernel.setOsc2Mode(waveforms[kValueOf(parameters.osc2)]);
-    this.kernel.setOsc2SemiShift(this.parameterBuffers.get("osc2SemiShift").getHeapAddress());
-    this.kernel.setOsc2CentShift(this.parameterBuffers.get("osc2CentShift").getHeapAddress());
-    this.kernel.setOsc2Cycle(this.parameterBuffers.get("osc2Cycle").getHeapAddress());
-    this.kernel.setOsc2Amplitude(this.parameterBuffers.get("osc2Amplitude").getHeapAddress());
-
-    this.kernel.setNoiseLevel(this.parameterBuffers.get("noiseLevel").getHeapAddress());
-
-    // Filter parameters
-    this.kernel.setFilterMode(FilterMode[kValueOf(parameters.filterMode)]);
-    this.kernel.setCutoff(this.parameterBuffers.get("cutoff").getHeapAddress());
-    this.kernel.setResonance(this.parameterBuffers.get("resonance").getHeapAddress());
-    this.kernel.setDrive(this.parameterBuffers.get("drive").getHeapAddress());
-
-    // Filter cutoff modulation parameters
-    this.kernel.setCutoffEnvelopeAmount(this.parameterBuffers.get("cutoffEnvelopeAmount").getHeapAddress());
-    this.kernel.setCutoffEnvelopeVelocity(this.parameterBuffers.get("cutoffEnvelopeVelocity").getHeapAddress());
-    this.kernel.setCutoffEnvelopeAttack(this.parameterBuffers.get("cutoffAttack").getHeapAddress());
-    this.kernel.setCutoffEnvelopeDecay(this.parameterBuffers.get("cutoffDecay").getHeapAddress());
-
-    // First LFO parameters
-    this.kernel.setLfo1Destination(LfoDestination[kValueOf(parameters.lfo1Destination)]);
-    this.kernel.setLfo1Mode(waveforms[kValueOf(parameters.lfo1Mode)]);
-    this.kernel.setLfo1Frequency(this.parameterBuffers.get("lfo1Frequency").getHeapAddress());
-    this.kernel.setLfo1ModAmount(this.parameterBuffers.get("lfo1ModAmount").getHeapAddress());
-
-    // Second LFO parameters
-    this.kernel.setLfo2Destination(LfoDestination[kValueOf(parameters.lfo2Destination)]);
-    this.kernel.setLfo2Mode(waveforms[kValueOf(parameters.lfo2Mode)]);
-    this.kernel.setLfo2Frequency(this.parameterBuffers.get("lfo2Frequency").getHeapAddress());
-    this.kernel.setLfo2ModAmount(this.parameterBuffers.get("lfo2ModAmount").getHeapAddress());
-
-    // Web Assembly computation
-    this.kernel.process(
-      this.outputBuffer.getHeapAddress(),
-      channelCount,
-      this.parameterBuffers.get("frequency").getHeapAddress()
-    );
+    this.kernel.process(this.outputBuffer.getHeapAddress(), channelCount);
 
     // Web Audio rendering
     for (let channel = 0; channel < channelCount; ++channel) {
@@ -203,8 +194,50 @@ class VoiceProcessor extends AudioWorkletProcessor {
     });
   }
 
+  writeParameterBlock(parameters) {
+    const base = this._paramBlockPtr >> 2;
+    const f32 = wasm.HEAPF32;
+    const u32 = wasm.HEAPU32;
+
+    f32[base + PB.VELOCITY] = kValueOf(parameters.velocity);
+
+    u32[base + PB.OSC1_MODE] = waveforms[kValueOf(parameters.osc1)];
+    u32[base + PB.OSC2_MODE] = waveforms[kValueOf(parameters.osc2)];
+    u32[base + PB.FILTER_MODE] = FilterMode[kValueOf(parameters.filterMode)];
+    u32[base + PB.LFO1_MODE] = waveforms[kValueOf(parameters.lfo1Mode)];
+    u32[base + PB.LFO1_DESTINATION] = LfoDestination[kValueOf(parameters.lfo1Destination)];
+    u32[base + PB.LFO2_MODE] = waveforms[kValueOf(parameters.lfo2Mode)];
+    u32[base + PB.LFO2_DESTINATION] = LfoDestination[kValueOf(parameters.lfo2Destination)];
+
+    u32[base + PB.FREQUENCY] = this.parameterBuffers.get("frequency").getHeapAddress();
+    u32[base + PB.AMPLITUDE_ATTACK] = this.parameterBuffers.get("amplitudeAttack").getHeapAddress();
+    u32[base + PB.AMPLITUDE_DECAY] = this.parameterBuffers.get("amplitudeDecay").getHeapAddress();
+    u32[base + PB.AMPLITUDE_SUSTAIN] = this.parameterBuffers.get("amplitudeSustain").getHeapAddress();
+    u32[base + PB.AMPLITUDE_RELEASE] = this.parameterBuffers.get("amplitudeRelease").getHeapAddress();
+    u32[base + PB.OSC1_SEMI_SHIFT] = this.parameterBuffers.get("osc1SemiShift").getHeapAddress();
+    u32[base + PB.OSC1_CENT_SHIFT] = this.parameterBuffers.get("osc1CentShift").getHeapAddress();
+    u32[base + PB.OSC1_CYCLE] = this.parameterBuffers.get("osc1Cycle").getHeapAddress();
+    u32[base + PB.OSC2_SEMI_SHIFT] = this.parameterBuffers.get("osc2SemiShift").getHeapAddress();
+    u32[base + PB.OSC2_CENT_SHIFT] = this.parameterBuffers.get("osc2CentShift").getHeapAddress();
+    u32[base + PB.OSC2_CYCLE] = this.parameterBuffers.get("osc2Cycle").getHeapAddress();
+    u32[base + PB.OSC2_AMPLITUDE] = this.parameterBuffers.get("osc2Amplitude").getHeapAddress();
+    u32[base + PB.NOISE_LEVEL] = this.parameterBuffers.get("noiseLevel").getHeapAddress();
+    u32[base + PB.CUTOFF] = this.parameterBuffers.get("cutoff").getHeapAddress();
+    u32[base + PB.RESONANCE] = this.parameterBuffers.get("resonance").getHeapAddress();
+    u32[base + PB.DRIVE] = this.parameterBuffers.get("drive").getHeapAddress();
+    u32[base + PB.CUTOFF_ENV_AMOUNT] = this.parameterBuffers.get("cutoffEnvelopeAmount").getHeapAddress();
+    u32[base + PB.CUTOFF_ENV_VELOCITY] = this.parameterBuffers.get("cutoffEnvelopeVelocity").getHeapAddress();
+    u32[base + PB.CUTOFF_ENV_ATTACK] = this.parameterBuffers.get("cutoffAttack").getHeapAddress();
+    u32[base + PB.CUTOFF_ENV_DECAY] = this.parameterBuffers.get("cutoffDecay").getHeapAddress();
+    u32[base + PB.LFO1_FREQUENCY] = this.parameterBuffers.get("lfo1Frequency").getHeapAddress();
+    u32[base + PB.LFO1_MOD_AMOUNT] = this.parameterBuffers.get("lfo1ModAmount").getHeapAddress();
+    u32[base + PB.LFO2_FREQUENCY] = this.parameterBuffers.get("lfo2Frequency").getHeapAddress();
+    u32[base + PB.LFO2_MOD_AMOUNT] = this.parameterBuffers.get("lfo2ModAmount").getHeapAddress();
+  }
+
   freeBuffers() {
     this.outputBuffer.free();
+    wasm._free(this._paramBlockPtr);
     this.parameterBuffers.forEach((buffer) => {
       buffer.free();
     });
