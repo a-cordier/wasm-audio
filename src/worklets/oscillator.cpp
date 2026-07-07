@@ -55,12 +55,18 @@ namespace Oscillator {
 
 		public:
 		void setSemiShift(float newSemiShift) {
-			semiShift = newSemiShift;
+			if (newSemiShift != semiShift) {
+				semiShift = newSemiShift;
+				updateShiftMultiplier();
+			}
 		}
 
 		public:
 		void setCentShift(float newCentShift) {
-			centShift = newCentShift;
+			if (newCentShift != centShift) {
+				centShift = newCentShift;
+				updateShiftMultiplier();
+			}
 		}
 
 		public:
@@ -169,23 +175,13 @@ namespace Oscillator {
 
 		private:
 		float shiftFrequency(float frequency) {
-			auto semiShited = shiftFrequency(frequency, Constants::semiFactor, semiShift);
-			return shiftFrequency(semiShited, Constants::centFactor, centShift);
+			return frequency * shiftMultiplier;
 		}
 
 		private:
-		float shiftFrequency(float frequency, float factor, int steps) {
-			return steps < 0 ? shiftLeft(frequency, factor, steps) : shiftRight(frequency, factor, steps);
-		}
-
-		private:
-		float shiftLeft(float frequency, float factor, int steps) {
-			return frequency / std::pow(factor, -steps);
-		}
-
-		private:
-		float shiftRight(float frequency, float factor, int steps) {
-			return frequency * std::pow(factor, steps);
+		void updateShiftMultiplier() {
+			shiftMultiplier = std::pow(Constants::semiFactor, semiShift)
+			                * std::pow(Constants::centFactor, centShift);
 		}
 
 		private:
@@ -197,6 +193,7 @@ namespace Oscillator {
 
 		float semiShift = 0.f;
 		float centShift = 0.f;
+		float shiftMultiplier = 1.f;
 
 		float amplitude = 0.5f;
 
