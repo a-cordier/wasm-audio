@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <bitset>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 
 #include "emscripten/bind.h"
@@ -46,6 +47,41 @@ namespace Voice {
 		OSC2_CYCLE = 5,
 	};
 
+	struct ParameterBlock {
+		float velocity;
+		uint32_t osc1Mode;
+		uint32_t osc2Mode;
+		uint32_t filterMode;
+		uint32_t lfo1Mode;
+		uint32_t lfo1Destination;
+		uint32_t lfo2Mode;
+		uint32_t lfo2Destination;
+		uintptr_t frequencyPtr;
+		uintptr_t amplitudeAttackPtr;
+		uintptr_t amplitudeDecayPtr;
+		uintptr_t amplitudeSustainPtr;
+		uintptr_t amplitudeReleasePtr;
+		uintptr_t osc1SemiShiftPtr;
+		uintptr_t osc1CentShiftPtr;
+		uintptr_t osc1CyclePtr;
+		uintptr_t osc2SemiShiftPtr;
+		uintptr_t osc2CentShiftPtr;
+		uintptr_t osc2CyclePtr;
+		uintptr_t osc2AmplitudePtr;
+		uintptr_t noiseLevelPtr;
+		uintptr_t cutoffPtr;
+		uintptr_t resonancePtr;
+		uintptr_t drivePtr;
+		uintptr_t cutoffEnvelopeAmountPtr;
+		uintptr_t cutoffEnvelopeVelocityPtr;
+		uintptr_t cutoffEnvelopeAttackPtr;
+		uintptr_t cutoffEnvelopeDecayPtr;
+		uintptr_t lfo1FrequencyPtr;
+		uintptr_t lfo1ModAmountPtr;
+		uintptr_t lfo2FrequencyPtr;
+		uintptr_t lfo2ModAmountPtr;
+	};
+
 	class Kernel {
 		public:
 		Kernel(float sampleRate, float renderFrames) :
@@ -65,14 +101,13 @@ namespace Voice {
 		}
 
 		public:
-		void process(uintptr_t outputPtr, unsigned channelCount, uintptr_t frequencyValuesPtr) {
+		void process(uintptr_t outputPtr, unsigned channelCount) {
 			float *outputBuffer = reinterpret_cast<float *>(outputPtr);
-			float *frequencyValues = reinterpret_cast<float *>(frequencyValuesPtr);
 			float *firstChannel = outputBuffer;
 
 			for (unsigned sample = 0; sample < renderFrames; ++sample) {
 				startIfNecessary();
-				assignParameters(frequencyValues, sample);
+				assignParameters(sample);
 				firstChannel[sample] = computeSample();
 				stopIfNecessary();
 			}
@@ -85,6 +120,48 @@ namespace Voice {
 		public:
 		void setVelocity(float velocityValue) {
 			velocity = zeroOneRange.map(velocityValue, midiRange);
+		}
+
+		public:
+		void setParameters(uintptr_t blockPtr) {
+			const ParameterBlock *block = reinterpret_cast<const ParameterBlock *>(blockPtr);
+
+			velocity = zeroOneRange.map(block->velocity, midiRange);
+
+			osc1.setMode(static_cast<Oscillator::Mode>(block->osc1Mode));
+			subOsc.setOsc1Mode(static_cast<Oscillator::Mode>(block->osc1Mode));
+			osc2.setMode(static_cast<Oscillator::Mode>(block->osc2Mode));
+			subOsc.setOsc2Mode(static_cast<Oscillator::Mode>(block->osc2Mode));
+			filter->setMode(static_cast<Filter::Mode>(block->filterMode));
+			lfo1.setMode(static_cast<Oscillator::Mode>(block->lfo1Mode));
+			lfo1Destination = static_cast<LfoDestination>(block->lfo1Destination);
+			lfo2.setMode(static_cast<Oscillator::Mode>(block->lfo2Mode));
+			lfo2Destination = static_cast<LfoDestination>(block->lfo2Destination);
+
+			sampleParameters.frequencyValues = reinterpret_cast<float *>(block->frequencyPtr);
+			sampleParameters.amplitudeEnvelopeAttackValues = reinterpret_cast<float *>(block->amplitudeAttackPtr);
+			sampleParameters.amplitudeEnvelopeDecayValues = reinterpret_cast<float *>(block->amplitudeDecayPtr);
+			sampleParameters.amplitudeEnvelopeSustainValues = reinterpret_cast<float *>(block->amplitudeSustainPtr);
+			sampleParameters.amplitudeEnvelopeReleaseValues = reinterpret_cast<float *>(block->amplitudeReleasePtr);
+			sampleParameters.osc1SemiShiftValues = reinterpret_cast<float *>(block->osc1SemiShiftPtr);
+			sampleParameters.osc1CentShiftValues = reinterpret_cast<float *>(block->osc1CentShiftPtr);
+			sampleParameters.osc1CycleValues = reinterpret_cast<float *>(block->osc1CyclePtr);
+			sampleParameters.osc2SemiShiftValues = reinterpret_cast<float *>(block->osc2SemiShiftPtr);
+			sampleParameters.osc2CentShiftValues = reinterpret_cast<float *>(block->osc2CentShiftPtr);
+			sampleParameters.osc2CycleValues = reinterpret_cast<float *>(block->osc2CyclePtr);
+			sampleParameters.osc2AmplitudeValues = reinterpret_cast<float *>(block->osc2AmplitudePtr);
+			sampleParameters.noiseLevelValues = reinterpret_cast<float *>(block->noiseLevelPtr);
+			sampleParameters.cutoffValues = reinterpret_cast<float *>(block->cutoffPtr);
+			sampleParameters.resonanceValues = reinterpret_cast<float *>(block->resonancePtr);
+			sampleParameters.driveValues = reinterpret_cast<float *>(block->drivePtr);
+			sampleParameters.cutoffEnvelopeAmountValues = reinterpret_cast<float *>(block->cutoffEnvelopeAmountPtr);
+			sampleParameters.cutoffEnvelopeVelocityValues = reinterpret_cast<float *>(block->cutoffEnvelopeVelocityPtr);
+			sampleParameters.cutoffEnvelopeAttackValues = reinterpret_cast<float *>(block->cutoffEnvelopeAttackPtr);
+			sampleParameters.cutoffEnvelopeDecayValues = reinterpret_cast<float *>(block->cutoffEnvelopeDecayPtr);
+			sampleParameters.lfo1FrequencyValues = reinterpret_cast<float *>(block->lfo1FrequencyPtr);
+			sampleParameters.lfo1ModAmountValues = reinterpret_cast<float *>(block->lfo1ModAmountPtr);
+			sampleParameters.lfo2FrequencyValues = reinterpret_cast<float *>(block->lfo2FrequencyPtr);
+			sampleParameters.lfo2ModAmountValues = reinterpret_cast<float *>(block->lfo2ModAmountPtr);
 		}
 
 		public:
@@ -264,8 +341,8 @@ namespace Voice {
 		}
 
 		private:
-		void assignParameters(float *frequencyValues, unsigned int sampleCursor) {
-			sampleParameters.withFrequencyValues(frequencyValues).fetchValues(sampleCursor);
+		void assignParameters(unsigned int sampleCursor) {
+			sampleParameters.fetchValues(sampleCursor);
 			applyModulations();
 			osc1.setSemiShift(sampleParameters.osc1SemiShift);
 			subOsc.setOsc1SemiShift(sampleParameters.osc1SemiShift);
@@ -393,6 +470,7 @@ namespace Voice {
 		class_<Voice::Kernel>("VoiceKernel")
 						.constructor<float, float>()
 						.function("process", &Voice::Kernel::process, allow_raw_pointers())
+						.function("setParameters", &Voice::Kernel::setParameters, allow_raw_pointers())
 						.function("setVelocity", &Voice::Kernel::setVelocity)
 						.function("setOsc1Mode", &Voice::Kernel::setOsc1Mode)
 						.function("setOsc1SemiShift", &Voice::Kernel::setOsc1SemiShift, allow_raw_pointers())

@@ -21,6 +21,28 @@
 #include <ctime>
 
 namespace Oscillator {
+	namespace SineTable {
+		static constexpr int SIZE = 2048;
+		static constexpr float INDEX_SCALE = SIZE / Constants::twoPi;
+		static float table[SIZE + 1];
+		static bool initialized = false;
+
+		static void init() {
+			if (initialized) return;
+			for (int i = 0; i < SIZE; ++i)
+				table[i] = std::sin(Constants::twoPi * i / SIZE);
+			table[SIZE] = table[0];
+			initialized = true;
+		}
+
+		static float lookup(float phase) {
+			float index = phase * INDEX_SCALE;
+			int i0 = static_cast<int>(index);
+			float frac = index - i0;
+			return table[i0] + frac * (table[i0 + 1] - table[i0]);
+		}
+	}
+
 	enum class Mode {
 		SAW,
 		SINE,
@@ -32,7 +54,7 @@ namespace Oscillator {
 	class Kernel {
 		public:
 		Kernel(float sampleRate) :
-			sampleRate(sampleRate) { srand(time(NULL)); }
+			sampleRate(sampleRate) { srand(time(NULL)); SineTable::init(); }
 
 		public:
 		float nextSample(float frequency) {
@@ -104,7 +126,7 @@ namespace Oscillator {
 
 		private:
 		float computeSine() {
-			return std::sin(phase);
+			return SineTable::lookup(phase);
 		}
 
 		private:

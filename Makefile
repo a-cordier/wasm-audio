@@ -16,7 +16,7 @@ $(OUT): $(DEPS)
 		-sEXPORT_ES6=1 \
 		-sMODULARIZE=1 \
 		-sEXPORTED_FUNCTIONS="['_malloc','_free']" \
-		-sEXPORTED_RUNTIME_METHODS="['HEAPF32']" \
+		-sEXPORTED_RUNTIME_METHODS="['HEAPF32','HEAPU32']" \
 		-sENVIRONMENT=worklet \
 		src/worklets/voice-kernel.cpp \
 		-o $(OUT)
