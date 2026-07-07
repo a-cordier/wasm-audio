@@ -114,6 +114,9 @@ export const staticParameterDescriptors = [
   },
 ];
 
+export const aRateParameterDescriptors = [];
+export const kRateParameterDescriptors = [];
+
 export const automatedParameterDescriptors = [
   {
     name: "frequency",
@@ -291,3 +294,11 @@ export const automatedParameterDescriptors = [
     automationRate: "a-rate",
   },
 ];
+
+for (const desc of automatedParameterDescriptors) {
+  if (desc.automationRate === "a-rate") {
+    aRateParameterDescriptors.push(desc);
+  } else {
+    kRateParameterDescriptors.push(desc);
+  }
+}

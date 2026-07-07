@@ -20,32 +20,20 @@
 
 struct SampleParameters {
 	public:
+	// A-rate parameter buffers (per-sample interpolation)
 	float *frequencyValues;
-	float *osc1SemiShiftValues;
-	float *osc1CentShiftValues;
-	float *osc1CycleValues;
 	float *osc2AmplitudeValues;
-	float *osc2SemiShiftValues;
-	float *osc2CentShiftValues;
-	float *osc2CycleValues;
 	float *noiseLevelValues;
-	float *amplitudeEnvelopeAttackValues;
-	float *amplitudeEnvelopeDecayValues;
-	float *amplitudeEnvelopeSustainValues;
-	float *amplitudeEnvelopeReleaseValues;
 	float *cutoffValues;
 	float *resonanceValues;
 	float *driveValues;
-	float *cutoffEnvelopeAmountValues;
-	float *cutoffEnvelopeVelocityValues;
-	float *cutoffEnvelopeAttackValues;
-	float *cutoffEnvelopeDecayValues;
 	float *lfo1FrequencyValues;
 	float *lfo1ModAmountValues;
 	float *lfo2FrequencyValues;
 	float *lfo2ModAmountValues;
 
 	public:
+	// Working values (set per-sample for a-rate, once per quantum for k-rate)
 	float frequency;
 	float velocity;
 	float osc1SemiShift;
@@ -73,6 +61,10 @@ struct SampleParameters {
 	float lfo2ModAmount;
 	float overdrive = 0.f;
 
+	// Base values for k-rate params modified by per-sample modulations
+	float osc1CycleBase;
+	float osc2CycleBase;
+
 	public:
 	SampleParameters &withFrequencyValues(float *newFrequencyValues) {
 		frequencyValues = newFrequencyValues;
@@ -81,30 +73,22 @@ struct SampleParameters {
 
 	public:
 	void fetchValues(unsigned int sample) {
+		// A-rate params: read per-sample from pointer arrays
 		frequency = getCurrentValue(frequencyValues, sample);
-		osc1SemiShift = getCurrentValue(osc1SemiShiftValues, sample, midiRange, semiShiftRange);
-		osc1CentShift = getCurrentValue(osc1CentShiftValues, sample, midiRange, centShiftRange);
-		osc1Cycle = getCurrentValue(osc1CycleValues, sample, midiRange, zeroOneRange);
-		osc2SemiShift = getCurrentValue(osc2SemiShiftValues, sample, midiRange, semiShiftRange);
-		osc2CentShift = getCurrentValue(osc2CentShiftValues, sample, midiRange, centShiftRange);
-		osc2Cycle = getCurrentValue(osc2CycleValues, sample, midiRange, zeroOneRange);
 		osc2Amplitude = getCurrentValue(osc2AmplitudeValues, sample, midiRange, zeroOneRange);
 		noiseLevel = getCurrentValue(noiseLevelValues, sample, midiRange, zeroOneRange);
-		amplitudeEnvelopeAttack = getCurrentValue(amplitudeEnvelopeAttackValues, sample, midiRange, attackRange);
-		amplitudeEnvelopeDecay = getCurrentValue(amplitudeEnvelopeDecayValues, sample, midiRange, decayRange);
-		amplitudeEnvelopeSustain = getCurrentValue(amplitudeEnvelopeSustainValues, sample, midiRange, zeroOneRange);
-		amplitudeEnvelopeRelease = getCurrentValue(amplitudeEnvelopeReleaseValues, sample, midiRange, releaseRange);
 		cutoff = getCurrentValue(cutoffValues, sample, midiRange, cutoffRange);
 		resonance = getCurrentValue(resonanceValues, sample, midiRange, resonanceRange);
-		overdrive = getCurrentValue(driveValues, sample, midiRange, driveRange),
-		cutoffEnvelopeAmount = getCurrentValue(cutoffEnvelopeAmountValues, sample, midiRange, zeroOneRange);
-		cutoffEnvelopeVelocity = getCurrentValue(cutoffEnvelopeVelocityValues, sample, midiRange, zeroOneRange);
-		cutoffEnvelopeAttack = getCurrentValue(cutoffEnvelopeAttackValues, sample, midiRange, attackRange);
-		cutoffEnvelopeDecay = getCurrentValue(cutoffEnvelopeDecayValues, sample, midiRange, decayRange);
+		overdrive = getCurrentValue(driveValues, sample, midiRange, driveRange);
 		lfo1Frequency = getCurrentValue(lfo1FrequencyValues, sample, midiRange, lfoFrequencyRange);
 		lfo1ModAmount = getCurrentValue(lfo1ModAmountValues, sample, midiRange, zeroOneRange);
 		lfo2Frequency = getCurrentValue(lfo2FrequencyValues, sample, midiRange, lfoFrequencyRange);
 		lfo2ModAmount = getCurrentValue(lfo2ModAmountValues, sample, midiRange, zeroOneRange);
+
+		// Restore k-rate base values that may have been modified by modulations
+		osc1Cycle = osc1CycleBase;
+		osc2Cycle = osc2CycleBase;
+
 		osc1Amplitude = 1.f - osc2Amplitude;
 	}
 

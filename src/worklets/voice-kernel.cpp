@@ -57,25 +57,25 @@ namespace Voice {
 		uint32_t lfo2Mode;
 		uint32_t lfo2Destination;
 		uintptr_t frequencyPtr;
-		uintptr_t amplitudeAttackPtr;
-		uintptr_t amplitudeDecayPtr;
-		uintptr_t amplitudeSustainPtr;
-		uintptr_t amplitudeReleasePtr;
-		uintptr_t osc1SemiShiftPtr;
-		uintptr_t osc1CentShiftPtr;
-		uintptr_t osc1CyclePtr;
-		uintptr_t osc2SemiShiftPtr;
-		uintptr_t osc2CentShiftPtr;
-		uintptr_t osc2CyclePtr;
+		float amplitudeAttack;
+		float amplitudeDecay;
+		float amplitudeSustain;
+		float amplitudeRelease;
+		float osc1SemiShift;
+		float osc1CentShift;
+		float osc1Cycle;
+		float osc2SemiShift;
+		float osc2CentShift;
+		float osc2Cycle;
 		uintptr_t osc2AmplitudePtr;
 		uintptr_t noiseLevelPtr;
 		uintptr_t cutoffPtr;
 		uintptr_t resonancePtr;
 		uintptr_t drivePtr;
-		uintptr_t cutoffEnvelopeAmountPtr;
-		uintptr_t cutoffEnvelopeVelocityPtr;
-		uintptr_t cutoffEnvelopeAttackPtr;
-		uintptr_t cutoffEnvelopeDecayPtr;
+		float cutoffEnvelopeAmount;
+		float cutoffEnvelopeVelocity;
+		float cutoffEnvelopeAttack;
+		float cutoffEnvelopeDecay;
 		uintptr_t lfo1FrequencyPtr;
 		uintptr_t lfo1ModAmountPtr;
 		uintptr_t lfo2FrequencyPtr;
@@ -138,30 +138,35 @@ namespace Voice {
 			lfo2.setMode(static_cast<Oscillator::Mode>(block->lfo2Mode));
 			lfo2Destination = static_cast<LfoDestination>(block->lfo2Destination);
 
+			// A-rate params: store pointers for per-sample reading
 			sampleParameters.frequencyValues = reinterpret_cast<float *>(block->frequencyPtr);
-			sampleParameters.amplitudeEnvelopeAttackValues = reinterpret_cast<float *>(block->amplitudeAttackPtr);
-			sampleParameters.amplitudeEnvelopeDecayValues = reinterpret_cast<float *>(block->amplitudeDecayPtr);
-			sampleParameters.amplitudeEnvelopeSustainValues = reinterpret_cast<float *>(block->amplitudeSustainPtr);
-			sampleParameters.amplitudeEnvelopeReleaseValues = reinterpret_cast<float *>(block->amplitudeReleasePtr);
-			sampleParameters.osc1SemiShiftValues = reinterpret_cast<float *>(block->osc1SemiShiftPtr);
-			sampleParameters.osc1CentShiftValues = reinterpret_cast<float *>(block->osc1CentShiftPtr);
-			sampleParameters.osc1CycleValues = reinterpret_cast<float *>(block->osc1CyclePtr);
-			sampleParameters.osc2SemiShiftValues = reinterpret_cast<float *>(block->osc2SemiShiftPtr);
-			sampleParameters.osc2CentShiftValues = reinterpret_cast<float *>(block->osc2CentShiftPtr);
-			sampleParameters.osc2CycleValues = reinterpret_cast<float *>(block->osc2CyclePtr);
 			sampleParameters.osc2AmplitudeValues = reinterpret_cast<float *>(block->osc2AmplitudePtr);
 			sampleParameters.noiseLevelValues = reinterpret_cast<float *>(block->noiseLevelPtr);
 			sampleParameters.cutoffValues = reinterpret_cast<float *>(block->cutoffPtr);
 			sampleParameters.resonanceValues = reinterpret_cast<float *>(block->resonancePtr);
 			sampleParameters.driveValues = reinterpret_cast<float *>(block->drivePtr);
-			sampleParameters.cutoffEnvelopeAmountValues = reinterpret_cast<float *>(block->cutoffEnvelopeAmountPtr);
-			sampleParameters.cutoffEnvelopeVelocityValues = reinterpret_cast<float *>(block->cutoffEnvelopeVelocityPtr);
-			sampleParameters.cutoffEnvelopeAttackValues = reinterpret_cast<float *>(block->cutoffEnvelopeAttackPtr);
-			sampleParameters.cutoffEnvelopeDecayValues = reinterpret_cast<float *>(block->cutoffEnvelopeDecayPtr);
 			sampleParameters.lfo1FrequencyValues = reinterpret_cast<float *>(block->lfo1FrequencyPtr);
 			sampleParameters.lfo1ModAmountValues = reinterpret_cast<float *>(block->lfo1ModAmountPtr);
 			sampleParameters.lfo2FrequencyValues = reinterpret_cast<float *>(block->lfo2FrequencyPtr);
 			sampleParameters.lfo2ModAmountValues = reinterpret_cast<float *>(block->lfo2ModAmountPtr);
+
+			// K-rate params: map from MIDI range once per quantum
+			sampleParameters.amplitudeEnvelopeAttack = attackRange.map(block->amplitudeAttack, midiRange);
+			sampleParameters.amplitudeEnvelopeDecay = decayRange.map(block->amplitudeDecay, midiRange);
+			sampleParameters.amplitudeEnvelopeSustain = zeroOneRange.map(block->amplitudeSustain, midiRange);
+			sampleParameters.amplitudeEnvelopeRelease = releaseRange.map(block->amplitudeRelease, midiRange);
+			sampleParameters.osc1SemiShift = semiShiftRange.map(block->osc1SemiShift, midiRange);
+			sampleParameters.osc1CentShift = centShiftRange.map(block->osc1CentShift, midiRange);
+			sampleParameters.osc1CycleBase = zeroOneRange.map(block->osc1Cycle, midiRange);
+			sampleParameters.osc1Cycle = sampleParameters.osc1CycleBase;
+			sampleParameters.osc2SemiShift = semiShiftRange.map(block->osc2SemiShift, midiRange);
+			sampleParameters.osc2CentShift = centShiftRange.map(block->osc2CentShift, midiRange);
+			sampleParameters.osc2CycleBase = zeroOneRange.map(block->osc2Cycle, midiRange);
+			sampleParameters.osc2Cycle = sampleParameters.osc2CycleBase;
+			sampleParameters.cutoffEnvelopeAmount = zeroOneRange.map(block->cutoffEnvelopeAmount, midiRange);
+			sampleParameters.cutoffEnvelopeVelocity = zeroOneRange.map(block->cutoffEnvelopeVelocity, midiRange);
+			sampleParameters.cutoffEnvelopeAttack = attackRange.map(block->cutoffEnvelopeAttack, midiRange);
+			sampleParameters.cutoffEnvelopeDecay = decayRange.map(block->cutoffEnvelopeDecay, midiRange);
 		}
 
 		public:
@@ -171,18 +176,19 @@ namespace Voice {
 		}
 
 		public:
-		void setOsc1SemiShift(uintptr_t newSemiShiftValuesPtr) {
-			sampleParameters.osc1SemiShiftValues = reinterpret_cast<float *>(newSemiShiftValuesPtr);
+		void setOsc1SemiShift(float value) {
+			sampleParameters.osc1SemiShift = semiShiftRange.map(value, midiRange);
 		}
 
 		public:
-		void setOsc1CentShift(uintptr_t newCentShiftValuesPtr) {
-			sampleParameters.osc1CentShiftValues = reinterpret_cast<float *>(newCentShiftValuesPtr);
+		void setOsc1CentShift(float value) {
+			sampleParameters.osc1CentShift = centShiftRange.map(value, midiRange);
 		}
 
 		public:
-		void setOsc1Cycle(uintptr_t newCycleValuesPtr) {
-			sampleParameters.osc1CycleValues = reinterpret_cast<float *>(newCycleValuesPtr);
+		void setOsc1Cycle(float value) {
+			sampleParameters.osc1CycleBase = zeroOneRange.map(value, midiRange);
+			sampleParameters.osc1Cycle = sampleParameters.osc1CycleBase;
 		}
 
 		public:
@@ -192,18 +198,19 @@ namespace Voice {
 		}
 
 		public:
-		void setOsc2SemiShift(uintptr_t newSemiShiftValuesPtr) {
-			sampleParameters.osc2SemiShiftValues = reinterpret_cast<float *>(newSemiShiftValuesPtr);
+		void setOsc2SemiShift(float value) {
+			sampleParameters.osc2SemiShift = semiShiftRange.map(value, midiRange);
 		}
 
 		public:
-		void setOsc2CentShift(uintptr_t newCentShiftValuesPtr) {
-			sampleParameters.osc2CentShiftValues = reinterpret_cast<float *>(newCentShiftValuesPtr);
+		void setOsc2CentShift(float value) {
+			sampleParameters.osc2CentShift = centShiftRange.map(value, midiRange);
 		}
 
 		public:
-		void setOsc2Cycle(uintptr_t newCycleValuesPtr) {
-			sampleParameters.osc2CycleValues = reinterpret_cast<float *>(newCycleValuesPtr);
+		void setOsc2Cycle(float value) {
+			sampleParameters.osc2CycleBase = zeroOneRange.map(value, midiRange);
+			sampleParameters.osc2Cycle = sampleParameters.osc2CycleBase;
 		}
 
 		public:
@@ -223,23 +230,23 @@ namespace Voice {
 		}
 
 		public:
-		void setAmplitudeAttack(uintptr_t newAmplitudeAttackValuesPtr) {
-			sampleParameters.amplitudeEnvelopeAttackValues = reinterpret_cast<float *>(newAmplitudeAttackValuesPtr);
+		void setAmplitudeAttack(float value) {
+			sampleParameters.amplitudeEnvelopeAttack = attackRange.map(value, midiRange);
 		}
 
 		public:
-		void setAmplitudeDecay(uintptr_t newAmplitudeDecayValuesPtr) {
-			sampleParameters.amplitudeEnvelopeDecayValues = reinterpret_cast<float *>(newAmplitudeDecayValuesPtr);
+		void setAmplitudeDecay(float value) {
+			sampleParameters.amplitudeEnvelopeDecay = decayRange.map(value, midiRange);
 		}
 
 		public:
-		void setAmplitudeSustain(uintptr_t newAmplitudeSustainValuesPtr) {
-			sampleParameters.amplitudeEnvelopeSustainValues = reinterpret_cast<float *>(newAmplitudeSustainValuesPtr);
+		void setAmplitudeSustain(float value) {
+			sampleParameters.amplitudeEnvelopeSustain = zeroOneRange.map(value, midiRange);
 		}
 
 		public:
-		void setAmplitudeRelease(uintptr_t newAmplitudeReleaseValuesPtr) {
-			sampleParameters.amplitudeEnvelopeReleaseValues = reinterpret_cast<float *>(newAmplitudeReleaseValuesPtr);
+		void setAmplitudeRelease(float value) {
+			sampleParameters.amplitudeEnvelopeRelease = releaseRange.map(value, midiRange);
 		}
 
 		public:
@@ -263,23 +270,23 @@ namespace Voice {
 		}
 
 		public:
-		void setCutoffEnvelopeAmount(uintptr_t newCutoffEnvelopeAmountValuesPtr) {
-			sampleParameters.cutoffEnvelopeAmountValues = reinterpret_cast<float *>(newCutoffEnvelopeAmountValuesPtr);
+		void setCutoffEnvelopeAmount(float value) {
+			sampleParameters.cutoffEnvelopeAmount = zeroOneRange.map(value, midiRange);
 		}
 
 		public:
-		void setCutoffEnvelopeVelocity(uintptr_t newCutoffEnvelopeVelocityValuesPtr) {
-			sampleParameters.cutoffEnvelopeVelocityValues = reinterpret_cast<float *>(newCutoffEnvelopeVelocityValuesPtr);
+		void setCutoffEnvelopeVelocity(float value) {
+			sampleParameters.cutoffEnvelopeVelocity = zeroOneRange.map(value, midiRange);
 		}
 
 		public:
-		void setCutoffEnvelopeAttack(uintptr_t newCutoffEnvelopeAttackValuesPtr) {
-			sampleParameters.cutoffEnvelopeAttackValues = reinterpret_cast<float *>(newCutoffEnvelopeAttackValuesPtr);
+		void setCutoffEnvelopeAttack(float value) {
+			sampleParameters.cutoffEnvelopeAttack = attackRange.map(value, midiRange);
 		}
 
 		public:
-		void setCutoffEnvelopeDecay(uintptr_t newCutoffEnvelopeDecayValuesPtr) {
-			sampleParameters.cutoffEnvelopeDecayValues = reinterpret_cast<float *>(newCutoffEnvelopeDecayValuesPtr);
+		void setCutoffEnvelopeDecay(float value) {
+			sampleParameters.cutoffEnvelopeDecay = decayRange.map(value, midiRange);
 		}
 
 		public:
@@ -473,27 +480,27 @@ namespace Voice {
 						.function("setParameters", &Voice::Kernel::setParameters, allow_raw_pointers())
 						.function("setVelocity", &Voice::Kernel::setVelocity)
 						.function("setOsc1Mode", &Voice::Kernel::setOsc1Mode)
-						.function("setOsc1SemiShift", &Voice::Kernel::setOsc1SemiShift, allow_raw_pointers())
-						.function("setOsc1CentShift", &Voice::Kernel::setOsc1CentShift, allow_raw_pointers())
-						.function("setOsc1Cycle", &Voice::Kernel::setOsc1Cycle, allow_raw_pointers())
+						.function("setOsc1SemiShift", &Voice::Kernel::setOsc1SemiShift)
+						.function("setOsc1CentShift", &Voice::Kernel::setOsc1CentShift)
+						.function("setOsc1Cycle", &Voice::Kernel::setOsc1Cycle)
 						.function("setOsc2Mode", &Voice::Kernel::setOsc2Mode)
-						.function("setOsc2SemiShift", &Voice::Kernel::setOsc2SemiShift, allow_raw_pointers())
-						.function("setOsc2CentShift", &Voice::Kernel::setOsc2CentShift, allow_raw_pointers())
-						.function("setOsc2Cycle", &Voice::Kernel::setOsc2Cycle, allow_raw_pointers())
+						.function("setOsc2SemiShift", &Voice::Kernel::setOsc2SemiShift)
+						.function("setOsc2CentShift", &Voice::Kernel::setOsc2CentShift)
+						.function("setOsc2Cycle", &Voice::Kernel::setOsc2Cycle)
 						.function("setOsc2Amplitude", &Voice::Kernel::setOsc2Amplitude, allow_raw_pointers())
 						.function("setNoiseLevel", &Voice::Kernel::setNoiseLevel, allow_raw_pointers())
-						.function("setAmplitudeAttack", &Voice::Kernel::setAmplitudeAttack, allow_raw_pointers())
-						.function("setAmplitudeDecay", &Voice::Kernel::setAmplitudeDecay, allow_raw_pointers())
-						.function("setAmplitudeSustain", &Voice::Kernel::setAmplitudeSustain, allow_raw_pointers())
-						.function("setAmplitudeRelease", &Voice::Kernel::setAmplitudeRelease, allow_raw_pointers())
+						.function("setAmplitudeAttack", &Voice::Kernel::setAmplitudeAttack)
+						.function("setAmplitudeDecay", &Voice::Kernel::setAmplitudeDecay)
+						.function("setAmplitudeSustain", &Voice::Kernel::setAmplitudeSustain)
+						.function("setAmplitudeRelease", &Voice::Kernel::setAmplitudeRelease)
 						.function("setFilterMode", &Voice::Kernel::setFilterMode)
 						.function("setCutoff", &Voice::Kernel::setCutoff, allow_raw_pointers())
 						.function("setResonance", &Voice::Kernel::setResonance, allow_raw_pointers())
 						.function("setDrive", &Voice::Kernel::setDrive, allow_raw_pointers())
-						.function("setCutoffEnvelopeAmount", &Voice::Kernel::setCutoffEnvelopeAmount, allow_raw_pointers())
-						.function("setCutoffEnvelopeVelocity", &Voice::Kernel::setCutoffEnvelopeVelocity, allow_raw_pointers())
-						.function("setCutoffEnvelopeAttack", &Voice::Kernel::setCutoffEnvelopeAttack, allow_raw_pointers())
-						.function("setCutoffEnvelopeDecay", &Voice::Kernel::setCutoffEnvelopeDecay, allow_raw_pointers())
+						.function("setCutoffEnvelopeAmount", &Voice::Kernel::setCutoffEnvelopeAmount)
+						.function("setCutoffEnvelopeVelocity", &Voice::Kernel::setCutoffEnvelopeVelocity)
+						.function("setCutoffEnvelopeAttack", &Voice::Kernel::setCutoffEnvelopeAttack)
+						.function("setCutoffEnvelopeDecay", &Voice::Kernel::setCutoffEnvelopeDecay)
 						.function("setLfo1Frequency", &Voice::Kernel::setLfo1Frequency, allow_raw_pointers())
 						.function("setLfo1ModAmount", &Voice::Kernel::setLfo1ModAmount, allow_raw_pointers())
 						.function("setLfo1Mode", &Voice::Kernel::setLfo1Mode)
