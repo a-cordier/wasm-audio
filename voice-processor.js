@@ -193,7 +193,13 @@ class VoiceProcessor extends AudioWorkletProcessor {
   allocateBuffers(channelCount, parameters) {
     this.outputBuffer.adaptChannel(channelCount);
     this.parameterBuffers.forEach((buffer, name) => {
-      buffer.getData().set(parameters[name]);
+      const param = parameters[name];
+      const data = buffer.getData();
+      if (param.length === 1) {
+        data.fill(param[0]);
+      } else {
+        data.set(param);
+      }
     });
   }
 
