@@ -18,6 +18,7 @@ import { RENDER_QUANTUM_FRAMES, MAX_CHANNEL_COUNT, HeapAudioBuffer, HeapParamete
 import {
   staticParameterDescriptors,
   automatedParameterDescriptors,
+  aRateParameterDescriptors,
   VoiceState,
   WaveFormParam,
   FilterModeParam,
@@ -131,7 +132,7 @@ const pool = new KernelPool(16);
 class VoiceProcessor extends AudioWorkletProcessor {
   outputBuffer = new HeapAudioBuffer(wasm, RENDER_QUANTUM_FRAMES, 2, MAX_CHANNEL_COUNT);
 
-  parameterBuffers = createParameterBuffers(automatedParameterDescriptors);
+  parameterBuffers = createParameterBuffers(aRateParameterDescriptors);
 
   _paramBlockPtr = wasm._malloc(PARAM_BLOCK_BYTES);
 
@@ -209,30 +210,33 @@ class VoiceProcessor extends AudioWorkletProcessor {
     u32[base + PB.LFO2_MODE] = waveforms[kValueOf(parameters.lfo2Mode)];
     u32[base + PB.LFO2_DESTINATION] = LfoDestination[kValueOf(parameters.lfo2Destination)];
 
+    // A-rate params: pass heap buffer addresses for per-sample reading
     u32[base + PB.FREQUENCY] = this.parameterBuffers.get("frequency").getHeapAddress();
-    u32[base + PB.AMPLITUDE_ATTACK] = this.parameterBuffers.get("amplitudeAttack").getHeapAddress();
-    u32[base + PB.AMPLITUDE_DECAY] = this.parameterBuffers.get("amplitudeDecay").getHeapAddress();
-    u32[base + PB.AMPLITUDE_SUSTAIN] = this.parameterBuffers.get("amplitudeSustain").getHeapAddress();
-    u32[base + PB.AMPLITUDE_RELEASE] = this.parameterBuffers.get("amplitudeRelease").getHeapAddress();
-    u32[base + PB.OSC1_SEMI_SHIFT] = this.parameterBuffers.get("osc1SemiShift").getHeapAddress();
-    u32[base + PB.OSC1_CENT_SHIFT] = this.parameterBuffers.get("osc1CentShift").getHeapAddress();
-    u32[base + PB.OSC1_CYCLE] = this.parameterBuffers.get("osc1Cycle").getHeapAddress();
-    u32[base + PB.OSC2_SEMI_SHIFT] = this.parameterBuffers.get("osc2SemiShift").getHeapAddress();
-    u32[base + PB.OSC2_CENT_SHIFT] = this.parameterBuffers.get("osc2CentShift").getHeapAddress();
-    u32[base + PB.OSC2_CYCLE] = this.parameterBuffers.get("osc2Cycle").getHeapAddress();
     u32[base + PB.OSC2_AMPLITUDE] = this.parameterBuffers.get("osc2Amplitude").getHeapAddress();
     u32[base + PB.NOISE_LEVEL] = this.parameterBuffers.get("noiseLevel").getHeapAddress();
     u32[base + PB.CUTOFF] = this.parameterBuffers.get("cutoff").getHeapAddress();
     u32[base + PB.RESONANCE] = this.parameterBuffers.get("resonance").getHeapAddress();
     u32[base + PB.DRIVE] = this.parameterBuffers.get("drive").getHeapAddress();
-    u32[base + PB.CUTOFF_ENV_AMOUNT] = this.parameterBuffers.get("cutoffEnvelopeAmount").getHeapAddress();
-    u32[base + PB.CUTOFF_ENV_VELOCITY] = this.parameterBuffers.get("cutoffEnvelopeVelocity").getHeapAddress();
-    u32[base + PB.CUTOFF_ENV_ATTACK] = this.parameterBuffers.get("cutoffAttack").getHeapAddress();
-    u32[base + PB.CUTOFF_ENV_DECAY] = this.parameterBuffers.get("cutoffDecay").getHeapAddress();
     u32[base + PB.LFO1_FREQUENCY] = this.parameterBuffers.get("lfo1Frequency").getHeapAddress();
     u32[base + PB.LFO1_MOD_AMOUNT] = this.parameterBuffers.get("lfo1ModAmount").getHeapAddress();
     u32[base + PB.LFO2_FREQUENCY] = this.parameterBuffers.get("lfo2Frequency").getHeapAddress();
     u32[base + PB.LFO2_MOD_AMOUNT] = this.parameterBuffers.get("lfo2ModAmount").getHeapAddress();
+
+    // K-rate params: pass raw MIDI scalar values directly
+    f32[base + PB.AMPLITUDE_ATTACK] = kValueOf(parameters.amplitudeAttack);
+    f32[base + PB.AMPLITUDE_DECAY] = kValueOf(parameters.amplitudeDecay);
+    f32[base + PB.AMPLITUDE_SUSTAIN] = kValueOf(parameters.amplitudeSustain);
+    f32[base + PB.AMPLITUDE_RELEASE] = kValueOf(parameters.amplitudeRelease);
+    f32[base + PB.OSC1_SEMI_SHIFT] = kValueOf(parameters.osc1SemiShift);
+    f32[base + PB.OSC1_CENT_SHIFT] = kValueOf(parameters.osc1CentShift);
+    f32[base + PB.OSC1_CYCLE] = kValueOf(parameters.osc1Cycle);
+    f32[base + PB.OSC2_SEMI_SHIFT] = kValueOf(parameters.osc2SemiShift);
+    f32[base + PB.OSC2_CENT_SHIFT] = kValueOf(parameters.osc2CentShift);
+    f32[base + PB.OSC2_CYCLE] = kValueOf(parameters.osc2Cycle);
+    f32[base + PB.CUTOFF_ENV_AMOUNT] = kValueOf(parameters.cutoffEnvelopeAmount);
+    f32[base + PB.CUTOFF_ENV_VELOCITY] = kValueOf(parameters.cutoffEnvelopeVelocity);
+    f32[base + PB.CUTOFF_ENV_ATTACK] = kValueOf(parameters.cutoffAttack);
+    f32[base + PB.CUTOFF_ENV_DECAY] = kValueOf(parameters.cutoffDecay);
   }
 
   freeBuffers() {
