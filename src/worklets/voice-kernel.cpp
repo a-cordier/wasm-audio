@@ -68,16 +68,17 @@ namespace Voice {
 		void process(uintptr_t outputPtr, unsigned channelCount, uintptr_t frequencyValuesPtr) {
 			float *outputBuffer = reinterpret_cast<float *>(outputPtr);
 			float *frequencyValues = reinterpret_cast<float *>(frequencyValuesPtr);
+			float *firstChannel = outputBuffer;
 
-			for (unsigned channel = 0; channel < channelCount; ++channel) {
+			for (unsigned sample = 0; sample < renderFrames; ++sample) {
+				startIfNecessary();
+				assignParameters(frequencyValues, sample);
+				firstChannel[sample] = computeSample();
+				stopIfNecessary();
+			}
+			for (unsigned channel = 1; channel < channelCount; ++channel) {
 				float *channelBuffer = outputBuffer + channel * renderFrames;
-
-				for (auto sample = 0; sample < renderFrames; ++sample) {
-					startIfNecessary();
-					assignParameters(frequencyValues, sample);
-					channelBuffer[sample] = computeSample();
-					stopIfNecessary();
-				}
+				std::copy(firstChannel, firstChannel + renderFrames, channelBuffer);
 			}
 		}
 
