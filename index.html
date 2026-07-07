@@ -56,30 +56,6 @@
     <div class="content">
       <root-element></root-element>
     </div>
-    <script>
-      (function () {
-        var hosting = "a-cordier.github.io";
-        var wasmTestedVersion = 84;
-        var isDeployed = window.location.host === hosting;
-        var isHttps = window.location.protocol === "https:";
-
-        if (!isDeployed) {
-          return;
-        }
-
-        if (forceHttps()) {
-          return;
-        }
-
-        function forceHttps() {
-          if (isDeployed && !isHttps) {
-            window.location.protocol = "https";
-            return true;
-          }
-          return false;
-        }
-      })();
-    </script>
   </body>
 
   <style>
