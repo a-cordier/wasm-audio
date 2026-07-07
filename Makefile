@@ -1,5 +1,5 @@
 OUT = src/worklets/voice-kernel.wasmmodule.js
-DEPS = src/worklets/voice-kernel.cpp Makefile
+DEPS = $(wildcard src/worklets/*.cpp) Makefile
 
 SHELL := /bin/bash
 EMCC := docker run --rm -v $(CURDIR):/src -u $(shell id -u):$(shell id -g) emscripten/emsdk emcc
@@ -9,8 +9,8 @@ EMCC := docker run --rm -v $(CURDIR):/src -u $(shell id -u):$(shell id -g) emscr
 build: $(OUT)
 
 $(OUT): $(DEPS)
-	$(EMCC) -std=c++17 -lembind -O1 -g0 \
-		-sINITIAL_MEMORY=128MB \
+	$(EMCC) -std=c++17 -lembind -O3 -g0 \
+		-sINITIAL_MEMORY=4MB \
 		-sWASM_ASYNC_COMPILATION=0 \
 		-sSINGLE_FILE=1 \
 		-sEXPORT_ES6=1 \
