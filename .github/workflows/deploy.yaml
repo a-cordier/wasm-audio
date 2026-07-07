@@ -7,23 +7,17 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: checkout
+        uses: actions/checkout@v4
       - name: setup emsdk
-        uses: mymindstorm/setup-emsdk@v12
+        uses: emscripten-core/setup-emsdk@v15
         with:
-          version: 3.1.36
-          actions-cache-folder: "emsdk-cache"
+          version: 6.0.2
       - name: verify
         run: make -v && emcc -v
-      - name: move emsdk
-        run: mv /home/runner/work/wasm-audio/wasm-audio/emsdk-cache/emsdk-main /home/runner/work/emsdk
-      - name: checkout
-        uses: actions/checkout@v2.3.1 # If you're using actions/checkout@v2 you must set persist-credentials to false in most cases for the deployment to work correctly.
-        with:
-          persist-credentials: false
-      - name: install and build # This example project is built using npm and outputs the result to the 'build' folder. Replace with the commands required to build your project, or remove this step entirely if your site is pre-built.
+      - name: install and build
         run: |
           npm install
-          source "/home/runner/work/emsdk/emsdk_env.sh"
           npm run build
 
       - name: deploy
