@@ -9,15 +9,24 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
       - name: setup emsdk
         uses: emscripten-core/setup-emsdk@v15
         with:
           version: 6.0.2
+
       - name: verify
         run: make -v && emcc -v
+
       - name: install and build
         run: |
-          npm install
+          npm ci
           npm run build
 
       - name: deploy
