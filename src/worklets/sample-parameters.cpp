@@ -113,17 +113,12 @@ struct SampleParameters {
 		if (valuesPtr == nullptr) {
 			return 0.f;
 		}
-		return hasConstantValue(valuesPtr) ? valuesPtr[0] : valuesPtr[i];
+		return valuesPtr[i];
 	}
 
 	private:
 	float getCurrentValue(float *valuesPtr, unsigned int i, Range sourceRange, Range targetRange) {
 		auto value = getCurrentValue(valuesPtr, i);
 		return targetRange.map(value, sourceRange);
-	}
-
-	private:
-	bool hasConstantValue(float *valuesPtr) {
-		return sizeof(valuesPtr) == sizeof(valuesPtr[0]);
 	}
 };
