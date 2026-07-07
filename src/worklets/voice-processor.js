@@ -24,7 +24,9 @@ import {
   LfoDestinationParam,
 } from "./voice-processor-parameters.js";
 
-import wasm from "./voice-kernel.wasmmodule.js";
+import createModule from "./voice-kernel.wasmmodule.js";
+
+const wasm = await createModule();
 
 const waveforms = Object.freeze({
   [WaveFormParam.SINE]: wasm.WaveForm.SINE,

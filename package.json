@@ -4,34 +4,24 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "prestart": "make",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "gulp",
-    "build": "gulp --type=production build",
+    "predev": "make",
+    "dev": "vite",
+    "prebuild": "make",
+    "build": "vite build",
+    "preview": "vite preview",
     "license:check": "license-check-and-add check -f lca-config.json",
     "license:fix": "license-check-and-add add -f lca-config.json -r"
   },
   "author": "Antoine CORDIER",
   "license": "Apache-2.0",
   "dependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.10.4",
     "lit-element": "^2.2.1",
     "lit-html": "^1.1.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.10.5",
-    "@babel/preset-env": "^7.10.4",
-    "browser-sync": "^3.0.2",
-    "gulp": "^5.0.0",
-    "gulp-clean": "^0.4.0",
-    "gulp-cli": "^3.0.0",
-    "gulp-util": "^3.0.8",
     "license-check-and-add": "^4.0.5",
-    "rollup": "^1.26.5",
-    "rollup-plugin-babel": "^4.4.0",
-    "rollup-plugin-node-resolve": "^5.2.0",
-    "rollup-plugin-typescript": "^1.0.1",
     "tslib": "^1.10.0",
-    "typescript": "^3.7.2"
+    "typescript": "^3.7.2",
+    "vite": "^8.1.3"
   }
 }

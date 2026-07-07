@@ -1,15 +1,15 @@
 {
   "compilerOptions": {
     "target": "es2017",
-    "module": "node",
-    "isolatedModules": false,
-    "moduleResolution": "node",
+    "module": "ESNext",
+    "isolatedModules": true,
+    "moduleResolution": "bundler",
     "lib": ["es2017", "dom"],
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "sourceMap": true,
-    "outDir": "./dist/js/"
+    "skipLibCheck": true
   },
-  "include": ["./src/**/*.ts", "src/components/lcd-chars.ts"],
+  "include": ["./src/**/*.ts", "vite.config.ts"],
   "exclude": ["node_modules", "**/*.spec.ts"]
 }
