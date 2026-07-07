@@ -17,8 +17,7 @@
 
 #include "constants.cpp"
 #include <cmath>
-#include <cstdlib>
-#include <ctime>
+#include <cstdint>
 
 namespace Oscillator {
 	namespace SineTable {
@@ -54,7 +53,7 @@ namespace Oscillator {
 	class Kernel {
 		public:
 		Kernel(float sampleRate) :
-			sampleRate(sampleRate) { srand(time(NULL)); SineTable::init(); }
+			sampleRate(sampleRate) { SineTable::init(); }
 
 		public:
 		float nextSample(float frequency) {
@@ -165,8 +164,10 @@ namespace Oscillator {
 
 		private:
 		float computeRandomValue() {
-			const static float max = static_cast<float>(RAND_MAX);
-			return static_cast<float>(rand()) / max;
+			rngState ^= rngState << 13;
+			rngState ^= rngState >> 17;
+			rngState ^= rngState << 5;
+			return static_cast<float>(rngState) / static_cast<float>(UINT32_MAX);
 		}
 
 		private:
@@ -207,7 +208,14 @@ namespace Oscillator {
 		}
 
 		private:
+		static uint32_t nextSeed() {
+			static uint32_t counter = 0;
+			return ++counter * 2654435761u;
+		}
+
 		Mode mode;
+
+		uint32_t rngState = nextSeed();
 
 		float phase = 0.f;
 		float phaseIncrement = 0.f;
