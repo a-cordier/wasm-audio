@@ -3,9 +3,7 @@ import { resolve } from "path";
 import { copyFileSync, mkdirSync, readFileSync } from "fs";
 
 const workletFiles = [
-  "voice-processor.js",
-  "wasm-audio-helper.js",
-  "voice-processor-parameters.js",
+  "synth-processor.js",
   "voice-kernel.wasmmodule.js",
 ];
 

@@ -29,7 +29,7 @@ import "./panels/menu/menu-element";
 import "./panels/panel-wrapper-element";
 import "../common/controls/midi-control-wrapper";
 
-import { VoiceManager } from "../../core/voice-manager";
+import { SynthController } from "../../core/synth-controller";
 
 import { OscillatorEvent } from "../../types/oscillator-event";
 import { FilterEvent } from "../../types/filter-event";
@@ -50,7 +50,7 @@ export class WasmPoly extends LitElement {
   private audioContext: AudioContext;
   private analyzer: AnalyserNode;
   private midiController: MidiController & Dispatcher;
-  private voiceManager: VoiceManager;
+  private voiceManager: SynthController;
   private state: Partial<VoiceState>;
 
   private currentLearnerID = MidiControlID.NONE;
@@ -66,13 +66,14 @@ export class WasmPoly extends LitElement {
     super();
     this.audioContext = new AudioContext();
     this.analyzer = this.audioContext.createAnalyser();
-    this.voiceManager = new VoiceManager(this.audioContext);
+    this.voiceManager = new SynthController(this.audioContext);
     this.state = this.voiceManager.getState();
   }
 
   async connectedCallback() {
     super.connectedCallback();
-    await this.audioContext.audioWorklet.addModule("voice-processor.js");
+    await this.audioContext.audioWorklet.addModule("synth-processor.js");
+    this.voiceManager.init();
     this.midiController = await createMidiController(MidiOmniChannel);
     this.setUpVoiceManager();
     this.analyzer.connect(this.audioContext.destination);

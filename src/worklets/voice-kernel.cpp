@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 #include "voice-kernel.h"
+#include "synth-engine.h"
 
 using namespace wasm_audio;
 
 static Voice::Kernel *asKernel(uintptr_t ptr) {
 	return reinterpret_cast<Voice::Kernel *>(ptr);
+}
+
+static SynthEngine *asEngine(uintptr_t ptr) {
+	return reinterpret_cast<SynthEngine *>(ptr);
 }
 
 extern "C" {
@@ -49,6 +54,30 @@ int voice_kernel_is_stopped(uintptr_t ptr) {
 
 void voice_kernel_reset(uintptr_t ptr) {
 	asKernel(ptr)->reset();
+}
+
+uintptr_t synth_engine_create(float sampleRate, float renderFrames) {
+	return reinterpret_cast<uintptr_t>(new SynthEngine(sampleRate, renderFrames));
+}
+
+void synth_engine_destroy(uintptr_t ptr) {
+	delete asEngine(ptr);
+}
+
+void synth_engine_note_on(uintptr_t ptr, int midi, float frequency, float velocity) {
+	asEngine(ptr)->noteOn(midi, frequency, velocity);
+}
+
+void synth_engine_note_off(uintptr_t ptr, int midi) {
+	asEngine(ptr)->noteOff(midi);
+}
+
+void synth_engine_set_param(uintptr_t ptr, int paramId, float value) {
+	asEngine(ptr)->setParam(paramId, value);
+}
+
+void synth_engine_process(uintptr_t ptr, uintptr_t outputPtr, unsigned channelCount) {
+	asEngine(ptr)->process(outputPtr, channelCount);
 }
 
 } // extern "C"
