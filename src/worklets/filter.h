@@ -13,11 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "constants.cpp"
-#include "range.cpp"
-#include <math.h>
+#pragma once
+
+#include "constants.h"
+#include "range.h"
+#include <cmath>
 #include <array>
 
+namespace wasm_audio {
 namespace Filter {
 	enum class Mode {
 		LOWPASS,
@@ -37,10 +40,8 @@ namespace Filter {
 		public:
 		virtual float nextSample(float sample, float cutoff, float resonance) = 0;
 
-		public:
 		virtual void reset() = 0;
 
-		public:
 		void setMode(Mode newMode) {
 			mode = newMode;
 		}
@@ -55,13 +56,11 @@ namespace Filter {
 			Kernel(Mode::LOWPASS) {
 		}
 
-		public:
 		ResonantKernel(Mode mode) :
 			Kernel(mode) {
 		}
 
-		public:
-		virtual float nextSample(float sample, float cutoff, float resonance) override {
+		float nextSample(float sample, float cutoff, float resonance) override {
 			float feedbackAmount = resonance + resonance / (1.0 - cutoff);
 			buf0 += cutoff * (sample - buf0 + feedbackAmount * (buf0 - buf1));
 			buf1 += cutoff * (buf0 - buf1);
@@ -81,7 +80,6 @@ namespace Filter {
 			}
 		}
 
-		public:
 		void reset() override {
 			buf0 = 0;
 			buf1 = 0;
@@ -90,7 +88,6 @@ namespace Filter {
 		}
 
 		private:
-		// TODO: replace with array of states (see Moog implementations)
 		float buf0 = 0.f;
 		float buf1 = 0.f;
 		float buf2 = 0.f;
@@ -98,44 +95,44 @@ namespace Filter {
 	};
 
 	namespace Moog {
-		float snapToZero(float x) {
+		inline float snapToZero(float x) {
 			if (!(x < -1.0e-8 || x > 1.0e-8)) {
 				return 0.f;
 			}
 			return x;
 		}
 
-		float crossfade(float amount, float x, float y) {
+		inline float crossfade(float amount, float x, float y) {
 			return (1.f - amount) * x + amount * y;
 		}
 
-		float moogMin(float a, float b) {
+		inline float moogMin(float a, float b) {
 			a = b - a;
-			a += fabs(a);
+			a += std::fabs(a);
 			a *= 0.5f;
 			return b - a;
 		}
 
-		float saturate(float input) {
+		inline float saturate(float input) {
 			static float limit = 0.95f;
-			float x1 = fabs(input + limit);
-			float x2 = fabs(input - limit);
+			float x1 = std::fabs(input + limit);
+			float x2 = std::fabs(input - limit);
 			return 0.5f * (x1 - x2);
 		}
 
-		float computeClippingFactor(float value, float invertedSaturration) {
+		inline float computeClippingFactor(float value, float invertedSaturration) {
 			const float factor = value * invertedSaturration;
 			if (factor < -1.f) return -1.f;
 			if (factor > 1.f) return 1.f;
 			return factor;
 		}
 
-		float clip(float value, float saturation, float invertedSaturation) {
+		inline float clip(float value, float saturation, float invertedSaturation) {
 			const float factor = computeClippingFactor(value, invertedSaturation);
 			return saturation * (factor - (factor * factor * factor) / 3.f);
 		}
 
-		float fastTanh(float x) {
+		inline float fastTanh(float x) {
 			float x2 = x * x;
 			return x * (27.f + x2) / (27.f + 9.f * x2);
 		}
@@ -151,8 +148,7 @@ namespace Filter {
 				delay.fill(0.f);
 			}
 
-			public:
-			virtual float nextSample(float sample, float cutoff, float resonance) override {
+			float nextSample(float sample, float cutoff, float resonance) override {
 				static auto cutoffLimit = 8000.f;
 				static auto resonanceLimit = 0.7f;
 
@@ -183,7 +179,6 @@ namespace Filter {
 				}
 			}
 
-			public:
 			void reset() override {
 				state.fill(0.f);
 				delay.fill(0.f);
@@ -191,15 +186,13 @@ namespace Filter {
 
 			private:
 			float derivateResonance(float resonance, float wc) {
-				return resonance * (1.0029 + 0.0526 * wc - 0.926 * pow(wc, 2) + 0.0218 * pow(wc, 3));
+				return resonance * (1.0029 + 0.0526 * wc - 0.926 * std::pow(wc, 2) + 0.0218 * std::pow(wc, 3));
 			}
 
-			private:
 			float derivateCutoff(float cutoff, float wc) {
-				return 0.9892 * wc - 0.4342 * pow(wc, 2) + 0.1381 * pow(wc, 3) - 0.0202 * pow(wc, 4);
+				return 0.9892 * wc - 0.4342 * std::pow(wc, 2) + 0.1381 * std::pow(wc, 3) - 0.0202 * std::pow(wc, 4);
 			}
 
-			private:
 			float sampleRate = Constants::sampleRate;
 			float g;
 			float gRes;
@@ -211,3 +204,4 @@ namespace Filter {
 		};
 	} // namespace Moog
 } // namespace Filter
+} // namespace wasm_audio

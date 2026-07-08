@@ -15,12 +15,10 @@
  */
 #pragma once
 
-#include "constants.cpp"
-#include <algorithm>
+#include "constants.h"
 #include <cmath>
-#include <iostream>
-#include <vector>
 
+namespace wasm_audio {
 namespace Envelope {
 
 	enum class Stage {
@@ -37,15 +35,15 @@ namespace Envelope {
 		LINEAR
 	};
 
-	float epsilonIfZero(float x) {
+	inline float epsilonIfZero(float x) {
 		return x == 0 ? Constants::epsilon : x;
 	}
 
-	float computeExponentialCoefficient(float ya, float yb, unsigned long sampleCount) {
+	inline float computeExponentialCoefficient(float ya, float yb, unsigned long sampleCount) {
 		return (std::log(epsilonIfZero(yb)) - std::log(epsilonIfZero(ya))) / epsilonIfZero(sampleCount);
 	}
 
-	float computeLinearMultiplier(float ya, float yb, unsigned long sampleCount, unsigned long sample) {
+	inline float computeLinearMultiplier(float ya, float yb, unsigned long sampleCount, unsigned long sample) {
 		return ya + sample * (yb - ya) / epsilonIfZero(sampleCount);
 	}
 
@@ -62,25 +60,21 @@ namespace Envelope {
 			exponentialCoefficient(computeExponentialCoefficient(ya, yb, sampleCount)) {
 		}
 
-		public:
 		void setSampleCount(int count) {
 			sampleCount = count;
 			exponentialCoefficient = computeExponentialCoefficient(ya, yb, sampleCount);
 		}
 
-		public:
 		void setStartLevel(float value) {
 			ya = value;
 			exponentialCoefficient = computeExponentialCoefficient(ya, yb, sampleCount);
 		}
 
-		public:
 		void setEndLevel(float value) {
 			yb = value;
 			exponentialCoefficient = computeExponentialCoefficient(ya, yb, sampleCount);
 		}
 
-		public:
 		float computeLevel() {
 			switch (type) {
 				case RampType::EXPONENTIAL:
@@ -93,7 +87,6 @@ namespace Envelope {
 			return level;
 		}
 
-		public:
 		Stage next() {
 			if (++sample >= sampleCount) {
 				return nextStage;
@@ -101,12 +94,10 @@ namespace Envelope {
 			return stage;
 		}
 
-		public:
 		void setType(RampType newType) {
 			type = newType;
 		}
 
-		public:
 		void reset() {
 			sample = 0;
 		}
@@ -116,7 +107,7 @@ namespace Envelope {
 		float yb;
 		int sampleCount;
 		int sample;
-		float level;
+		float level = 0.f;
 		float exponentialCoefficient;
 		RampType type;
 		Stage stage;
@@ -132,7 +123,6 @@ namespace Envelope {
 			decayTimeLine(TimeLine(RampType::EXPONENTIAL, decayTime * sampleRate, peakLevel, sustainLevel, Stage::DECAY, Stage::SUSTAIN)),
 			releaseTimeLine(TimeLine(RampType::LINEAR, releaseTime * sampleRate, sustainLevel, 0.f, Stage::RELEASE, Stage::DONE)) {}
 
-		public:
 		float nextLevel() {
 			switch (stage) {
 				case Stage::ATTACK:
@@ -155,14 +145,12 @@ namespace Envelope {
 			}
 		}
 
-		public:
 		void enterAttackStage() {
 			if (stage == Stage::OFF) {
 				stage = Stage::ATTACK;
 			}
 		}
 
-		public:
 		void enterReleaseStage() {
 			if (stage != Stage::SUSTAIN) {
 				releaseTimeLine.setStartLevel(level);
@@ -170,54 +158,44 @@ namespace Envelope {
 			stage = Stage::RELEASE;
 		}
 
-		public:
 		bool isDone() {
 			return stage == Stage::DONE;
 		}
 
-		public:
 		void setAttackTime(float seconds) {
 			attackTimeLine.setSampleCount(seconds * sampleRate);
 		}
 
-		public:
 		void setDecayTime(float seconds) {
 			decayTimeLine.setSampleCount(seconds * sampleRate);
 		}
 
-		public:
 		void setReleaseTime(float seconds) {
 			releaseTimeLine.setSampleCount(seconds * sampleRate);
 		}
 
-		public:
 		void setSustainLevel(float level) {
 			decayTimeLine.setEndLevel(level);
 			releaseTimeLine.setStartLevel(level);
 		}
 
-		public:
 		void setPeakLevel(float level) {
 			attackTimeLine.setEndLevel(level);
 			decayTimeLine.setStartLevel(level);
 		}
 
-		public:
 		void setAttackRampType(RampType newType) {
 			attackTimeLine.setType(newType);
 		}
 
-		public:
 		void setDecayRampType(RampType newType) {
 			decayTimeLine.setType(newType);
 		}
 
-		public:
 		void setReleaseRampType(RampType newType) {
 			releaseTimeLine.setType(newType);
 		}
 
-		public:
 		void reset() {
 			attackTimeLine.reset();
 			decayTimeLine.reset();
@@ -227,7 +205,7 @@ namespace Envelope {
 
 		private:
 		float sampleRate = Constants::sampleRate;
-		float level;
+		float level = 0.f;
 
 		Stage stage;
 		TimeLine attackTimeLine;
@@ -236,3 +214,4 @@ namespace Envelope {
 		TimeLine releaseTimeLine;
 	};
 } // namespace Envelope
+} // namespace wasm_audio

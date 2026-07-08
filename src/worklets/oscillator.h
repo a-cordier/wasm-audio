@@ -15,10 +15,11 @@
  */
 #pragma once
 
-#include "constants.cpp"
+#include "constants.h"
 #include <cmath>
 #include <cstdint>
 
+namespace wasm_audio {
 namespace Oscillator {
 	namespace SineTable {
 		static constexpr int SIZE = 2048;
@@ -40,7 +41,7 @@ namespace Oscillator {
 			float frac = index - i0;
 			return table[i0] + frac * (table[i0 + 1] - table[i0]);
 		}
-	}
+	} // namespace SineTable
 
 	enum class Mode {
 		SAW,
@@ -55,7 +56,6 @@ namespace Oscillator {
 		Kernel(float sampleRate) :
 			sampleRate(sampleRate) { SineTable::init(); }
 
-		public:
 		float nextSample(float frequency) {
 			frequency = shiftFrequency(frequency);
 			phaseIncrement = computePhaseIncrement(frequency);
@@ -64,17 +64,14 @@ namespace Oscillator {
 			return sample;
 		}
 
-		public:
 		void setMode(Mode newMode) {
 			mode = newMode;
 		}
 
-		public:
 		void setAmplitude(float newAmplitude) {
 			amplitude = newAmplitude;
 		}
 
-		public:
 		void setSemiShift(float newSemiShift) {
 			if (newSemiShift != semiShift) {
 				semiShift = newSemiShift;
@@ -82,7 +79,6 @@ namespace Oscillator {
 			}
 		}
 
-		public:
 		void setCentShift(float newCentShift) {
 			if (newCentShift != centShift) {
 				centShift = newCentShift;
@@ -90,17 +86,14 @@ namespace Oscillator {
 			}
 		}
 
-		public:
 		void setDutyCycle(float newDutyCycle) {
 			dutyCycle = newDutyCycle;
 		}
 
-		public:
 		void setSampleRate(float newSampleRate) {
 			sampleRate = newSampleRate;
 		}
 
-		public:
 		void reset() {
 			phase = 0.f;
 			phaseIncrement = 0.f;
@@ -123,18 +116,15 @@ namespace Oscillator {
 			}
 		}
 
-		private:
 		float computeSine() {
 			return SineTable::lookup(phase);
 		}
 
-		private:
 		float computeSaw() {
 			float value = 1.0 - (2.0 * phase / Constants::twoPi);
 			return value - computePolyBLEP(phase / Constants::twoPi, phaseIncrement / Constants::twoPi);
 		}
 
-		private:
 		float computeSquare() {
 			auto value = phase <= Constants::twoPi * dutyCycle ? 1 : -1;
 			value += computePolyBLEP(phase / Constants::twoPi, phaseIncrement / Constants::twoPi);
@@ -142,7 +132,6 @@ namespace Oscillator {
 			return value;
 		}
 
-		private:
 		float computeTriangle() {
 			auto value = computeSquare();
 			value = phaseIncrement * value + (1.f - phaseIncrement) * lastValue;
@@ -150,7 +139,6 @@ namespace Oscillator {
 			return value;
 		}
 
-		private:
 		float computeNoise() {
 			const static int q = 15;
 			const static float c1 = (1 << q) - 1;
@@ -162,7 +150,6 @@ namespace Oscillator {
 			return (c5 - c6) * c3;
 		}
 
-		private:
 		float computeRandomValue() {
 			rngState ^= rngState << 13;
 			rngState ^= rngState >> 17;
@@ -170,12 +157,10 @@ namespace Oscillator {
 			return static_cast<float>(rngState) / static_cast<float>(UINT32_MAX);
 		}
 
-		private:
 		float computePhaseIncrement(float frequency) {
 			return frequency * Constants::twoPi / sampleRate;
 		}
 
-		private:
 		float computePolyBLEP(float t, float dt) {
 			if (t < dt) {
 				t /= dt;
@@ -188,7 +173,6 @@ namespace Oscillator {
 			}
 		}
 
-		private:
 		void updatePhase(float frequency) {
 			phase += phaseIncrement;
 			if (phase >= Constants::twoPi) {
@@ -196,24 +180,21 @@ namespace Oscillator {
 			}
 		}
 
-		private:
 		float shiftFrequency(float frequency) {
 			return frequency * shiftMultiplier;
 		}
 
-		private:
 		void updateShiftMultiplier() {
 			shiftMultiplier = std::pow(Constants::semiFactor, semiShift)
 			                * std::pow(Constants::centFactor, centShift);
 		}
 
-		private:
 		static uint32_t nextSeed() {
 			static uint32_t counter = 0;
 			return ++counter * 2654435761u;
 		}
 
-		Mode mode;
+		Mode mode = Mode::SINE;
 
 		uint32_t rngState = nextSeed();
 
@@ -232,3 +213,4 @@ namespace Oscillator {
 		float sampleRate = Constants::sampleRate;
 	};
 } // namespace Oscillator
+} // namespace wasm_audio

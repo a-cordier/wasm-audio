@@ -15,6 +15,7 @@
  */
 #pragma once
 
+namespace wasm_audio {
 namespace Constants {
 	constexpr float sampleRate = 44100.f;
 	constexpr float epsilon = 0.000001f;
@@ -26,7 +27,6 @@ namespace Constants {
 	constexpr float subOscPresence = 0.25f;
 	constexpr float voiceGain = 0.5f;
 
-	// WIP moog filter
 	constexpr float e = 2.71828182845904523536028747135266250;
 	constexpr float log2e = 1.44269504088896340735992468100189214;
 	constexpr float log10e = 0.434294481903251827651128918916605082;
@@ -41,3 +41,4 @@ namespace Constants {
 	constexpr float sqrtOneOverTwo = 0.707106781186547524400844362104849039;
 	constexpr float oneOverTwoPi = 1.f / twoPi;
 } // namespace Constants
+} // namespace wasm_audio

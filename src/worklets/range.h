@@ -15,7 +15,9 @@
  */
 #pragma once
 
-#include "constants.cpp"
+#include "constants.h"
+
+namespace wasm_audio {
 
 struct Range {
 	const float min;
@@ -35,18 +37,20 @@ struct Range {
 	}
 };
 
-const Range midiRange{ 0.f, 127.f };
-const Range amplitudeRange{ -Constants::voiceGain, Constants::voiceGain };
-const Range zeroOneRange{ 0.f, 1.f };
-const Range attackRange{ Constants::epsilon, .5f };
-const Range decayRange{ .1f, 8.f };
-const Range sustainRange{ 0.1f, 1.f };
-const Range releaseRange{ 0.1f, .75f };
-const Range cutoffRange{ 0.007f, 0.97f };
-const Range resonanceRange{ 0.f, 0.95f };
-const Range driveRange{ 0.f, 0.75f };
-const Range envelopeAmountRange{ 0.f, 1.f };
-const Range semiShiftRange{ -24.f, 24.f };
-const Range centShiftRange{ -50.f, 50.f };
-const Range lfoFrequencyRange{ 0.f, 25.f };
-const Range oscCycleRange{ 0.25f, 0.75f };
+inline const Range midiRange{ 0.f, 127.f };
+inline const Range amplitudeRange{ -Constants::voiceGain, Constants::voiceGain };
+inline const Range zeroOneRange{ 0.f, 1.f };
+inline const Range attackRange{ Constants::epsilon, .5f };
+inline const Range decayRange{ .1f, 8.f };
+inline const Range sustainRange{ 0.1f, 1.f };
+inline const Range releaseRange{ 0.1f, .75f };
+inline const Range cutoffRange{ 0.007f, 0.97f };
+inline const Range resonanceRange{ 0.f, 0.95f };
+inline const Range driveRange{ 0.f, 0.75f };
+inline const Range envelopeAmountRange{ 0.f, 1.f };
+inline const Range semiShiftRange{ -24.f, 24.f };
+inline const Range centShiftRange{ -50.f, 50.f };
+inline const Range lfoFrequencyRange{ 0.f, 25.f };
+inline const Range oscCycleRange{ 0.25f, 0.75f };
+
+} // namespace wasm_audio

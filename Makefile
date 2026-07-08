@@ -1,5 +1,5 @@
 OUT = src/worklets/voice-kernel.wasmmodule.js
-DEPS = $(wildcard src/worklets/*.cpp) Makefile
+DEPS = $(wildcard src/worklets/*.cpp) $(wildcard src/worklets/*.h) Makefile
 
 SHELL := /bin/bash
 EMCC := docker run --rm -v $(CURDIR):/src -u $(shell id -u):$(shell id -g) emscripten/emsdk emcc

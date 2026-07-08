@@ -15,65 +15,59 @@
  */
 #pragma once
 
-#include "oscillator.cpp"
-#include "range.cpp"
+#include "oscillator.h"
+#include "range.h"
+
+namespace wasm_audio {
 
 struct SampleParameters {
-	public:
-	// A-rate parameter buffers (per-sample interpolation)
-	float *frequencyValues;
-	float *osc2AmplitudeValues;
-	float *noiseLevelValues;
-	float *cutoffValues;
-	float *resonanceValues;
-	float *driveValues;
-	float *lfo1FrequencyValues;
-	float *lfo1ModAmountValues;
-	float *lfo2FrequencyValues;
-	float *lfo2ModAmountValues;
+	float *frequencyValues = nullptr;
+	float *osc2AmplitudeValues = nullptr;
+	float *noiseLevelValues = nullptr;
+	float *cutoffValues = nullptr;
+	float *resonanceValues = nullptr;
+	float *driveValues = nullptr;
+	float *lfo1FrequencyValues = nullptr;
+	float *lfo1ModAmountValues = nullptr;
+	float *lfo2FrequencyValues = nullptr;
+	float *lfo2ModAmountValues = nullptr;
 
-	public:
-	// Working values (set per-sample for a-rate, once per quantum for k-rate)
-	float frequency;
-	float velocity;
-	float osc1SemiShift;
-	float osc1CentShift;
-	float osc1Cycle;
-	float osc2SemiShift;
-	float osc2CentShift;
-	float osc2Cycle;
-	float osc2Amplitude;
-	float osc1Amplitude;
-	float noiseLevel;
-	float amplitudeEnvelopeAttack;
-	float amplitudeEnvelopeDecay;
-	float amplitudeEnvelopeSustain;
-	float amplitudeEnvelopeRelease;
-	float cutoff;
-	float resonance;
-	float cutoffEnvelopeAmount;
-	float cutoffEnvelopeVelocity;
-	float cutoffEnvelopeAttack;
-	float cutoffEnvelopeDecay;
-	float lfo1Frequency;
-	float lfo1ModAmount;
-	float lfo2Frequency;
-	float lfo2ModAmount;
+	float frequency = 0.f;
+	float velocity = 0.f;
+	float osc1SemiShift = 0.f;
+	float osc1CentShift = 0.f;
+	float osc1Cycle = 0.5f;
+	float osc2SemiShift = 0.f;
+	float osc2CentShift = 0.f;
+	float osc2Cycle = 0.5f;
+	float osc2Amplitude = 0.f;
+	float osc1Amplitude = 1.f;
+	float noiseLevel = 0.f;
+	float amplitudeEnvelopeAttack = 0.f;
+	float amplitudeEnvelopeDecay = 0.f;
+	float amplitudeEnvelopeSustain = 0.f;
+	float amplitudeEnvelopeRelease = 0.f;
+	float cutoff = 0.f;
+	float resonance = 0.f;
+	float cutoffEnvelopeAmount = 0.f;
+	float cutoffEnvelopeVelocity = 0.f;
+	float cutoffEnvelopeAttack = 0.f;
+	float cutoffEnvelopeDecay = 0.f;
+	float lfo1Frequency = 0.f;
+	float lfo1ModAmount = 0.f;
+	float lfo2Frequency = 0.f;
+	float lfo2ModAmount = 0.f;
 	float overdrive = 0.f;
 
-	// Base values for k-rate params modified by per-sample modulations
-	float osc1CycleBase;
-	float osc2CycleBase;
+	float osc1CycleBase = 0.5f;
+	float osc2CycleBase = 0.5f;
 
-	public:
 	SampleParameters &withFrequencyValues(float *newFrequencyValues) {
 		frequencyValues = newFrequencyValues;
 		return *this;
 	}
 
-	public:
 	void fetchValues(unsigned int sample) {
-		// A-rate params: read per-sample from pointer arrays
 		frequency = getCurrentValue(frequencyValues, sample);
 		osc2Amplitude = getCurrentValue(osc2AmplitudeValues, sample, midiRange, zeroOneRange);
 		noiseLevel = getCurrentValue(noiseLevelValues, sample, midiRange, zeroOneRange);
@@ -85,7 +79,6 @@ struct SampleParameters {
 		lfo2Frequency = getCurrentValue(lfo2FrequencyValues, sample, midiRange, lfoFrequencyRange);
 		lfo2ModAmount = getCurrentValue(lfo2ModAmountValues, sample, midiRange, zeroOneRange);
 
-		// Restore k-rate base values that may have been modified by modulations
 		osc1Cycle = osc1CycleBase;
 		osc2Cycle = osc2CycleBase;
 
@@ -100,9 +93,10 @@ struct SampleParameters {
 		return valuesPtr[i];
 	}
 
-	private:
 	float getCurrentValue(float *valuesPtr, unsigned int i, Range sourceRange, Range targetRange) {
 		auto value = getCurrentValue(valuesPtr, i);
 		return targetRange.map(value, sourceRange);
 	}
 };
+
+} // namespace wasm_audio
