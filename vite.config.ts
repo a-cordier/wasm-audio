@@ -6,6 +6,7 @@ const workletFiles: Record<string, string> = {
   "synth-processor.js": "src/synth",
   "voice-kernel.wasmmodule.js": "src/synth/engine",
   "wasm-worklet-processor.js": "src/runtime",
+  "worklet-drain.js": "src/midi/transport",
 };
 
 function workletsPlugin(): Plugin {

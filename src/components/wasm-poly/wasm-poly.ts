@@ -36,10 +36,8 @@ import { FilterEvent } from "../../types/filter-event";
 import { FilterEnvelopeEvent } from "../../types/filter-envelope-event";
 import { OscillatorEnvelopeEvent } from "../../types/oscillator-envelope-event";
 import { LfoEvent } from "../../types/lfo-event";
-import { createMidiController } from "../../core/midi/midi-controller";
-import { MidiOmniChannel } from "../../core/midi/midi-channels";
-import { Dispatcher } from "../../core/dispatcher";
-import { MidiController } from "../../types/midi-controller";
+import { createMidi, Midi } from "../../midi/api";
+import { MidiBus } from "../../midi/bus/bus";
 import { MenuMode } from "../../types/menu-mode";
 import { VoiceEvent } from "../../types/voice-event";
 import { VoiceState } from "../../types/voice";
@@ -49,7 +47,8 @@ import { KeyBoardController } from "../../core/keyboard-controller";
 export class WasmPoly extends LitElement {
   private audioContext: AudioContext;
   private analyzer: AnalyserNode;
-  private midiController: MidiController & Dispatcher;
+  private midi: Midi;
+  private midiBus: MidiBus;
   private voiceManager: SynthController;
   private state: Partial<VoiceState>;
 
@@ -74,15 +73,25 @@ export class WasmPoly extends LitElement {
     super.connectedCallback();
     await this.audioContext.audioWorklet.addModule("synth-processor.js");
     this.voiceManager.init();
-    this.midiController = await createMidiController(MidiOmniChannel);
+    this.midi = await createMidi();
+    this.midiBus = this.midi.bus("main");
     this.setUpVoiceManager();
     this.analyzer.connect(this.audioContext.destination);
     this.registerVoiceHandlers();
   }
 
   setUpVoiceManager() {
+    for (const input of this.midi.devices.inputs.values()) {
+      input.connect(this.midiBus);
+    }
+    this.midi.onPortChange((port, event) => {
+      if (event === "connected" && "connect" in port) {
+        (port as any).connect(this.midiBus);
+      }
+    });
+
     this.voiceManager
-      .setMidiController(this.midiController)
+      .connectBus(this.midiBus)
       .setKeyBoardcontroller(new KeyBoardController())
       .connect(this.analyzer);
   }
@@ -283,14 +292,12 @@ export class WasmPoly extends LitElement {
       case MenuMode.MIDI_LEARN:
         this.currentLearnerID = option.value;
         if (shouldUpdate) {
-          this.midiController.setCurrentLearnerID(this.currentLearnerID);
+          this.voiceManager.setLearnerID(this.currentLearnerID);
         }
         break;
       case MenuMode.MIDI_CHANNEL:
         this.unlearn();
-        if (shouldUpdate) {
-          this.midiController.setCurrentChannel(option.value);
-        }
+        // Channel filtering is handled by bus route filters — future enhancement
         break;
       case MenuMode.PRESET:
         this.unlearn();
@@ -304,7 +311,7 @@ export class WasmPoly extends LitElement {
 
   unlearn() {
     this.currentLearnerID = MidiControlID.NONE;
-    this.midiController.setCurrentLearnerID(this.currentLearnerID);
+    this.voiceManager.setLearnerID(this.currentLearnerID);
   }
 
   computeVizualizerIfEnabled() {

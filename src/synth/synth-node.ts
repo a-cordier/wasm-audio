@@ -16,7 +16,9 @@
 
 import { WasmProcessorNode } from "../runtime/wasm-processor-node";
 import { SharedParamBuffer } from "../runtime/shared-param-buffer";
-import { SharedEventQueue } from "../runtime/shared-event-queue";
+import { MidiRingBuffer } from "../midi/transport/ring-buffer";
+import { MidiEvent, MidiTarget, Status, Channel } from "../midi/types";
+import { noteFrequency } from "../midi/codec/notes";
 
 // Must match wasm_audio::ParamId in synth-engine.h
 export const ParamId = Object.freeze({
@@ -53,11 +55,7 @@ export const ParamId = Object.freeze({
 });
 
 const PARAM_COUNT = 30;
-const EVENT_QUEUE_CAPACITY = 64;
-const EVENT_SIZE = 4; // [type, midi, frequency, velocity]
-
-const NOTE_ON = 1;
-const NOTE_OFF = 2;
+const MIDI_QUEUE_CAPACITY = 64;
 
 // C++ Oscillator::Mode values (oscillator.h)
 // TS OscillatorMode: SINE=0, SAWTOOTH=1, SQUARE=2, TRIANGLE=3
@@ -71,29 +69,44 @@ export const FilterModeToCpp = Object.freeze([0, 1, 3, 2]);
 
 // C++ Voice::LfoDestination values match TS LfoDestination (both 0-5, same order)
 
-export class SynthNode extends WasmProcessorNode {
+export class SynthNode extends WasmProcessorNode implements MidiTarget {
   private params: SharedParamBuffer;
-  private events: SharedEventQueue;
+  private midiRing: MidiRingBuffer;
+
+  /** Expose the ring buffer's SAB so a MidiBus can subscribe directly. */
+  get midiBuffer(): SharedArrayBuffer {
+    return this.midiRing.buffer;
+  }
 
   constructor(audioContext: AudioContext) {
     super(audioContext, "synth", { outputChannelCount: [2] });
 
     this.params = new SharedParamBuffer(PARAM_COUNT);
-    this.events = new SharedEventQueue(EVENT_QUEUE_CAPACITY, EVENT_SIZE);
+    this.midiRing = new MidiRingBuffer(MIDI_QUEUE_CAPACITY);
 
     this.send({
       type: "__init_sab",
       paramBuffer: this.params.buffer,
-      eventBuffer: this.events.buffer,
+      midiBuffer: this.midiRing.buffer,
     });
   }
 
+  /**
+   * Implements MidiTarget — receives events from the bus system.
+   */
+  receive(event: MidiEvent): void {
+    const freqHint = (event.status === Status.NOTE_ON || event.status === Status.NOTE_OFF)
+      ? noteFrequency(event.data1)
+      : 0;
+    this.midiRing.enqueue(event, freqHint);
+  }
+
   noteOn(midi: number, frequency: number, velocity: number) {
-    this.events.enqueue([NOTE_ON, midi, frequency, velocity]);
+    this.midiRing.enqueueRaw(Status.NOTE_ON, 0 as Channel, midi, velocity, performance.now(), frequency);
   }
 
   noteOff(midi: number) {
-    this.events.enqueue([NOTE_OFF, midi, 0, 0]);
+    this.midiRing.enqueueRaw(Status.NOTE_OFF, 0 as Channel, midi, 0, performance.now(), 0);
   }
 
   setParam(id: number, value: number) {

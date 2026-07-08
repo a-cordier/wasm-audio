@@ -22,19 +22,26 @@ import { MidiControl } from "../types/control";
 import { MidiControlID } from "../types/midi-learn-options";
 import { Dispatcher } from "../core/dispatcher";
 import { MidiMessageEvent, MidiMessage } from "../types/midi-message";
+import { MidiEvent, MidiTarget, Status, Disposable } from "../midi/types";
+import { MidiBus } from "../midi/bus/bus";
+import { noteFrequency } from "../midi/codec/notes";
+import { isNoteOn, isNoteOff, isControlChange } from "../midi/codec/decode";
 import { midiToNote } from "../core/midi/midi-note";
 import { MidiController } from "../types/midi-controller";
 import { VoiceEvent } from "../types/voice-event";
 import { KeyboardMessage } from "../types/keyboard-messsage";
 import { PresetOptions } from "../core/presets/options";
 
-export class SynthController extends Dispatcher {
+export class SynthController extends Dispatcher implements MidiTarget {
   private synthNode: SynthNode | null = null;
   private output: GainNode;
   private audioContext: AudioContext;
   private midiController: MidiController & Dispatcher;
 
   private state: VoiceState;
+  private controlMap = new Map<number, MidiControlID>();
+  private currentLearnerID = MidiControlID.NONE;
+  private busSubscription: Disposable | null = null;
 
   constructor(audioContext: AudioContext) {
     super();
@@ -50,6 +57,36 @@ export class SynthController extends Dispatcher {
     this.synthNode = new SynthNode(this.audioContext);
     this.synthNode.connect(this.output);
     this.syncParams();
+  }
+
+  /**
+   * Connect this controller to a MidiBus.
+   * All MIDI events are routed through receive() which handles notes (to worklet)
+   * and CCs (for MIDI Learn and UI sync).
+   */
+  connectBus(bus: MidiBus): this {
+    this.busSubscription = bus.subscribe((event) => this.receive(event));
+    return this;
+  }
+
+  /**
+   * Implements MidiTarget — receives events from a bus or source.
+   */
+  receive(event: MidiEvent): void {
+    if (isNoteOn(event)) {
+      const frequency = noteFrequency(event.data1);
+      this.synthNode?.noteOn(event.data1, frequency, event.data2);
+      this.dispatch(VoiceEvent.NOTE_ON, {
+        midiValue: event.data1,
+        frequency,
+        velocity: event.data2,
+      });
+    } else if (isNoteOff(event)) {
+      this.synthNode?.noteOff(event.data1);
+      this.dispatch(VoiceEvent.NOTE_OFF, { midiValue: event.data1 });
+    } else if (isControlChange(event)) {
+      this.handleCC(event.data1, event.data2);
+    }
   }
 
   next({ frequency, midiValue, velocity = 60 }) {
@@ -80,6 +117,17 @@ export class SynthController extends Dispatcher {
     return this;
   }
 
+  /** MIDI Learn: set which parameter is currently learning */
+  setLearnerID(id: MidiControlID) {
+    this.currentLearnerID = id;
+  }
+
+  /** MIDI Learn: map a CC number to a control ID */
+  mapControl(ccNumber: number, id: MidiControlID) {
+    this.controlMap.set(ccNumber, id);
+    this.currentLearnerID = MidiControlID.NONE;
+  }
+
   onMidiNoteOn(message: MidiMessage) {
     const note = midiToNote(message.data);
     this.next(note);
@@ -106,6 +154,26 @@ export class SynthController extends Dispatcher {
       this.midiController.mapControl(message.data.control, midiControl.id);
     }
 
+    this.dispatchCC(midiControl);
+  }
+
+  private handleCC(control: number, value: number) {
+    const isLearning = this.currentLearnerID !== MidiControlID.NONE;
+
+    let controlID = this.controlMap.get(control);
+    if (isLearning) {
+      controlID = this.currentLearnerID;
+      this.controlMap.set(control, controlID);
+      this.currentLearnerID = MidiControlID.NONE;
+    }
+
+    if (controlID === undefined) return;
+
+    const midiControl = this.state.findMidiControlById(controlID);
+    if (!midiControl) return;
+
+    midiControl.controller = control;
+    midiControl.value = value;
     this.dispatchCC(midiControl);
   }
 

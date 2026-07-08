@@ -14,20 +14,13 @@
  * limitations under the License.
  */
 import { createWasmProcessor } from "./wasm-worklet-processor.js";
+import { createMidiDrain } from "./worklet-drain.js";
 import createModule from "./voice-kernel.wasmmodule.js";
 
 const PARAM_COUNT = 30;
-const EVENT_SIZE = 4;
-const HEADER_INTS = 2;
-const HEADER_BYTES = HEADER_INTS * Int32Array.BYTES_PER_ELEMENT;
-const NOTE_ON = 1;
-const NOTE_OFF = 2;
 
 let paramView = null;
-let eventHeads = null;
-let eventData = null;
-let eventCapacity = 0;
-const eventBuf = new Float32Array(EVENT_SIZE);
+let midi = null;
 
 const wasm = await createModule();
 
@@ -41,11 +34,7 @@ createWasmProcessor(wasm, {
   onMessage(wasm, engine, msg) {
     if (msg.type === "__init_sab") {
       paramView = new Float32Array(msg.paramBuffer);
-      eventHeads = new Int32Array(msg.eventBuffer, 0, HEADER_INTS);
-      eventData = new Float32Array(msg.eventBuffer, HEADER_BYTES);
-      eventCapacity =
-        (msg.eventBuffer.byteLength - HEADER_BYTES) /
-        (EVENT_SIZE * Float32Array.BYTES_PER_ELEMENT);
+      midi = createMidiDrain(msg.midiBuffer);
       return;
     }
   },
@@ -53,12 +42,11 @@ createWasmProcessor(wasm, {
   onProcess(wasm, engine) {
     if (!paramView) return;
 
-    while (dequeueEvent()) {
-      const type = eventBuf[0];
-      if (type === NOTE_ON) {
-        wasm._synth_engine_note_on(engine, eventBuf[1], eventBuf[2], eventBuf[3]);
-      } else if (type === NOTE_OFF) {
-        wasm._synth_engine_note_off(engine, eventBuf[1]);
+    while (midi.dequeue()) {
+      if (midi.status === midi.NOTE_ON && midi.data2 > 0) {
+        wasm._synth_engine_note_on(engine, midi.data1, midi.frequency, midi.data2);
+      } else if (midi.status === midi.NOTE_OFF || (midi.status === midi.NOTE_ON && midi.data2 === 0)) {
+        wasm._synth_engine_note_off(engine, midi.data1);
       }
     }
 
@@ -67,17 +55,3 @@ createWasmProcessor(wasm, {
     }
   },
 });
-
-function dequeueEvent() {
-  const read = Atomics.load(eventHeads, 0);
-  const write = Atomics.load(eventHeads, 1);
-  if (read === write) return false;
-
-  const offset = read * EVENT_SIZE;
-  for (let i = 0; i < EVENT_SIZE; i++) {
-    eventBuf[i] = eventData[offset + i];
-  }
-
-  Atomics.store(eventHeads, 0, (read + 1) % eventCapacity);
-  return true;
-}
