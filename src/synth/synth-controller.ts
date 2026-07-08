@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { SynthNode, ParamId, OscModeToCpp, FilterModeToCpp } from "../worklets/synth-node";
+import { SynthNode, ParamId, OscModeToCpp, FilterModeToCpp } from "./synth-node";
 import { VoiceState, createVoiceState } from "../types/voice";
 import { OscillatorMode } from "../types/oscillator-mode";
 import { FilterMode } from "../types/filter-mode";
 import { LfoDestination } from "../types/lfo-destination";
 import { MidiControl } from "../types/control";
 import { MidiControlID } from "../types/midi-learn-options";
-import { Dispatcher } from "./dispatcher";
+import { Dispatcher } from "../core/dispatcher";
 import { MidiMessageEvent, MidiMessage } from "../types/midi-message";
-import { midiToNote } from "./midi/midi-note";
+import { midiToNote } from "../core/midi/midi-note";
 import { MidiController } from "../types/midi-controller";
 import { VoiceEvent } from "../types/voice-event";
 import { KeyboardMessage } from "../types/keyboard-messsage";
-import { PresetOptions } from "./presets/options";
+import { PresetOptions } from "../core/presets/options";
 
 export class SynthController extends Dispatcher {
   private synthNode: SynthNode | null = null;

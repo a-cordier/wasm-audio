@@ -3,8 +3,8 @@ import { resolve } from "path";
 import { copyFileSync, mkdirSync, readFileSync } from "fs";
 
 const workletFiles: Record<string, string> = {
-  "synth-processor.js": "src/worklets",
-  "voice-kernel.wasmmodule.js": "src/worklets",
+  "synth-processor.js": "src/synth",
+  "voice-kernel.wasmmodule.js": "src/synth/engine",
   "wasm-worklet-processor.js": "src/runtime",
 };
 

@@ -29,7 +29,7 @@ import "./panels/menu/menu-element";
 import "./panels/panel-wrapper-element";
 import "../common/controls/midi-control-wrapper";
 
-import { SynthController } from "../../core/synth-controller";
+import { SynthController } from "../../synth/synth-controller";
 
 import { OscillatorEvent } from "../../types/oscillator-event";
 import { FilterEvent } from "../../types/filter-event";
