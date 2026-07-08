@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+import { WasmProcessorNode } from "../runtime/wasm-processor-node";
+import { SharedParamBuffer } from "../runtime/shared-param-buffer";
+import { SharedEventQueue } from "../runtime/shared-event-queue";
+
 // Must match wasm_audio::ParamId in synth-engine.h
 export const ParamId = Object.freeze({
   OSC1_MODE: 0,
@@ -48,6 +52,13 @@ export const ParamId = Object.freeze({
   LFO2_MOD_AMOUNT: 29,
 });
 
+const PARAM_COUNT = 30;
+const EVENT_QUEUE_CAPACITY = 64;
+const EVENT_SIZE = 4; // [type, midi, frequency, velocity]
+
+const NOTE_ON = 1;
+const NOTE_OFF = 2;
+
 // C++ Oscillator::Mode values (oscillator.h)
 // TS OscillatorMode: SINE=0, SAWTOOTH=1, SQUARE=2, TRIANGLE=3
 // C++ Oscillator::Mode: SAW=0, SINE=1, SQUARE=2, TRIANGLE=3
@@ -60,22 +71,32 @@ export const FilterModeToCpp = Object.freeze([0, 1, 3, 2]);
 
 // C++ Voice::LfoDestination values match TS LfoDestination (both 0-5, same order)
 
-import { WasmProcessorNode } from "../runtime/wasm-processor-node";
-
 export class SynthNode extends WasmProcessorNode {
+  private params: SharedParamBuffer;
+  private events: SharedEventQueue;
+
   constructor(audioContext: AudioContext) {
     super(audioContext, "synth", { outputChannelCount: [2] });
+
+    this.params = new SharedParamBuffer(PARAM_COUNT);
+    this.events = new SharedEventQueue(EVENT_QUEUE_CAPACITY, EVENT_SIZE);
+
+    this.send({
+      type: "__init_sab",
+      paramBuffer: this.params.buffer,
+      eventBuffer: this.events.buffer,
+    });
   }
 
   noteOn(midi: number, frequency: number, velocity: number) {
-    this.send({ type: "noteOn", midi, frequency, velocity });
+    this.events.enqueue([NOTE_ON, midi, frequency, velocity]);
   }
 
   noteOff(midi: number) {
-    this.send({ type: "noteOff", midi });
+    this.events.enqueue([NOTE_OFF, midi, 0, 0]);
   }
 
   setParam(id: number, value: number) {
-    this.send({ type: "setParam", id, value });
+    this.params.set(id, value);
   }
 }

@@ -28,6 +28,7 @@ const BYTES_PER_SAMPLE = Float32Array.BYTES_PER_ELEMENT;
  * @param {string} config.processExport   – C export: (engine, outputPtr, channelCount)
  * @param {number} config.channelCount    – max output channels (default 2)
  * @param {(wasm: object, engine: number, msg: any) => void} config.onMessage
+ * @param {(wasm: object, engine: number) => void} [config.onProcess] – called each quantum before processExport
  */
 export function createWasmProcessor(wasm, config) {
   const {
@@ -37,6 +38,7 @@ export function createWasmProcessor(wasm, config) {
     processExport,
     channelCount = 2,
     onMessage,
+    onProcess,
   } = config;
 
   class WasmProcessor extends AudioWorkletProcessor {
@@ -61,6 +63,8 @@ export function createWasmProcessor(wasm, config) {
 
     process(_inputs, outputs) {
       if (!this._alive) return false;
+
+      if (onProcess) onProcess(wasm, this._engine);
 
       const output = outputs[0];
       const outChannels = output.length;
