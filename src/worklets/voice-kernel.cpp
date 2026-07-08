@@ -15,81 +15,40 @@
  */
 #include "voice-kernel.h"
 
-#include "emscripten/bind.h"
-
 using namespace wasm_audio;
 
-EMSCRIPTEN_BINDINGS(CLASS_VoiceKernel) {
-	emscripten::class_<Voice::Kernel>("VoiceKernel")
-					.constructor<float, float>()
-					.function("process", &Voice::Kernel::process, emscripten::allow_raw_pointers())
-					.function("setParameters", &Voice::Kernel::setParameters, emscripten::allow_raw_pointers())
-					.function("setVelocity", &Voice::Kernel::setVelocity)
-					.function("setOsc1Mode", &Voice::Kernel::setOsc1Mode)
-					.function("setOsc1SemiShift", &Voice::Kernel::setOsc1SemiShift)
-					.function("setOsc1CentShift", &Voice::Kernel::setOsc1CentShift)
-					.function("setOsc1Cycle", &Voice::Kernel::setOsc1Cycle)
-					.function("setOsc2Mode", &Voice::Kernel::setOsc2Mode)
-					.function("setOsc2SemiShift", &Voice::Kernel::setOsc2SemiShift)
-					.function("setOsc2CentShift", &Voice::Kernel::setOsc2CentShift)
-					.function("setOsc2Cycle", &Voice::Kernel::setOsc2Cycle)
-					.function("setOsc2Amplitude", &Voice::Kernel::setOsc2Amplitude, emscripten::allow_raw_pointers())
-					.function("setNoiseLevel", &Voice::Kernel::setNoiseLevel, emscripten::allow_raw_pointers())
-					.function("setAmplitudeAttack", &Voice::Kernel::setAmplitudeAttack)
-					.function("setAmplitudeDecay", &Voice::Kernel::setAmplitudeDecay)
-					.function("setAmplitudeSustain", &Voice::Kernel::setAmplitudeSustain)
-					.function("setAmplitudeRelease", &Voice::Kernel::setAmplitudeRelease)
-					.function("setFilterMode", &Voice::Kernel::setFilterMode)
-					.function("setCutoff", &Voice::Kernel::setCutoff, emscripten::allow_raw_pointers())
-					.function("setResonance", &Voice::Kernel::setResonance, emscripten::allow_raw_pointers())
-					.function("setDrive", &Voice::Kernel::setDrive, emscripten::allow_raw_pointers())
-					.function("setCutoffEnvelopeAmount", &Voice::Kernel::setCutoffEnvelopeAmount)
-					.function("setCutoffEnvelopeVelocity", &Voice::Kernel::setCutoffEnvelopeVelocity)
-					.function("setCutoffEnvelopeAttack", &Voice::Kernel::setCutoffEnvelopeAttack)
-					.function("setCutoffEnvelopeDecay", &Voice::Kernel::setCutoffEnvelopeDecay)
-					.function("setLfo1Frequency", &Voice::Kernel::setLfo1Frequency, emscripten::allow_raw_pointers())
-					.function("setLfo1ModAmount", &Voice::Kernel::setLfo1ModAmount, emscripten::allow_raw_pointers())
-					.function("setLfo1Mode", &Voice::Kernel::setLfo1Mode)
-					.function("setLfo1Destination", &Voice::Kernel::setLfo1Destination)
-					.function("setLfo2Frequency", &Voice::Kernel::setLfo2Frequency, emscripten::allow_raw_pointers())
-					.function("setLfo2ModAmount", &Voice::Kernel::setLfo2ModAmount, emscripten::allow_raw_pointers())
-					.function("setLfo2Mode", &Voice::Kernel::setLfo2Mode)
-					.function("setLfo2Destination", &Voice::Kernel::setLfo2Destination)
-					.function("isStopped", &Voice::Kernel::isStopped)
-					.function("enterReleaseStage", &Voice::Kernel::enterReleaseStage)
-					.function("reset", &Voice::Kernel::reset);
+static Voice::Kernel *asKernel(uintptr_t ptr) {
+	return reinterpret_cast<Voice::Kernel *>(ptr);
 }
 
-EMSCRIPTEN_BINDINGS(ENUM_OscillatorMode) {
-	emscripten::enum_<Oscillator::Mode>("WaveForm")
-					.value("SINE", Oscillator::Mode::SINE)
-					.value("SAW", Oscillator::Mode::SAW)
-					.value("SQUARE", Oscillator::Mode::SQUARE)
-					.value("TRIANGLE", Oscillator::Mode::TRIANGLE);
+extern "C" {
+
+uintptr_t voice_kernel_create(float sampleRate, float renderFrames) {
+	return reinterpret_cast<uintptr_t>(new Voice::Kernel(sampleRate, renderFrames));
 }
 
-EMSCRIPTEN_BINDINGS(ENUM_FilterMode) {
-	emscripten::enum_<Filter::Mode>("FilterMode")
-					.value("LOWPASS", Filter::Mode::LOWPASS)
-					.value("LOWPASS_PLUS", Filter::Mode::LOWPASS_PLUS)
-					.value("BANDPASS", Filter::Mode::BANDPASS)
-					.value("HIGHPASS", Filter::Mode::HIGHPASS);
+void voice_kernel_destroy(uintptr_t ptr) {
+	delete asKernel(ptr);
 }
 
-EMSCRIPTEN_BINDINGS(ENUM_VoiceState) {
-	emscripten::enum_<Voice::State>("VoiceState")
-					.value("DISPOSED", Voice::State::DISPOSED)
-					.value("STARTED", Voice::State::STARTED)
-					.value("STOPPING", Voice::State::STOPPING)
-					.value("STOPPED", Voice::State::STOPPED);
+void voice_kernel_process(uintptr_t ptr, uintptr_t outputPtr, unsigned channelCount) {
+	asKernel(ptr)->process(outputPtr, channelCount);
 }
 
-EMSCRIPTEN_BINDINGS(ENUM_LfoDestination) {
-	emscripten::enum_<Voice::LfoDestination>("LfoDestination")
-					.value("FREQUENCY", Voice::LfoDestination::FREQUENCY)
-					.value("OSCILLATOR_MIX", Voice::LfoDestination::OSCILLATOR_MIX)
-					.value("CUTOFF", Voice::LfoDestination::CUTOFF)
-					.value("RESONANCE", Voice::LfoDestination::RESONANCE)
-					.value("OSC1_CYCLE", Voice::LfoDestination::OSC1_CYCLE)
-					.value("OSC2_CYCLE", Voice::LfoDestination::OSC2_CYCLE);
+void voice_kernel_set_parameters(uintptr_t ptr, uintptr_t blockPtr) {
+	asKernel(ptr)->setParameters(blockPtr);
 }
+
+void voice_kernel_enter_release_stage(uintptr_t ptr) {
+	asKernel(ptr)->enterReleaseStage();
+}
+
+int voice_kernel_is_stopped(uintptr_t ptr) {
+	return asKernel(ptr)->isStopped() ? 1 : 0;
+}
+
+void voice_kernel_reset(uintptr_t ptr) {
+	asKernel(ptr)->reset();
+}
+
+} // extern "C"

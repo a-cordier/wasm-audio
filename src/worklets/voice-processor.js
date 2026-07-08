@@ -29,27 +29,38 @@ import createModule from "./voice-kernel.wasmmodule.js";
 
 const wasm = await createModule();
 
+// C++ Oscillator::Mode enum values (oscillator.h)
+const OscMode = Object.freeze({ SAW: 0, SINE: 1, SQUARE: 2, TRIANGLE: 3 });
+
+// C++ Filter::Mode enum values (filter.h)
+const FilterModeEnum = Object.freeze({ LOWPASS: 0, LOWPASS_PLUS: 1, HIGHPASS: 2, BANDPASS: 3 });
+
+// C++ Voice::LfoDestination enum values (voice-kernel.h)
+const LfoDestEnum = Object.freeze({
+  FREQUENCY: 0, OSCILLATOR_MIX: 1, CUTOFF: 2, RESONANCE: 3, OSC1_CYCLE: 4, OSC2_CYCLE: 5,
+});
+
 const waveforms = Object.freeze({
-  [WaveFormParam.SINE]: wasm.WaveForm.SINE.value,
-  [WaveFormParam.SAWTOOTH]: wasm.WaveForm.SAW.value,
-  [WaveFormParam.SQUARE]: wasm.WaveForm.SQUARE.value,
-  [WaveFormParam.TRIANGLE]: wasm.WaveForm.TRIANGLE.value,
+  [WaveFormParam.SINE]: OscMode.SINE,
+  [WaveFormParam.SAWTOOTH]: OscMode.SAW,
+  [WaveFormParam.SQUARE]: OscMode.SQUARE,
+  [WaveFormParam.TRIANGLE]: OscMode.TRIANGLE,
 });
 
 const FilterMode = Object.freeze({
-  [FilterModeParam.LOWPASS]: wasm.FilterMode.LOWPASS.value,
-  [FilterModeParam.LOWPASS_PLUS]: wasm.FilterMode.LOWPASS_PLUS.value,
-  [FilterModeParam.BANDPASS]: wasm.FilterMode.BANDPASS.value,
-  [FilterModeParam.HIGHPASS]: wasm.FilterMode.HIGHPASS.value,
+  [FilterModeParam.LOWPASS]: FilterModeEnum.LOWPASS,
+  [FilterModeParam.LOWPASS_PLUS]: FilterModeEnum.LOWPASS_PLUS,
+  [FilterModeParam.BANDPASS]: FilterModeEnum.BANDPASS,
+  [FilterModeParam.HIGHPASS]: FilterModeEnum.HIGHPASS,
 });
 
 const LfoDestination = Object.freeze({
-  [LfoDestinationParam.FREQUENCY]: wasm.LfoDestination.FREQUENCY.value,
-  [LfoDestinationParam.OSCILLATOR_MIX]: wasm.LfoDestination.OSCILLATOR_MIX.value,
-  [LfoDestinationParam.CUTOFF]: wasm.LfoDestination.CUTOFF.value,
-  [LfoDestinationParam.RESONANCE]: wasm.LfoDestination.RESONANCE.value,
-  [LfoDestinationParam.OSC1_CYCLE]: wasm.LfoDestination.OSC1_CYCLE.value,
-  [LfoDestinationParam.OSC2_CYCLE]: wasm.LfoDestination.OSC2_CYCLE.value,
+  [LfoDestinationParam.FREQUENCY]: LfoDestEnum.FREQUENCY,
+  [LfoDestinationParam.OSCILLATOR_MIX]: LfoDestEnum.OSCILLATOR_MIX,
+  [LfoDestinationParam.CUTOFF]: LfoDestEnum.CUTOFF,
+  [LfoDestinationParam.RESONANCE]: LfoDestEnum.RESONANCE,
+  [LfoDestinationParam.OSC1_CYCLE]: LfoDestEnum.OSC1_CYCLE,
+  [LfoDestinationParam.OSC2_CYCLE]: LfoDestEnum.OSC2_CYCLE,
 });
 
 const PARAM_BLOCK_FIELDS = 32;
@@ -114,16 +125,25 @@ class KernelPool {
   pool = [];
 
   constructor(length = 8) {
-    this.pool = Array.from({ length }).map(() => new wasm.VoiceKernel(sampleRate, RENDER_QUANTUM_FRAMES));
+    this.pool = Array.from({ length }).map(
+      () => wasm._voice_kernel_create(sampleRate, RENDER_QUANTUM_FRAMES)
+    );
   }
 
   acquire() {
     return this.pool.shift();
   }
 
-  release(kernel) {
-    kernel.reset();
-    this.pool.push(kernel);
+  release(kernelPtr) {
+    wasm._voice_kernel_reset(kernelPtr);
+    this.pool.push(kernelPtr);
+  }
+
+  dispose() {
+    for (const ptr of this.pool) {
+      wasm._voice_kernel_destroy(ptr);
+    }
+    this.pool = [];
   }
 }
 
@@ -153,7 +173,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.state = VoiceState.STARTED;
     }
 
-    if (this.kernel.isStopped()) {
+    if (wasm._voice_kernel_is_stopped(this.kernel)) {
       this.freeBuffers();
       pool.release(this.kernel);
       return false;
@@ -165,16 +185,15 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.allocateBuffers(channelCount, parameters);
 
     if (isStopped(parameters) && this.state !== VoiceState.STOPPING) {
-      this.kernel.enterReleaseStage();
+      wasm._voice_kernel_enter_release_stage(this.kernel);
       this.state = VoiceState.STOPPING;
     }
 
     this.writeParameterBlock(parameters);
-    this.kernel.setParameters(this._paramBlockPtr);
+    wasm._voice_kernel_set_parameters(this.kernel, this._paramBlockPtr);
 
-    this.kernel.process(this.outputBuffer.getHeapAddress(), channelCount);
+    wasm._voice_kernel_process(this.kernel, this.outputBuffer.getHeapAddress(), channelCount);
 
-    // Web Audio rendering
     for (let channel = 0; channel < channelCount; ++channel) {
       output[channel].set(this.outputBuffer.getChannelData(channel));
     }
@@ -210,7 +229,6 @@ class VoiceProcessor extends AudioWorkletProcessor {
     u32[base + PB.LFO2_MODE] = waveforms[kValueOf(parameters.lfo2Mode)];
     u32[base + PB.LFO2_DESTINATION] = LfoDestination[kValueOf(parameters.lfo2Destination)];
 
-    // A-rate params: pass heap buffer addresses for per-sample reading
     u32[base + PB.FREQUENCY] = this.parameterBuffers.get("frequency").getHeapAddress();
     u32[base + PB.OSC2_AMPLITUDE] = this.parameterBuffers.get("osc2Amplitude").getHeapAddress();
     u32[base + PB.NOISE_LEVEL] = this.parameterBuffers.get("noiseLevel").getHeapAddress();
@@ -222,7 +240,6 @@ class VoiceProcessor extends AudioWorkletProcessor {
     u32[base + PB.LFO2_FREQUENCY] = this.parameterBuffers.get("lfo2Frequency").getHeapAddress();
     u32[base + PB.LFO2_MOD_AMOUNT] = this.parameterBuffers.get("lfo2ModAmount").getHeapAddress();
 
-    // K-rate params: pass raw MIDI scalar values directly
     f32[base + PB.AMPLITUDE_ATTACK] = kValueOf(parameters.amplitudeAttack);
     f32[base + PB.AMPLITUDE_DECAY] = kValueOf(parameters.amplitudeDecay);
     f32[base + PB.AMPLITUDE_SUSTAIN] = kValueOf(parameters.amplitudeSustain);
