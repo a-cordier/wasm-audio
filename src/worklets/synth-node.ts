@@ -60,20 +60,22 @@ export const FilterModeToCpp = Object.freeze([0, 1, 3, 2]);
 
 // C++ Voice::LfoDestination values match TS LfoDestination (both 0-5, same order)
 
-export class SynthNode extends AudioWorkletNode {
+import { WasmProcessorNode } from "../runtime/wasm-processor-node";
+
+export class SynthNode extends WasmProcessorNode {
   constructor(audioContext: AudioContext) {
     super(audioContext, "synth", { outputChannelCount: [2] });
   }
 
   noteOn(midi: number, frequency: number, velocity: number) {
-    this.port.postMessage({ type: "noteOn", midi, frequency, velocity });
+    this.send({ type: "noteOn", midi, frequency, velocity });
   }
 
   noteOff(midi: number) {
-    this.port.postMessage({ type: "noteOff", midi });
+    this.send({ type: "noteOff", midi });
   }
 
   setParam(id: number, value: number) {
-    this.port.postMessage({ type: "setParam", id, value });
+    this.send({ type: "setParam", id, value });
   }
 }
