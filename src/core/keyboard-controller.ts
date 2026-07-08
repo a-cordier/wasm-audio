@@ -13,79 +13,113 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createMidiOctaves } from "./midi/midi-note";
-import { Dispatcher } from "./dispatcher";
-import { KeyboardMessage } from "../types/keyboard-messsage";
-import { MidiOmniChannel } from "./midi/midi-channels";
+import { MidiEvent, MidiSource, MidiTarget, RouteFilter, Status, Channel, Disposable } from "../midi/types";
 
-const midiOctaves = createMidiOctaves(440);
+const DEFAULT_VELOCITY = 60;
+const DEFAULT_CHANNEL: Channel = 0;
 
-type PitchClass = "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B";
+interface NoteMapping {
+  midi: number;
+}
 
 /* prettier-ignore */
-const keyMapping = new Map([
-  ["w", midiOctaves[3][0]],     // C3
-  ["x", midiOctaves[3][2]],     // D3
-  ["c", midiOctaves[3][4]],     // E3
-  ["v", midiOctaves[3][5]],     // F3
-  ["b", midiOctaves[3][7]],     // G3
-  ["n", midiOctaves[3][9]],     // A3
-  ["q", midiOctaves[3][11]],    // B3
-  ["s", midiOctaves[4][0]],     // C4
-  ["d", midiOctaves[4][2]],     // D4
-  ["f", midiOctaves[4][4]],     // E4
-  ["g", midiOctaves[4][5]],     // F4
-  ["h", midiOctaves[4][7]],     // G4
-  ["j", midiOctaves[4][9]],     // A4
-  ["k", midiOctaves[4][11]],    // B4
-  ["l", midiOctaves[5][0]],     // C5
-  ["m", midiOctaves[5][2]],     // D5
-  ["a", midiOctaves[3][1]],     // C3#
-  ["z", midiOctaves[3][3]],     // D3#
-  ["e", midiOctaves[3][6]],     // F3#
-  ["r", midiOctaves[3][8]],     // G3#
-  ["t", midiOctaves[3][10]],     // G3#
-  ["y", midiOctaves[4][1]],    // A3#
-  ["u", midiOctaves[4][3]],     // C4#
-  ["i", midiOctaves[4][6]],     // D4#
-  ["o", midiOctaves[4][8]],     // F4#
-  ["p", midiOctaves[4][10]],     // G4#
+const KEY_TO_MIDI = new Map<string, number>([
+  ["w", 48],  // C3
+  ["x", 50],  // D3
+  ["c", 52],  // E3
+  ["v", 53],  // F3
+  ["b", 55],  // G3
+  ["n", 57],  // A3
+  ["q", 59],  // B3
+  ["s", 60],  // C4
+  ["d", 62],  // D4
+  ["f", 64],  // E4
+  ["g", 65],  // F4
+  ["h", 67],  // G4
+  ["j", 69],  // A4
+  ["k", 71],  // B4
+  ["l", 72],  // C5
+  ["m", 74],  // D5
+  ["a", 49],  // C#3
+  ["z", 51],  // D#3
+  ["e", 54],  // F#3
+  ["r", 56],  // G#3
+  ["t", 58],  // A#3
+  ["y", 61],  // C#4
+  ["u", 63],  // D#4
+  ["i", 66],  // F#4
+  ["o", 68],  // G#4
+  ["p", 70],  // A#4
 ]);
 
-export class KeyBoardController extends Dispatcher {
-  private pressedKeys = new Set();
+/**
+ * Maps QWERTY keyboard keys to MIDI note events and
+ * sends them to connected targets via the MidiSource interface.
+ */
+export class KeyboardController implements MidiSource {
+  private pressedKeys = new Set<string>();
+  private connections: { target: MidiTarget; filter?: RouteFilter }[] = [];
+  private event: MidiEvent = {
+    status: Status.NOTE_ON,
+    channel: DEFAULT_CHANNEL,
+    data1: 0,
+    data2: DEFAULT_VELOCITY,
+    timestamp: 0,
+  };
 
   constructor() {
-    super();
-    this.registerKeyDownHandler();
-    this.registerKeyUpHandler();
+    document.addEventListener("keydown", this.onKeyDown);
+    document.addEventListener("keyup", this.onKeyUp);
   }
 
-  registerKeyDownHandler() {
-    document.addEventListener("keydown", ({ key }) => {
-      if (keyMapping.has(key) && !this.pressedKeys.has(key)) {
-        this.pressedKeys.add(key);
-        this.dispatch(KeyboardMessage.NOTE_ON, {
-          data: {
-            value: keyMapping.get(key).midiValue,
-            velocity: 60,
-            channel: MidiOmniChannel,
-          },
-        });
-      }
-    });
+  connect(target: MidiTarget, filter?: RouteFilter): Disposable {
+    const entry = { target, filter };
+    this.connections.push(entry);
+    return {
+      dispose: () => {
+        const idx = this.connections.indexOf(entry);
+        if (idx !== -1) {
+          this.connections[idx] = this.connections[this.connections.length - 1];
+          this.connections.pop();
+        }
+      },
+    };
   }
 
-  registerKeyUpHandler() {
-    document.addEventListener("keyup", ({ key }) => {
-      if (this.pressedKeys.delete(key)) {
-        this.dispatch(KeyboardMessage.NOTE_OFF, {
-          data: {
-            value: keyMapping.get(key).midiValue,
-            channel: MidiOmniChannel,
-          },
-        });
-      }
-    });
+  destroy(): void {
+    document.removeEventListener("keydown", this.onKeyDown);
+    document.removeEventListener("keyup", this.onKeyUp);
+    this.connections.length = 0;
+  }
+
+  private onKeyDown = (e: KeyboardEvent): void => {
+    const midi = KEY_TO_MIDI.get(e.key);
+    if (midi === undefined || this.pressedKeys.has(e.key)) return;
+
+    this.pressedKeys.add(e.key);
+    this.event.status = Status.NOTE_ON;
+    this.event.data1 = midi;
+    this.event.data2 = DEFAULT_VELOCITY;
+    this.event.timestamp = performance.now();
+    this.dispatch();
+  };
+
+  private onKeyUp = (e: KeyboardEvent): void => {
+    if (!this.pressedKeys.delete(e.key)) return;
+
+    const midi = KEY_TO_MIDI.get(e.key);
+    if (midi === undefined) return;
+
+    this.event.status = Status.NOTE_OFF;
+    this.event.data1 = midi;
+    this.event.data2 = 0;
+    this.event.timestamp = performance.now();
+    this.dispatch();
+  };
+
+  private dispatch(): void {
+    for (let i = 0, len = this.connections.length; i < len; i++) {
+      this.connections[i].target.receive(this.event);
+    }
   }
 }

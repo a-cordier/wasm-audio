@@ -20,7 +20,7 @@ import {
   createMidiOctaves,
   computeOctave,
   computePitchClassIndex,
-} from "../../../core/midi/midi-note";
+} from "../../../midi/codec/notes";
 
 const octaves = createMidiOctaves(440).map(mapKeys);
 

@@ -66,4 +66,51 @@ export function octave(midi: number): number {
   return Math.floor(midi / 12) - 1;
 }
 
+export function computePitchClassIndex(midi: number): number {
+  return midi % 12;
+}
+
+export function computeOctave(midi: number): number {
+  return Math.floor(midi / 12) - 1;
+}
+
+export interface Note {
+  pitchClass: PitchClass;
+  octave: number;
+  frequency: number;
+  midiValue: number;
+  velocity: number;
+}
+
+export function midiToNote(midi: number, velocity = 100): Note {
+  return {
+    pitchClass: PITCH_CLASSES[midi % 12],
+    octave: Math.floor(midi / 12) - 1,
+    frequency: noteFrequency(midi),
+    midiValue: midi,
+    velocity,
+  };
+}
+
+export function createNotes(oct: number, tuning = A4_FREQ): Note[] {
+  return PITCH_CLASSES.map((pc, i) => {
+    const midi = (oct + 1) * 12 + i;
+    return {
+      pitchClass: pc,
+      octave: oct,
+      frequency: tuning * 2 ** ((midi - A4_MIDI) / 12),
+      midiValue: midi,
+      velocity: 127,
+    };
+  }).filter((n) => n.midiValue >= 0 && n.midiValue <= 127);
+}
+
+export function createMidiOctaves(tuning = A4_FREQ): Note[][] {
+  const octaves: Note[][] = [];
+  for (let i = 0; i < 10; i++) {
+    octaves.push(createNotes(i, tuning));
+  }
+  return octaves;
+}
+
 export { PITCH_CLASSES, NOTE_TABLE };

@@ -42,7 +42,7 @@ import { MenuMode } from "../../types/menu-mode";
 import { VoiceEvent } from "../../types/voice-event";
 import { VoiceState } from "../../types/voice";
 import { MidiControlID } from "../../types/midi-learn-options";
-import { KeyBoardController } from "../../core/keyboard-controller";
+import { KeyboardController } from "../../core/keyboard-controller";
 @customElement("wasm-poly-element")
 export class WasmPoly extends LitElement {
   private audioContext: AudioContext;
@@ -90,10 +90,9 @@ export class WasmPoly extends LitElement {
       }
     });
 
-    this.voiceManager
-      .connectBus(this.midiBus)
-      .setKeyBoardcontroller(new KeyBoardController())
-      .connect(this.analyzer);
+    new KeyboardController().connect(this.midiBus);
+
+    this.voiceManager.connectBus(this.midiBus).connect(this.analyzer);
   }
 
   async onKeyOn(event: CustomEvent) {

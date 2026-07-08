@@ -13,7 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { MidiChannels } from "../core/midi/midi-channels";
 import { SelectOptions } from "./select-option";
+
+function channelLabel(n: number): string {
+  return `CHANNEL:${n < 10 ? `0${n}` : `${n}`}`;
+}
+
+const MidiChannels = [
+  { value: -1, name: "CHANNEL:ALL" },
+  ...Array.from({ length: 16 }, (_, i) => ({ value: i, name: channelLabel(i + 1) })),
+];
 
 export const MidiChannelOptions = new SelectOptions(MidiChannels);

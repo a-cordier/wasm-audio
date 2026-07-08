@@ -21,22 +21,17 @@ import { LfoDestination } from "../types/lfo-destination";
 import { MidiControl } from "../types/control";
 import { MidiControlID } from "../types/midi-learn-options";
 import { Dispatcher } from "../core/dispatcher";
-import { MidiMessageEvent, MidiMessage } from "../types/midi-message";
-import { MidiEvent, MidiTarget, Status, Disposable } from "../midi/types";
+import { MidiEvent, MidiTarget, Disposable } from "../midi/types";
 import { MidiBus } from "../midi/bus/bus";
 import { noteFrequency } from "../midi/codec/notes";
 import { isNoteOn, isNoteOff, isControlChange } from "../midi/codec/decode";
-import { midiToNote } from "../core/midi/midi-note";
-import { MidiController } from "../types/midi-controller";
 import { VoiceEvent } from "../types/voice-event";
-import { KeyboardMessage } from "../types/keyboard-messsage";
 import { PresetOptions } from "../core/presets/options";
 
 export class SynthController extends Dispatcher implements MidiTarget {
   private synthNode: SynthNode | null = null;
   private output: GainNode;
   private audioContext: AudioContext;
-  private midiController: MidiController & Dispatcher;
 
   private state: VoiceState;
   private controlMap = new Map<number, MidiControlID>();
@@ -47,9 +42,6 @@ export class SynthController extends Dispatcher implements MidiTarget {
     super();
     this.audioContext = audioContext;
     this.output = new GainNode(audioContext);
-    this.onMidiNoteOn = this.onMidiNoteOn.bind(this);
-    this.onMidiNoteOff = this.onMidiNoteOff.bind(this);
-    this.onMidiCC = this.onMidiCC.bind(this);
     this.setState(createVoiceState(PresetOptions.getCurrent().value as VoiceState));
   }
 
@@ -101,22 +93,6 @@ export class SynthController extends Dispatcher implements MidiTarget {
     this.output.connect(input);
   }
 
-  setMidiController(midiController: MidiController & Dispatcher) {
-    this.midiController = midiController
-      .subscribe(MidiMessageEvent.NOTE_ON, this.onMidiNoteOn)
-      .subscribe(MidiMessageEvent.NOTE_OFF, this.onMidiNoteOff)
-      .subscribe(MidiMessageEvent.CONTROL_CHANGE, this.onMidiCC);
-    this.bindMidiControls();
-    return this;
-  }
-
-  setKeyBoardcontroller(keyBoardController: Dispatcher) {
-    keyBoardController
-      .subscribe(KeyboardMessage.NOTE_ON, this.onMidiNoteOn)
-      .subscribe(KeyboardMessage.NOTE_OFF, this.onMidiNoteOff);
-    return this;
-  }
-
   /** MIDI Learn: set which parameter is currently learning */
   setLearnerID(id: MidiControlID) {
     this.currentLearnerID = id;
@@ -126,35 +102,6 @@ export class SynthController extends Dispatcher implements MidiTarget {
   mapControl(ccNumber: number, id: MidiControlID) {
     this.controlMap.set(ccNumber, id);
     this.currentLearnerID = MidiControlID.NONE;
-  }
-
-  onMidiNoteOn(message: MidiMessage) {
-    const note = midiToNote(message.data);
-    this.next(note);
-    this.dispatch(VoiceEvent.NOTE_ON, note);
-  }
-
-  onMidiNoteOff(message: MidiMessage) {
-    const note = { midiValue: message.data.value };
-    this.stop(note);
-    this.dispatch(VoiceEvent.NOTE_OFF, note);
-  }
-
-  onMidiCC(message: MidiMessage) {
-    const midiControl = this.state.findMidiControlById(message.controlID);
-
-    if (!midiControl) {
-      return;
-    }
-
-    midiControl.controller = message.data.control;
-    midiControl.value = message.data.value;
-
-    if (message.isMidiLearning) {
-      this.midiController.mapControl(message.data.control, midiControl.id);
-    }
-
-    this.dispatchCC(midiControl);
   }
 
   private handleCC(control: number, value: number) {
@@ -325,15 +272,13 @@ export class SynthController extends Dispatcher implements MidiTarget {
     return this.getState();
   }
 
-  bindMidiControls() {
-    if (!this.state) {
-      return;
-    }
-    if (!this.midiController) {
-      return;
-    }
+  private bindMidiControls() {
+    if (!this.state) return;
+    this.controlMap.clear();
     for (const control of this.state.getMidiControls()) {
-      this.midiController.mapControl(control.controller, control.id);
+      if (control.controller >= 0) {
+        this.controlMap.set(control.controller, control.id);
+      }
     }
   }
 
