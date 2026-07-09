@@ -73,8 +73,8 @@ namespace Filter {
 					return buf1;
 				case Mode::HIGHPASS:
 					return sample - buf3;
-				case Mode::BANDPASS:
-					return buf0 - buf3;
+			case Mode::BANDPASS:
+				return (buf0 - buf3) * 5.0f;
 				default:
 					return 0.0;
 			}
