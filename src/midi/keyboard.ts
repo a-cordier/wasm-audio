@@ -13,14 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { MidiEvent, MidiSource, MidiTarget, RouteFilter, Status, Channel, Disposable } from "../midi/types";
+import { MidiEvent, MidiSource, MidiTarget, RouteFilter, Status, Channel, Disposable } from "./types";
 
 const DEFAULT_VELOCITY = 60;
 const DEFAULT_CHANNEL: Channel = 0;
-
-interface NoteMapping {
-  midi: number;
-}
 
 /* prettier-ignore */
 const KEY_TO_MIDI = new Map<string, number>([
@@ -101,7 +97,7 @@ export class KeyboardController implements MidiSource {
     this.event.data1 = midi;
     this.event.data2 = DEFAULT_VELOCITY;
     this.event.timestamp = performance.now();
-    this.dispatch();
+    this.emit();
   };
 
   private onKeyUp = (e: KeyboardEvent): void => {
@@ -114,10 +110,10 @@ export class KeyboardController implements MidiSource {
     this.event.data1 = midi;
     this.event.data2 = 0;
     this.event.timestamp = performance.now();
-    this.dispatch();
+    this.emit();
   };
 
-  private dispatch(): void {
+  private emit(): void {
     for (let i = 0, len = this.connections.length; i < len; i++) {
       this.connections[i].target.receive(this.event);
     }

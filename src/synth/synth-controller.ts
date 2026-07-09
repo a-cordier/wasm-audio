@@ -20,15 +20,14 @@ import { FilterMode } from "../types/filter-mode";
 import { LfoDestination } from "../types/lfo-destination";
 import { MidiControl } from "../types/control";
 import { MidiControlID } from "../types/midi-learn-options";
-import { Dispatcher } from "../core/dispatcher";
 import { MidiEvent, MidiTarget, Disposable } from "../midi/types";
 import { MidiBus } from "../midi/bus/bus";
 import { noteFrequency } from "../midi/codec/notes";
 import { isNoteOn, isNoteOff, isControlChange } from "../midi/codec/decode";
 import { VoiceEvent } from "../types/voice-event";
-import { PresetOptions } from "../core/presets/options";
+import { PresetOptions } from "./presets";
 
-export class SynthController extends Dispatcher implements MidiTarget {
+export class SynthController extends EventTarget implements MidiTarget {
   private synthNode: SynthNode | null = null;
   private output: GainNode;
   private audioContext: AudioContext;
@@ -37,6 +36,7 @@ export class SynthController extends Dispatcher implements MidiTarget {
   private controlMap = new Map<number, MidiControlID>();
   private currentLearnerID = MidiControlID.NONE;
   private busSubscription: Disposable | null = null;
+  private _observers = new Map<Function, EventListenerOrEventListenerObject>();
 
   constructor(audioContext: AudioContext) {
     super();
@@ -91,6 +91,24 @@ export class SynthController extends Dispatcher implements MidiTarget {
 
   connect(input: AudioNode) {
     this.output.connect(input);
+  }
+
+  dispatch(actionId: string, detail: any) {
+    this.dispatchEvent(new CustomEvent(actionId, { detail }));
+    return this;
+  }
+
+  subscribe(actionId: string, callback: (detail: any) => void) {
+    const observer = (event: CustomEvent) => callback(event.detail);
+    this._observers.set(callback, observer);
+    this.addEventListener(actionId, observer);
+    return this;
+  }
+
+  unsubscribe(actionId: string, callback: (detail: any) => void) {
+    this.removeEventListener(actionId, this._observers.get(callback));
+    this._observers.delete(callback);
+    return this;
   }
 
   /** MIDI Learn: set which parameter is currently learning */

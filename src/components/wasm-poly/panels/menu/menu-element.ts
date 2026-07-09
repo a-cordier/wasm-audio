@@ -20,7 +20,7 @@ import { classMap } from "lit/directives/class-map.js";
 import { MidiLearnOptions } from "../../../../types/midi-learn-options";
 import { MidiChannelOptions } from "../../../../types/midi-channel-options";
 import { MenuMode } from "../../../../types/menu-mode";
-import { PresetOptions } from "../../../../core/presets/options";
+import { PresetOptions } from "../../../../synth/presets";
 
 import "../../../common/lcd/lcd-element";
 @customElement("menu-element")

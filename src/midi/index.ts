@@ -23,4 +23,5 @@ export * from "./bus/bus";
 export * from "./bus/dispatch";
 export * from "./device/port";
 export * from "./device/manager";
+export { KeyboardController } from "./keyboard";
 export { Midi, createMidi } from "./api";

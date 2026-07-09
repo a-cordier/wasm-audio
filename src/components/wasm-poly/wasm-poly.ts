@@ -42,7 +42,7 @@ import { MenuMode } from "../../types/menu-mode";
 import { VoiceEvent } from "../../types/voice-event";
 import { VoiceState } from "../../types/voice";
 import { MidiControlID } from "../../types/midi-learn-options";
-import { KeyboardController } from "../../core/keyboard-controller";
+import { KeyboardController } from "../../midi/keyboard";
 @customElement("wasm-poly-element")
 export class WasmPoly extends LitElement {
   private audioContext: AudioContext;
