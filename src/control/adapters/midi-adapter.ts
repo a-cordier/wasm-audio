@@ -16,8 +16,7 @@
 
 import { ControlSourceAdapter, ControlSignal } from "../types";
 import { MidiBus } from "../../midi/bus/bus";
-import { isControlChange } from "../../midi/codec/decode";
-import { Disposable } from "../../midi/types";
+import { Disposable, Status } from "../../midi/types";
 
 export class MidiControlAdapter implements ControlSourceAdapter {
   readonly protocol = "midi";
@@ -32,7 +31,7 @@ export class MidiControlAdapter implements ControlSourceAdapter {
   connect(): void {
     if (this.subscription) return;
     this.subscription = this.bus.subscribe((event) => {
-      if (isControlChange(event) && this.handler) {
+      if (this.handler) {
         this.handler({
           sourceId: `midi:cc:${event.data1}`,
           value: event.data2,
@@ -40,7 +39,7 @@ export class MidiControlAdapter implements ControlSourceAdapter {
           raw: event,
         });
       }
-    });
+    }, { status: Status.CONTROL_CHANGE });
   }
 
   disconnect(): void {

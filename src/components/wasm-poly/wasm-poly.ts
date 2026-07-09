@@ -46,6 +46,7 @@ export class WasmPoly extends LitElement {
 
   private showVizualizer = false;
   private editMode = false;
+  private _pendingKeyUpdate = false;
 
   @property({ type: Object })
   private pressedKeys = new Set<number>();
@@ -97,17 +98,24 @@ export class WasmPoly extends LitElement {
     }) as EventListener);
   }
 
+  private scheduleKeyUpdate() {
+    if (this._pendingKeyUpdate) return;
+    this._pendingKeyUpdate = true;
+    requestAnimationFrame(() => {
+      this._pendingKeyUpdate = false;
+      this.pressedKeys = new Set(this.pressedKeys);
+    });
+  }
+
   private registerVoiceHandlers() {
     this.voiceManager
       .subscribe(VoiceEvent.NOTE_ON, (note) => {
         this.pressedKeys.add(note.midiValue);
-        this.pressedKeys = new Set([...this.pressedKeys.values()]);
-        this.requestUpdate();
+        this.scheduleKeyUpdate();
       })
       .subscribe(VoiceEvent.NOTE_OFF, (note) => {
         this.pressedKeys.delete(note.midiValue);
-        this.pressedKeys = new Set([...this.pressedKeys.values()]);
-        this.requestUpdate();
+        this.scheduleKeyUpdate();
       })
       .subscribe(VoiceEvent.OSC1, (newState) => {
         this.state.osc1 = newState;

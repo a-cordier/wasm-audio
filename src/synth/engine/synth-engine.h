@@ -106,6 +106,13 @@ public:
 	void noteOn(int midi, float frequency, float velocity) {
 		for (auto &slot : voices) {
 			if (slot.active && slot.midiNote == midi) {
+				if (slot.releasing) {
+					slot.kernel.reset();
+					slot.releasing = false;
+					slot.frequency = frequency;
+					slot.velocity = velocity;
+					slot.age = ++noteCounter;
+				}
 				return;
 			}
 		}
