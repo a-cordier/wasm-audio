@@ -17,7 +17,7 @@ import { createWasmProcessor } from "./wasm-worklet-processor.js";
 import { createMidiDrain } from "./worklet-drain.js";
 import createModule from "./voice-kernel.wasmmodule.js";
 
-const PARAM_COUNT = 30;
+const PARAM_COUNT = 33;
 
 let paramView = null;
 let midi = null;
