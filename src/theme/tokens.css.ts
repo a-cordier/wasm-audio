@@ -40,6 +40,8 @@ export const darkTheme = `
     --keyboard-panel-color: var(--darker);
 
     --lcd-led-on-color: #b4d455;
+    --lcd-led-off-color: rgba(180, 212, 85, 0.08);
+    --lcd-led-border-radius: 20%;
     --lcd-screen-border-color: var(--lighter);
     --lcd-screen-background: var(--dark-secondary);
 
@@ -88,6 +90,8 @@ export const retroTheme = `
     --keyboard-panel-color: var(--darker);
 
     --lcd-led-on-color: #ff6347;
+    --lcd-led-off-color: rgba(255, 99, 71, 0.08);
+    --lcd-led-border-radius: 50%;
     --lcd-screen-border-color: var(--lighter);
     --lcd-screen-background: var(--dark-secondary);
 

@@ -60,9 +60,10 @@ export class LCDChar extends LitElement {
       }
 
       .led {
-        width: 60%;
-        height: 60%;
-        background-color: transparent;
+        width: var(--lcd-led-size, 60%);
+        height: var(--lcd-led-size, 60%);
+        background-color: var(--lcd-led-off-color, transparent);
+        border-radius: var(--lcd-led-border-radius, 0);
       }
 
       .led.on {

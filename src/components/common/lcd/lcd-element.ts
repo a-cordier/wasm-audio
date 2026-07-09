@@ -25,9 +25,16 @@ export class LCD extends LitElement {
   @property({ type: String })
   public text;
 
+  @property({ type: Number })
+  public columns = 12;
+
   render() {
+    const gridColumns = Math.max(Array.from(this.text).length, this.columns);
     return html`
-      <div class="lcd">
+      <div
+        class="lcd"
+        style="grid-template-columns: repeat(${gridColumns}, 1fr)"
+      >
         ${Array.from(this.text).map(this.createLcdChar)}
       </div>
     `;
@@ -48,8 +55,6 @@ export class LCD extends LitElement {
         height: var(--lcd-screen-height, 14px);
 
         display: grid;
-        grid-template-columns: repeat(12, 1fr);
-        grid-auto-flow: columns;
 
         border: 1px solid gray;
 
@@ -60,7 +65,7 @@ export class LCD extends LitElement {
       }
 
       .char {
-        width: 85%;
+        width: var(--lcd-char-width, 85%);
         grid-row: 1;
       }
     `;
