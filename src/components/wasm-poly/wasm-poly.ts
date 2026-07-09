@@ -325,11 +325,6 @@ export class WasmPoly extends LitElement {
             ></menu-element>
           </div>
           <div class="panels-row upper">
-            <voice-config-element
-              label="Voice"
-              .state=${this.state.voiceConfig}
-              @change=${this.onVoiceConfigChange}
-            ></voice-config-element>
             <oscillator-element
               .semiControlID=${ControlID.OSC1_SEMI}
               .centControlID=${ControlID.OSC1_CENT}
@@ -439,9 +434,9 @@ export class WasmPoly extends LitElement {
         min-width: 0;
       }
 
-      /* Upper: Voice Osc1 Mix Osc2 Filter → 3:8:3:8:8 */
+      /* Upper: Osc1 Mix Osc2 Filter → 8:3:8:8 */
       .panels-row.upper {
-        grid-template-columns: 3fr 8fr 3fr 8fr 8fr;
+        grid-template-columns: 8fr 3fr 8fr 8fr;
       }
 
       /* Lower: Env LFO1 LFO2 FilterMod → 6:5:5:5 */

@@ -36,7 +36,6 @@ import "./wasm-poly/panels/envelope/envelope-element";
 import "./wasm-poly/panels/lfo/lfo-element";
 import "./wasm-poly/panels/lfo/lcd-selector-element";
 import "./wasm-poly/panels/filter-mod/filter-envelope-element";
-import "./wasm-poly/panels/voice-config/voice-config-element";
 import "./wasm-poly/panels/menu/menu-element";
 
 import "./visualizer-element";
