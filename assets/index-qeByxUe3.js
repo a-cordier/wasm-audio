@@ -24,6 +24,8 @@
     --keyboard-panel-color: var(--darker);
 
     --lcd-led-on-color: #b4d455;
+    --lcd-led-off-color: rgba(180, 212, 85, 0.08);
+    --lcd-led-border-radius: 20%;
     --lcd-screen-border-color: var(--lighter);
     --lcd-screen-background: var(--dark-secondary);
 
@@ -70,6 +72,8 @@
     --keyboard-panel-color: var(--darker);
 
     --lcd-led-on-color: #ff6347;
+    --lcd-led-off-color: rgba(255, 99, 71, 0.08);
+    --lcd-led-border-radius: 50%;
     --lcd-screen-border-color: var(--lighter);
     --lcd-screen-background: var(--dark-secondary);
 
@@ -395,16 +399,20 @@
       }
 
       .led {
-        width: 60%;
-        height: 60%;
-        background-color: transparent;
+        width: var(--lcd-led-size, 60%);
+        height: var(--lcd-led-size, 60%);
+        background-color: var(--lcd-led-off-color, transparent);
+        border-radius: var(--lcd-led-border-radius, 0);
       }
 
       .led.on {
         background-color: var(--lcd-led-on-color, #b4d455);
       }
-    `}};D([E({type:Array})],St.prototype,`char`,void 0),St=D([T(`lcd-char-element`)],St);var Ct=class extends w{render(){return y`
-      <div class="lcd">
+    `}};D([E({type:Array})],St.prototype,`char`,void 0),St=D([T(`lcd-char-element`)],St);var Ct=class extends w{constructor(...e){super(...e),this.columns=12}render(){return y`
+      <div
+        class="lcd"
+        style="grid-template-columns: repeat(${Math.max(Array.from(this.text).length,this.columns)}, 1fr)"
+      >
         ${Array.from(this.text).map(this.createLcdChar)}
       </div>
     `}createLcdChar(e){return y`
@@ -415,8 +423,6 @@
         height: var(--lcd-screen-height, 14px);
 
         display: grid;
-        grid-template-columns: repeat(12, 1fr);
-        grid-auto-flow: columns;
 
         border: 1px solid gray;
 
@@ -427,10 +433,10 @@
       }
 
       .char {
-        width: 85%;
+        width: var(--lcd-char-width, 85%);
         grid-row: 1;
       }
-    `}};D([E({type:String})],Ct.prototype,`text`,void 0),Ct=D([T(`lcd-element`)],Ct);var wt=class extends w{render(){return y`
+    `}};D([E({type:String})],Ct.prototype,`text`,void 0),D([E({type:Number})],Ct.prototype,`columns`,void 0),Ct=D([T(`lcd-element`)],Ct);var wt=class extends w{render(){return y`
       <div class="wrapper">
         <svg
           xmlns="http://www.w3.org/2000/svg"
