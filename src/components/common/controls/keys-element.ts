@@ -161,6 +161,7 @@ export class Keys extends LitElement {
     // noinspection CssUnresolvedCustomProperty
     return css`
       :host {
+        display: block;
         user-select: none;
         outline: none;
         width: 100%;

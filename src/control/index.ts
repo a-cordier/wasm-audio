@@ -13,12 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { OscillatorMode } from "./oscillator-mode";
-import { FilterMode } from "./filter-mode";
-import { LfoDestination } from "./lfo-destination";
 
-export type ControlValue = number | OscillatorMode | FilterMode | LfoDestination;
-
-export interface Control {
-  value: ControlValue;
-}
+export { ControlID, LearnOptions } from "./types";
+export type { ControlSignal, ControlBinding, ControlSourceAdapter } from "./types";
+export { BindingManager, getBindingManager, LearnController } from "./binding-manager";
+export { MidiControlAdapter } from "./adapters/midi-adapter";

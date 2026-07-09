@@ -13,12 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { OscillatorMode } from "./oscillator-mode";
-import { FilterMode } from "./filter-mode";
-import { LfoDestination } from "./lfo-destination";
 
-export type ControlValue = number | OscillatorMode | FilterMode | LfoDestination;
+import { themes, ThemeId, darkTheme } from "./tokens.css";
 
-export interface Control {
-  value: ControlValue;
+let activeSheet: CSSStyleSheet | null = null;
+
+export function setTheme(id: ThemeId) {
+  const css = themes[id];
+  if (!css) return;
+
+  if (!activeSheet) {
+    activeSheet = new CSSStyleSheet();
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, activeSheet];
+  }
+  activeSheet.replaceSync(css);
+  document.body.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue("--body-background").trim();
+}
+
+export function initTheme() {
+  setTheme("dark");
 }

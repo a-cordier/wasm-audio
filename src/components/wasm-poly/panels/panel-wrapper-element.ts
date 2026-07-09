@@ -24,23 +24,32 @@ export class PanelWrapper extends LitElement {
   render() {
     return html`
       <div class="wrapper">
+        <div class="header">
           <label>${this.label}</label>
-          <div class="content">
-            <slot></slot>
-          </div>
+          <slot name="header"></slot>
+        </div>
+        <div class="content">
+          <slot></slot>
+          <slot name="controls"></slot>
+        </div>
+        <div class="footer">
+          <slot name="footer"></slot>
         </div>
       </div>
     `;
   }
 
   static get styles() {
-    // noinspection CssUnresolvedCustomProperty
     return css`
+      :host {
+        display: block;
+      }
+
       .wrapper {
         position: relative;
 
-        width: var(--panel-wrapper-width, 100%);
-        height: var(--panel-wrapper-width, 100%);
+        width: 100%;
+        box-sizing: border-box;
 
         background-color: var(--panel-wrapper-background-color, transparent);
 
@@ -48,10 +57,17 @@ export class PanelWrapper extends LitElement {
 
         padding: 0.25em;
 
-        display: inline-flex;
+        display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
       }
 
       label {
@@ -59,6 +75,14 @@ export class PanelWrapper extends LitElement {
         color: var(--panel-wrapper-label-color, white);
         margin: 0 auto 0.5em auto;
         text-align: center;
+      }
+
+      .content {
+        width: 100%;
+      }
+
+      .footer:empty {
+        display: none;
       }
     `;
   }

@@ -13,12 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { OscillatorMode } from "./oscillator-mode";
-import { FilterMode } from "./filter-mode";
-import { LfoDestination } from "./lfo-destination";
+import { LitElement } from "lit";
+import { property } from "lit/decorators.js";
+import { ChangeDetail } from "../../types/events";
 
-export type ControlValue = number | OscillatorMode | FilterMode | LfoDestination;
+export abstract class SynthPanel extends LitElement {
+  @property({ type: String })
+  label = "";
 
-export interface Control {
-  value: ControlValue;
+  protected dispatchChange<T extends string | number>(type: T, value: number | string) {
+    this.dispatchEvent(
+      new CustomEvent<ChangeDetail<T>>("change", {
+        detail: { type, value },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
 }

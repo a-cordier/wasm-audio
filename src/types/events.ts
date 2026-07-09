@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { OscillatorMode } from "./oscillator-mode";
-import { FilterMode } from "./filter-mode";
-import { LfoDestination } from "./lfo-destination";
 
-export type ControlValue = number | OscillatorMode | FilterMode | LfoDestination;
+export interface ChangeDetail<T = string | number> {
+  type: T;
+  value: number | string;
+}
 
-export interface Control {
-  value: ControlValue;
+export type SynthChangeEvent<T = string | number> = CustomEvent<ChangeDetail<T>>;
+
+export function assertNever(x: never): never {
+  throw new Error(`Unexpected discriminant: ${x}`);
 }

@@ -13,101 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LitElement, html, css } from "lit";
+import { html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { OscillatorEnvelopeEvent } from "../../../../types/oscillator-envelope-event";
-import { MidiControlID } from "../../../../types/midi-learn-options";
-
-import "../panel-wrapper-element";
-import "../../../common/controls/midi-control-wrapper";
-import "../../../common/controls/fader-element";
+import { EnvelopeState } from "../../../../types/voice";
+import { ControlID } from "../../../../control/types";
+import { SynthPanel } from "../../../common/synth-panel";
 
 @customElement("envelope-element")
-export class Envelope extends LitElement {
-  @property({ type: String })
-  private label = "Envelope";
-
+export class Envelope extends SynthPanel {
   @property({ type: Object })
-  private state;
-
-  @property({ type: Number })
-  private currentLearnerID = MidiControlID.NONE;
-
-  onAttackChange(event: CustomEvent) {
-    this.dispatchChange(OscillatorEnvelopeEvent.ATTACK, event.detail.value);
-  }
-
-  onDecayChange(event: CustomEvent) {
-    this.dispatchChange(OscillatorEnvelopeEvent.DECAY, event.detail.value);
-  }
-
-  onSustainChange(event: CustomEvent) {
-    this.dispatchChange(OscillatorEnvelopeEvent.SUSTAIN, event.detail.value);
-  }
-
-  onReleaseChange(event: CustomEvent) {
-    this.dispatchChange(OscillatorEnvelopeEvent.RELEASE, event.detail.value);
-  }
-
-  dispatchChange(type: OscillatorEnvelopeEvent, value: number) {
-    this.dispatchEvent(new CustomEvent("change", { detail: { type, value } }));
-  }
+  state: EnvelopeState;
 
   render() {
     return html`
       <panel-wrapper-element .label=${this.label}>
         <div class="envelope-controls">
-          <midi-control-wrapper
-            .controlID=${MidiControlID.ATTACK}
-            .currentLearnerID=${this.currentLearnerID}
-          >
-            <fader-element
-              class="envelope-control focus"
-              label="A"
-              .value=${this.state.attack.value}
-              @change=${this.onAttackChange}
+          <control-learn-wrapper .controlID=${ControlID.ATTACK}>
+            <fader-element label="A" .value=${this.state.attack.value}
+              @change=${(e: CustomEvent) => this.dispatchChange(OscillatorEnvelopeEvent.ATTACK, e.detail.value)}
             ></fader-element>
-          </midi-control-wrapper>
-          <midi-control-wrapper
-            .controlID=${MidiControlID.DECAY}
-            .currentLearnerID=${this.currentLearnerID}
-          >
-            <fader-element
-              class="envelope-control"
-              label="D"
-              .value=${this.state.decay.value}
-              @change=${this.onDecayChange}
+          </control-learn-wrapper>
+          <control-learn-wrapper .controlID=${ControlID.DECAY}>
+            <fader-element label="D" .value=${this.state.decay.value}
+              @change=${(e: CustomEvent) => this.dispatchChange(OscillatorEnvelopeEvent.DECAY, e.detail.value)}
             ></fader-element>
-          </midi-control-wrapper>
-          <midi-control-wrapper
-            .controlID=${MidiControlID.SUSTAIN}
-            .currentLearnerID=${this.currentLearnerID}
-          >
-            <fader-element
-              class="envelope-control"
-              label="S"
-              .value=${this.state.sustain.value}
-              @change=${this.onSustainChange}
+          </control-learn-wrapper>
+          <control-learn-wrapper .controlID=${ControlID.SUSTAIN}>
+            <fader-element label="S" .value=${this.state.sustain.value}
+              @change=${(e: CustomEvent) => this.dispatchChange(OscillatorEnvelopeEvent.SUSTAIN, e.detail.value)}
             ></fader-element>
-          </midi-control-wrapper>
-          <midi-control-wrapper
-            .controlID=${MidiControlID.RELEASE}
-            .currentLearnerID=${this.currentLearnerID}
-          >
-            <fader-element
-              class="envelope-control"
-              label="R"
-              .value=${this.state.release.value}
-              @change=${this.onReleaseChange}
+          </control-learn-wrapper>
+          <control-learn-wrapper .controlID=${ControlID.RELEASE}>
+            <fader-element label="R" .value=${this.state.release.value}
+              @change=${(e: CustomEvent) => this.dispatchChange(OscillatorEnvelopeEvent.RELEASE, e.detail.value)}
             ></fader-element>
-          </midi-control-wrapper>
+          </control-learn-wrapper>
         </div>
       </panel-wrapper-element>
     `;
   }
 
   static get styles() {
-    // noinspection CssUnresolvedCustomProperty
     return css`
       :host {
         --panel-wrapper-background-color: var(--envelope-panel-color);
@@ -118,9 +65,8 @@ export class Envelope extends LitElement {
         display: flex;
         align-items: center;
         justify-content: space-evenly;
-
-        width: 160px;
-        height: 160px;
+        width: 100%;
+        min-height: 160px;
       }
     `;
   }

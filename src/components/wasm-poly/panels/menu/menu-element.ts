@@ -17,12 +17,11 @@ import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 
-import { MidiLearnOptions } from "../../../../types/midi-learn-options";
+import { LearnOptions } from "../../../../control/types";
 import { MidiChannelOptions } from "../../../../types/midi-channel-options";
 import { MenuMode } from "../../../../types/menu-mode";
 import { PresetOptions } from "../../../../synth/presets";
 
-import "../../../common/lcd/lcd-element";
 @customElement("menu-element")
 export class Menu extends LitElement {
   @property({ type: Number })
@@ -76,38 +75,25 @@ export class Menu extends LitElement {
   }
 
   createSwitchModeHandler(mode: MenuMode) {
-    switch (mode) {
-      case MenuMode.MIDI_CHANNEL:
-        return () => {
-          this.mode = MenuMode.MIDI_CHANNEL;
-          this.dispatchChange();
-        };
-      case MenuMode.MIDI_LEARN:
-        return () => {
-          this.mode = MenuMode.MIDI_LEARN;
-          this.dispatchChange();
-        };
-      case MenuMode.PRESET:
-        return () => {
-          this.mode = MenuMode.PRESET;
-          this.dispatchChange();
-        };
-    }
+    return () => {
+      this.mode = mode;
+      this.dispatchMenuChange();
+    };
   }
 
   nextOption() {
     this.options.next();
-    this.dispatchChange(true);
+    this.dispatchMenuChange(true);
     this.requestUpdate();
   }
 
   previousOption() {
     this.options.previous();
-    this.dispatchChange(true);
+    this.dispatchMenuChange(true);
     this.requestUpdate();
   }
 
-  dispatchChange(shouldUpdate = false) {
+  dispatchMenuChange(shouldUpdate = false) {
     this.dispatchEvent(
       new CustomEvent("change", {
         detail: {
@@ -127,13 +113,16 @@ export class Menu extends LitElement {
         return MidiChannelOptions;
       case MenuMode.MIDI_LEARN:
       default:
-        return MidiLearnOptions;
+        return LearnOptions;
     }
   }
 
   static get styles() {
-    // noinspection CssUnresolvedCustomProperty
     return css`
+      :host {
+        display: block;
+      }
+
       .menu {
         display: flex;
         --lcd-screen-height: 15px;
@@ -146,20 +135,15 @@ export class Menu extends LitElement {
 
       .menu .button-wrapper button {
         font-size: var(--button-font-size, 0.5em);
-
         background-color: var(--button-disposed-background-color);
         border: var(--button-border);
         box-shadow: var(--box-shadow);
         transition: all 0.1s ease-in-out;
-
         display: inline-flex;
         align-items: center;
         justify-content: center;
-
         cursor: pointer;
-
         height: 100%;
-
         color: var(--button-disposed-label-color);
       }
 
@@ -168,9 +152,7 @@ export class Menu extends LitElement {
         color: white;
       }
 
-      .menu .button-wrapper button:focus {
-        outline: none;
-      }
+      .menu .button-wrapper button:focus { outline: none; }
 
       .menu .button-wrapper button.active {
         background-color: var(--button-active-background-color);
@@ -181,13 +163,8 @@ export class Menu extends LitElement {
         cursor: auto;
       }
 
-      .menu .button-wrapper.channel {
-        margin: 0 1px;
-      }
-
-      .menu .button-wrapper.select {
-        margin: 0 1px;
-      }
+      .menu .button-wrapper.channel { margin: 0 1px; }
+      .menu .button-wrapper.select { margin: 0 1px; }
 
       .menu .button-wrapper.select button:active {
         transform: scale(0.99);
@@ -204,7 +181,7 @@ export class Menu extends LitElement {
         line-height: 1em;
         color: var(--main-panel-label-color);
         font-family: var(--main-panel-label-font-family);
-        margin-left: 0.5em;
+        margin-left: auto;
         letter-spacing: 0.1em;
       }
     `;

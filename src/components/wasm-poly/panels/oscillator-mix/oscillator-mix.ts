@@ -13,75 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LitElement, html, css } from "lit";
+import { html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
-
-import { MidiControlID } from "../../../../types/midi-learn-options";
 import { OscillatorEvent } from "../../../../types/oscillator-event";
+import { Control } from "../../../../types/control";
+import { ControlID } from "../../../../control/types";
+import { SynthPanel } from "../../../common/synth-panel";
 
 @customElement("oscillator-mix-element")
-export class OscillatorMix extends LitElement {
-@property({ type: Number })
-  private currentLearnerID = MidiControlID.NONE;
+export class OscillatorMix extends SynthPanel {
+  @property({ type: Object })
+  mix: Control;
 
   @property({ type: Object })
-  private mix: any;
-
-  @property({ type: Object })
-  private noise: any;
+  noise: Control;
 
   render() {
     return html`
-        <panel-wrapper-element class="oscillator-mix">
-            <div class="oscillator-mix-control">
-                <midi-control-wrapper
-                .controlID=${MidiControlID.OSC_MIX}
-                .currentLearnerID=${this.currentLearnerID}
-                >
-                <knob-element
-                    class="mix"
-                    label="mix"
-                    .value=${this.mix.value as number}
-                    @change=${this.onMixChange}
-                ></knob-element>
-                </midi-control-wrapper>
-                <midi-control-wrapper
-                .controlID=${MidiControlID.NOISE}
-                .currentLearnerID=${this.currentLearnerID}
-                >
-                <knob-element
-                    class="noise"
-                    label="noise"
-                    .value=${this.noise.value as number}
-                    @change=${this.onNoiseChange}
-                ></knob-element>
-                </midi-control-wrapper>
-            </div>
-            <div class="noise-control">
-                
-            </div>
-        </panel-wrapper-element>
+      <panel-wrapper-element class="oscillator-mix">
+        <div class="oscillator-mix-control">
+          <control-learn-wrapper .controlID=${ControlID.OSC_MIX}>
+            <knob-element class="mix" label="mix"
+              .value=${this.mix.value as number}
+              @change=${(e: CustomEvent) => this.dispatchChange(OscillatorEvent.MIX, e.detail.value)}
+            ></knob-element>
+          </control-learn-wrapper>
+          <control-learn-wrapper .controlID=${ControlID.NOISE}>
+            <knob-element class="noise" label="noise"
+              .value=${this.noise.value as number}
+              @change=${(e: CustomEvent) => this.dispatchChange(OscillatorEvent.NOISE, e.detail.value)}
+            ></knob-element>
+          </control-learn-wrapper>
+        </div>
+      </panel-wrapper-element>
     `;
   }
 
-  onMixChange(event: CustomEvent) {
-    this.dispatchChange(OscillatorEvent.MIX, event.detail.value);
-  }
-
-  onNoiseChange(event: CustomEvent) {
-    this.dispatchChange(OscillatorEvent.NOISE, event.detail.value);
-  }
-
-  dispatchChange(type: OscillatorEvent, value: number | string) {
-    this.dispatchEvent(new CustomEvent("change", { detail: { type, value } }));
-  }
-
   static get styles() {
-    // noinspection CssUnresolvedCustomProperty
     return css`
       .oscillator-mix {
         --panel-wrapper-background-color: var(--oscillator-mix-panel-color);
-
       }
 
       .oscillator-mix-control {
@@ -89,18 +60,12 @@ export class OscillatorMix extends LitElement {
         flex-direction: column;
         align-items: center;
         justify-content: space-evenly;
-
-        width: 60px; 
-        height: 130px;
+        width: 100%;
+        min-height: 130px;
       }
 
-      .oscillator-mix .mix {
-        --knob-size: 40px;
-      }
-
-      .oscillator-mix .noise {
-        --knob-size: 30px;
-      }     
+      .oscillator-mix .mix { --knob-size: 40px; }
+      .oscillator-mix .noise { --knob-size: 30px; }
     `;
   }
 }

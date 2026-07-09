@@ -13,43 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LitElement, html, css } from "lit";
+import { html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { FilterEvent } from "../../../../types/filter-event";
-
-import "../panel-wrapper-element";
-import "../../../common/controls/midi-control-wrapper";
-import "../../../common/controls/knob-element";
-import "./filter-selector-element";
-import { MidiControlID } from "../../../../types/midi-learn-options";
+import { FilterState } from "../../../../types/filter-state";
+import { ControlID } from "../../../../control/types";
+import { SynthPanel } from "../../../common/synth-panel";
 
 @customElement("filter-element")
-export class Filter extends LitElement {
+export class Filter extends SynthPanel {
   @property({ type: Object })
-  private state: any;
-
-  @property({ type: Number })
-  private currentLearnerID = MidiControlID.NONE;
-
-  onCutoffChange(event: CustomEvent) {
-    this.dispatchChange(FilterEvent.CUTOFF, event.detail.value);
-  }
-
-  onResonanceChange(event: CustomEvent) {
-    this.dispatchChange(FilterEvent.RESONANCE, event.detail.value);
-  }
-
-  onDriveChange(event: CustomEvent) {
-    this.dispatchChange(FilterEvent.DRIVE, event.detail.value);
-  }
-
-  onTypeChange(event: CustomEvent) {
-    this.dispatchChange(FilterEvent.MODE, event.detail.value);
-  }
-
-  dispatchChange(type: FilterEvent, value: number) {
-    this.dispatchEvent(new CustomEvent("change", { detail: { type, value } }));
-  }
+  state: FilterState;
 
   render() {
     return html`
@@ -58,49 +32,40 @@ export class Filter extends LitElement {
           <div class="mode-control">
             <filter-selector-element
               .value=${this.state.mode.value}
-              @change=${this.onTypeChange}
+              @change=${(e: CustomEvent) => this.dispatchChange(FilterEvent.MODE, e.detail.value)}
             ></filter-selector-element>
           </div>
           <div class="frequency-controls">
             <div class="frequency-control">
               <div class="knob-control cutoff-control">
-                <midi-control-wrapper
-                  controlID=${MidiControlID.CUTOFF}
-                  currentLearnerID=${this.currentLearnerID}
-                >
+                <control-learn-wrapper controlID=${ControlID.CUTOFF}>
                   <knob-element
                     .value=${this.state.cutoff.value}
-                    @change=${this.onCutoffChange}
+                    @change=${(e: CustomEvent) => this.dispatchChange(FilterEvent.CUTOFF, e.detail.value)}
                   ></knob-element>
-                </midi-control-wrapper>
+                </control-learn-wrapper>
               </div>
               <label>cutoff</label>
             </div>
             <div class="frequency-control">
               <div class="knob-control resonance-control">
-                <midi-control-wrapper
-                  controlID=${MidiControlID.RESONANCE}
-                  currentLearnerID=${this.currentLearnerID}
-                >
+                <control-learn-wrapper controlID=${ControlID.RESONANCE}>
                   <knob-element
                     .value=${this.state.resonance.value}
-                    @change=${this.onResonanceChange}
+                    @change=${(e: CustomEvent) => this.dispatchChange(FilterEvent.RESONANCE, e.detail.value)}
                   ></knob-element>
-                </midi-control-wrapper>
+                </control-learn-wrapper>
               </div>
               <label>res</label>
             </div>
             <div class="frequency-control">
               <div class="knob-control drive-control">
-                <midi-control-wrapper
-                  controlID=${MidiControlID.DRIVE}
-                  currentLearnerID=${this.currentLearnerID}
-                >
+                <control-learn-wrapper controlID=${ControlID.DRIVE}>
                   <knob-element
                     .value=${this.state.drive.value}
-                    @change=${this.onDriveChange}
+                    @change=${(e: CustomEvent) => this.dispatchChange(FilterEvent.DRIVE, e.detail.value)}
                   ></knob-element>
-                </midi-control-wrapper>
+                </control-learn-wrapper>
               </div>
               <label>drive</label>
             </div>
@@ -111,59 +76,49 @@ export class Filter extends LitElement {
   }
 
   static get styles() {
-    // noinspection CssUnresolvedCustomProperty
     return css`
       :host {
         --panel-wrapper-background-color: var(--filter-panel-color);
+        container-type: inline-size;
       }
 
       .filter-controls {
         position: relative;
-        width: 160px;
-        height: 120px;
-      }
-
-      .filter-controls .mode-control {
         width: 100%;
-        display: block;
+        min-height: 120px;
       }
 
-      .filter-controls .frequency-controls {
+      .mode-control { width: 100%; display: block; }
+
+      .frequency-controls {
         display: flex;
         justify-content: space-around;
         width: 100%;
         margin-top: 1em;
       }
 
-      .filter-controls .frequency-control {
+      .frequency-control {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
       }
 
-      .filter-controls .frequency-controls .knob-control {
+      .knob-control {
         display: flex;
         flex-direction: row;
         align-items: center;
-
         width: 100%;
         height: 90%;
       }
 
-      .frequency-control .cutoff-control {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        --knob-size: 50px;
-      }
+      .cutoff-control { --knob-size: 50px; }
+      .resonance-control { --knob-size: 40px; }
+      .drive-control { --knob-size: 35px; }
 
-      .frequency-control .resonance-control {
-        --knob-size: 40px;
-      }
-
-      .frequency-control .drive-control {
-        --knob-size: 35px;
+      @container (max-width: 120px) {
+        .frequency-controls { flex-direction: column; gap: 0.5em; }
+        .cutoff-control, .resonance-control, .drive-control { --knob-size: 30px; }
       }
 
       label {

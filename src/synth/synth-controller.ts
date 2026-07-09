@@ -18,14 +18,15 @@ import { VoiceState, createVoiceState } from "../types/voice";
 import { OscillatorMode } from "../types/oscillator-mode";
 import { FilterMode } from "../types/filter-mode";
 import { LfoDestination } from "../types/lfo-destination";
-import { MidiControl } from "../types/control";
-import { MidiControlID } from "../types/midi-learn-options";
 import { MidiEvent, MidiTarget, Disposable } from "../midi/types";
 import { MidiBus } from "../midi/bus/bus";
 import { noteFrequency } from "../midi/codec/notes";
-import { isNoteOn, isNoteOff, isControlChange } from "../midi/codec/decode";
+import { isNoteOn, isNoteOff } from "../midi/codec/decode";
 import { VoiceEvent } from "../types/voice-event";
 import { PresetOptions } from "./presets";
+import { ControlID } from "../control/types";
+
+type ControlHandler = (value: number) => void;
 
 export class SynthController extends EventTarget implements MidiTarget {
   private synthNode: SynthNode | null = null;
@@ -33,16 +34,17 @@ export class SynthController extends EventTarget implements MidiTarget {
   private audioContext: AudioContext;
 
   private state: VoiceState;
-  private controlMap = new Map<number, MidiControlID>();
-  private currentLearnerID = MidiControlID.NONE;
   private busSubscription: Disposable | null = null;
   private _observers = new Map<Function, EventListenerOrEventListenerObject>();
+
+  private controlHandlers = new Map<ControlID, ControlHandler>();
 
   constructor(audioContext: AudioContext) {
     super();
     this.audioContext = audioContext;
     this.output = new GainNode(audioContext);
     this.setState(createVoiceState(PresetOptions.getCurrent().value as VoiceState));
+    this.initControlHandlers();
   }
 
   init() {
@@ -51,19 +53,11 @@ export class SynthController extends EventTarget implements MidiTarget {
     this.syncParams();
   }
 
-  /**
-   * Connect this controller to a MidiBus.
-   * All MIDI events are routed through receive() which handles notes (to worklet)
-   * and CCs (for MIDI Learn and UI sync).
-   */
   connectBus(bus: MidiBus): this {
     this.busSubscription = bus.subscribe((event) => this.receive(event));
     return this;
   }
 
-  /**
-   * Implements MidiTarget — receives events from a bus or source.
-   */
   receive(event: MidiEvent): void {
     if (isNoteOn(event)) {
       const frequency = noteFrequency(event.data1);
@@ -76,9 +70,16 @@ export class SynthController extends EventTarget implements MidiTarget {
     } else if (isNoteOff(event)) {
       this.synthNode?.noteOff(event.data1);
       this.dispatch(VoiceEvent.NOTE_OFF, { midiValue: event.data1 });
-    } else if (isControlChange(event)) {
-      this.handleCC(event.data1, event.data2);
     }
+  }
+
+  /**
+   * Called by the BindingManager (or any external control source)
+   * when a bound control value changes.
+   */
+  handleControlChange(controlId: ControlID, value: number) {
+    const handler = this.controlHandlers.get(controlId);
+    if (handler) handler(value);
   }
 
   next({ frequency, midiValue, velocity = 60 }) {
@@ -111,194 +112,17 @@ export class SynthController extends EventTarget implements MidiTarget {
     return this;
   }
 
-  /** MIDI Learn: set which parameter is currently learning */
-  setLearnerID(id: MidiControlID) {
-    this.currentLearnerID = id;
-  }
-
-  /** MIDI Learn: map a CC number to a control ID */
-  mapControl(ccNumber: number, id: MidiControlID) {
-    this.controlMap.set(ccNumber, id);
-    this.currentLearnerID = MidiControlID.NONE;
-  }
-
-  private handleCC(control: number, value: number) {
-    const isLearning = this.currentLearnerID !== MidiControlID.NONE;
-
-    let controlID = this.controlMap.get(control);
-    if (isLearning) {
-      controlID = this.currentLearnerID;
-      this.controlMap.set(control, controlID);
-      this.currentLearnerID = MidiControlID.NONE;
-    }
-
-    if (controlID === undefined) return;
-
-    const midiControl = this.state.findMidiControlById(controlID);
-    if (!midiControl) return;
-
-    midiControl.controller = control;
-    midiControl.value = value;
-    this.dispatchCC(midiControl);
-  }
-
-  dispatchCC(control: MidiControl) {
-    switch (control.id) {
-      case MidiControlID.OSC1_SEMI:
-        this.sendParam(ParamId.OSC1_SEMI_SHIFT, control.value);
-        return this.dispatch(VoiceEvent.OSC1, {
-          ...this.state.osc1,
-          ...{ semiShift: control.clone() },
-        });
-      case MidiControlID.OSC1_CENT:
-        this.sendParam(ParamId.OSC1_CENT_SHIFT, control.value);
-        return this.dispatch(VoiceEvent.OSC1, {
-          ...this.state.osc1,
-          ...{ centShift: control.clone() },
-        });
-      case MidiControlID.OSC1_CYCLE:
-        this.sendParam(ParamId.OSC1_CYCLE, control.value);
-        return this.dispatch(VoiceEvent.OSC1, {
-          ...this.state.osc1,
-          ...{ cycle: control.clone() },
-        });
-      case MidiControlID.OSC2_SEMI:
-        this.sendParam(ParamId.OSC2_SEMI_SHIFT, control.value);
-        return this.dispatch(VoiceEvent.OSC2, {
-          ...this.state.osc2,
-          ...{ semiShift: control.clone() },
-        });
-      case MidiControlID.OSC2_CENT:
-        this.sendParam(ParamId.OSC2_CENT_SHIFT, control.value);
-        return this.dispatch(VoiceEvent.OSC2, {
-          ...this.state.osc2,
-          ...{ centShift: control.clone() },
-        });
-      case MidiControlID.OSC2_CYCLE:
-        this.sendParam(ParamId.OSC2_CYCLE, control.value);
-        return this.dispatch(VoiceEvent.OSC2, {
-          ...this.state.osc2,
-          ...{ cycle: control.clone() },
-        });
-      case MidiControlID.OSC_MIX:
-        this.sendParam(ParamId.OSC2_AMPLITUDE, control.value);
-        return this.dispatch(VoiceEvent.OSC_MIX, control.clone());
-      case MidiControlID.NOISE:
-        this.sendParam(ParamId.NOISE_LEVEL, control.value);
-        return this.dispatch(VoiceEvent.NOISE, control.clone());
-      case MidiControlID.CUTOFF:
-        this.sendParam(ParamId.CUTOFF, control.value);
-        return this.dispatch(VoiceEvent.FILTER, {
-          ...this.state.filter,
-          ...{ cutoff: control.clone() },
-        });
-      case MidiControlID.RESONANCE:
-        this.sendParam(ParamId.RESONANCE, control.value);
-        return this.dispatch(VoiceEvent.FILTER, {
-          ...this.state.filter,
-          ...{ resonance: control.clone() },
-        });
-      case MidiControlID.DRIVE:
-        this.sendParam(ParamId.DRIVE, control.value);
-        return this.dispatch(VoiceEvent.FILTER, {
-          ...this.state.filter,
-          ...{ drive: control.clone() },
-        });
-      case MidiControlID.ATTACK:
-        this.sendParam(ParamId.AMPLITUDE_ATTACK, control.value);
-        return this.dispatch(VoiceEvent.ENVELOPE, {
-          ...this.state.envelope,
-          ...{ attack: control.clone() },
-        });
-      case MidiControlID.DECAY:
-        this.sendParam(ParamId.AMPLITUDE_DECAY, control.value);
-        return this.dispatch(VoiceEvent.ENVELOPE, {
-          ...this.state.envelope,
-          ...{ decay: control.clone() },
-        });
-      case MidiControlID.SUSTAIN:
-        this.sendParam(ParamId.AMPLITUDE_SUSTAIN, control.value);
-        return this.dispatch(VoiceEvent.ENVELOPE, {
-          ...this.state.envelope,
-          ...{ sustain: control.clone() },
-        });
-      case MidiControlID.RELEASE:
-        this.sendParam(ParamId.AMPLITUDE_RELEASE, control.value);
-        return this.dispatch(VoiceEvent.ENVELOPE, {
-          ...this.state.envelope,
-          ...{ release: control.clone() },
-        });
-      case MidiControlID.LFO1_FREQ:
-        this.sendParam(ParamId.LFO1_FREQUENCY, control.value);
-        return this.dispatch(VoiceEvent.LFO1, {
-          ...this.state.lfo1,
-          ...{ frequency: control.clone() },
-        });
-      case MidiControlID.LFO1_MOD:
-        this.sendParam(ParamId.LFO1_MOD_AMOUNT, control.value);
-        return this.dispatch(VoiceEvent.LFO1, {
-          ...this.state.lfo1,
-          ...{ modAmount: control.clone() },
-        });
-      case MidiControlID.LFO2_FREQ:
-        this.sendParam(ParamId.LFO2_FREQUENCY, control.value);
-        return this.dispatch(VoiceEvent.LFO2, {
-          ...this.state.lfo2,
-          ...{ frequency: control.clone() },
-        });
-      case MidiControlID.LFO2_MOD:
-        this.sendParam(ParamId.LFO2_MOD_AMOUNT, control.value);
-        return this.dispatch(VoiceEvent.LFO2, {
-          ...this.state.lfo2,
-          ...{ modAmount: control.clone() },
-        });
-      case MidiControlID.CUT_ATTACK:
-        this.sendParam(ParamId.CUTOFF_ENV_ATTACK, control.value);
-        return this.dispatch(VoiceEvent.CUTOFF_MOD, {
-          ...this.state.cutoffMod,
-          ...{ attack: control.clone() },
-        });
-      case MidiControlID.CUT_DECAY:
-        this.sendParam(ParamId.CUTOFF_ENV_DECAY, control.value);
-        return this.dispatch(VoiceEvent.CUTOFF_MOD, {
-          ...this.state.cutoffMod,
-          ...{ decay: control.clone() },
-        });
-      case MidiControlID.CUT_MOD:
-        this.sendParam(ParamId.CUTOFF_ENV_AMOUNT, control.value);
-        return this.dispatch(VoiceEvent.CUTOFF_MOD, {
-          ...this.state.cutoffMod,
-          ...{ amount: control.clone() },
-        });
-      case MidiControlID.CUT_VEL:
-        this.sendParam(ParamId.CUTOFF_ENV_VELOCITY, control.value);
-        return this.dispatch(VoiceEvent.CUTOFF_MOD, {
-          ...this.state.cutoffMod,
-          ...{ velocity: control.clone() },
-        });
-    }
-  }
-
   getState() {
     return { ...this.state };
   }
 
   setState(newState) {
     this.state = createVoiceState(newState);
-    this.bindMidiControls();
     this.syncParams();
     return this.getState();
   }
 
-  private bindMidiControls() {
-    if (!this.state) return;
-    this.controlMap.clear();
-    for (const control of this.state.getMidiControls()) {
-      if (control.controller >= 0) {
-        this.controlMap.set(control.controller, control.id);
-      }
-    }
-  }
+  // --- Oscillator 1 ---
 
   setOsc1Mode(newMode: OscillatorMode) {
     this.state.osc1.mode.value = newMode;
@@ -324,9 +148,7 @@ export class SynthController extends EventTarget implements MidiTarget {
     return this;
   }
 
-  get osc1() {
-    return this.state.osc1;
-  }
+  // --- Oscillator 2 ---
 
   setOsc2Mode(newMode: OscillatorMode) {
     this.state.osc2.mode.value = newMode;
@@ -352,8 +174,12 @@ export class SynthController extends EventTarget implements MidiTarget {
     return this;
   }
 
-  get osc2() {
-    return this.state.osc2;
+  // --- Mix ---
+
+  setOsc2Amplitude(newOsc2Amplitude: number) {
+    this.state.osc2Amplitude.value = newOsc2Amplitude;
+    this.sendParam(ParamId.OSC2_AMPLITUDE, newOsc2Amplitude);
+    return this;
   }
 
   setNoiseLevel(newLevel: number) {
@@ -361,6 +187,8 @@ export class SynthController extends EventTarget implements MidiTarget {
     this.sendParam(ParamId.NOISE_LEVEL, newLevel);
     return this;
   }
+
+  // --- Envelope ---
 
   setAmplitudeEnvelopeAttack(newAttackTime: number) {
     this.state.envelope.attack.value = newAttackTime;
@@ -386,19 +214,7 @@ export class SynthController extends EventTarget implements MidiTarget {
     return this;
   }
 
-  get envelope() {
-    return this.state.envelope;
-  }
-
-  setOsc2Amplitude(newOsc2Amplitude: number) {
-    this.state.osc2Amplitude.value = newOsc2Amplitude;
-    this.sendParam(ParamId.OSC2_AMPLITUDE, newOsc2Amplitude);
-    return this;
-  }
-
-  get osc2Amplitude() {
-    return this.state.osc2Amplitude;
-  }
+  // --- Filter ---
 
   setFilterMode(newMode: FilterMode) {
     this.state.filter.mode.value = newMode;
@@ -424,9 +240,7 @@ export class SynthController extends EventTarget implements MidiTarget {
     return this;
   }
 
-  get filter() {
-    return this.state.filter;
-  }
+  // --- Cutoff Mod ---
 
   setCutoffEnvelopeAmount(newAmount: number) {
     this.state.cutoffMod.amount.value = newAmount;
@@ -452,14 +266,12 @@ export class SynthController extends EventTarget implements MidiTarget {
     return this;
   }
 
+  // --- LFO 1 ---
+
   setLfo1Mode(newMode: OscillatorMode) {
     this.state.lfo1.mode.value = newMode;
     this.sendParam(ParamId.LFO1_MODE, OscModeToCpp[newMode]);
     return this;
-  }
-
-  get lfo1() {
-    return this.state.lfo1;
   }
 
   setLfo1Destination(newDestination: LfoDestination) {
@@ -480,9 +292,7 @@ export class SynthController extends EventTarget implements MidiTarget {
     return this;
   }
 
-  get lfo2() {
-    return this.state.lfo2;
-  }
+  // --- LFO 2 ---
 
   setLfo2Mode(newMode: OscillatorMode) {
     this.state.lfo2.mode.value = newMode;
@@ -508,12 +318,75 @@ export class SynthController extends EventTarget implements MidiTarget {
     return this;
   }
 
-  get cutoffMod() {
-    return this.state.cutoffMod;
-  }
-
   dumpState() {
     console.log(JSON.stringify(this.state));
+  }
+
+  // --- Internal ---
+
+  private initControlHandlers() {
+    const reg = (id: ControlID, paramId: number, event: VoiceEvent,
+                 update: (v: number) => void, slice: () => any) => {
+      this.controlHandlers.set(id, (value: number) => {
+        update(value);
+        this.sendParam(paramId, value);
+        this.dispatch(event, { ...slice() });
+      });
+    };
+
+    reg(ControlID.OSC1_SEMI, ParamId.OSC1_SEMI_SHIFT, VoiceEvent.OSC1,
+      (v) => { this.state.osc1.semiShift.value = v; }, () => this.state.osc1);
+    reg(ControlID.OSC1_CENT, ParamId.OSC1_CENT_SHIFT, VoiceEvent.OSC1,
+      (v) => { this.state.osc1.centShift.value = v; }, () => this.state.osc1);
+    reg(ControlID.OSC1_CYCLE, ParamId.OSC1_CYCLE, VoiceEvent.OSC1,
+      (v) => { this.state.osc1.cycle.value = v; }, () => this.state.osc1);
+
+    reg(ControlID.OSC2_SEMI, ParamId.OSC2_SEMI_SHIFT, VoiceEvent.OSC2,
+      (v) => { this.state.osc2.semiShift.value = v; }, () => this.state.osc2);
+    reg(ControlID.OSC2_CENT, ParamId.OSC2_CENT_SHIFT, VoiceEvent.OSC2,
+      (v) => { this.state.osc2.centShift.value = v; }, () => this.state.osc2);
+    reg(ControlID.OSC2_CYCLE, ParamId.OSC2_CYCLE, VoiceEvent.OSC2,
+      (v) => { this.state.osc2.cycle.value = v; }, () => this.state.osc2);
+
+    reg(ControlID.OSC_MIX, ParamId.OSC2_AMPLITUDE, VoiceEvent.OSC_MIX,
+      (v) => { this.state.osc2Amplitude.value = v; }, () => this.state.osc2Amplitude);
+    reg(ControlID.NOISE, ParamId.NOISE_LEVEL, VoiceEvent.NOISE,
+      (v) => { this.state.noiseLevel.value = v; }, () => this.state.noiseLevel);
+
+    reg(ControlID.CUTOFF, ParamId.CUTOFF, VoiceEvent.FILTER,
+      (v) => { this.state.filter.cutoff.value = v; }, () => this.state.filter);
+    reg(ControlID.RESONANCE, ParamId.RESONANCE, VoiceEvent.FILTER,
+      (v) => { this.state.filter.resonance.value = v; }, () => this.state.filter);
+    reg(ControlID.DRIVE, ParamId.DRIVE, VoiceEvent.FILTER,
+      (v) => { this.state.filter.drive.value = v; }, () => this.state.filter);
+
+    reg(ControlID.ATTACK, ParamId.AMPLITUDE_ATTACK, VoiceEvent.ENVELOPE,
+      (v) => { this.state.envelope.attack.value = v; }, () => this.state.envelope);
+    reg(ControlID.DECAY, ParamId.AMPLITUDE_DECAY, VoiceEvent.ENVELOPE,
+      (v) => { this.state.envelope.decay.value = v; }, () => this.state.envelope);
+    reg(ControlID.SUSTAIN, ParamId.AMPLITUDE_SUSTAIN, VoiceEvent.ENVELOPE,
+      (v) => { this.state.envelope.sustain.value = v; }, () => this.state.envelope);
+    reg(ControlID.RELEASE, ParamId.AMPLITUDE_RELEASE, VoiceEvent.ENVELOPE,
+      (v) => { this.state.envelope.release.value = v; }, () => this.state.envelope);
+
+    reg(ControlID.LFO1_FREQ, ParamId.LFO1_FREQUENCY, VoiceEvent.LFO1,
+      (v) => { this.state.lfo1.frequency.value = v; }, () => this.state.lfo1);
+    reg(ControlID.LFO1_MOD, ParamId.LFO1_MOD_AMOUNT, VoiceEvent.LFO1,
+      (v) => { this.state.lfo1.modAmount.value = v; }, () => this.state.lfo1);
+
+    reg(ControlID.LFO2_FREQ, ParamId.LFO2_FREQUENCY, VoiceEvent.LFO2,
+      (v) => { this.state.lfo2.frequency.value = v; }, () => this.state.lfo2);
+    reg(ControlID.LFO2_MOD, ParamId.LFO2_MOD_AMOUNT, VoiceEvent.LFO2,
+      (v) => { this.state.lfo2.modAmount.value = v; }, () => this.state.lfo2);
+
+    reg(ControlID.CUT_ATTACK, ParamId.CUTOFF_ENV_ATTACK, VoiceEvent.CUTOFF_MOD,
+      (v) => { this.state.cutoffMod.attack.value = v; }, () => this.state.cutoffMod);
+    reg(ControlID.CUT_DECAY, ParamId.CUTOFF_ENV_DECAY, VoiceEvent.CUTOFF_MOD,
+      (v) => { this.state.cutoffMod.decay.value = v; }, () => this.state.cutoffMod);
+    reg(ControlID.CUT_MOD, ParamId.CUTOFF_ENV_AMOUNT, VoiceEvent.CUTOFF_MOD,
+      (v) => { this.state.cutoffMod.amount.value = v; }, () => this.state.cutoffMod);
+    reg(ControlID.CUT_VEL, ParamId.CUTOFF_ENV_VELOCITY, VoiceEvent.CUTOFF_MOD,
+      (v) => { this.state.cutoffMod.velocity.value = v; }, () => this.state.cutoffMod);
   }
 
   private sendParam(id: number, value: number) {
@@ -524,34 +397,34 @@ export class SynthController extends EventTarget implements MidiTarget {
     if (!this.synthNode) return;
     const s = this.state;
     this.sendParam(ParamId.OSC1_MODE, OscModeToCpp[s.osc1.mode.value]);
-    this.sendParam(ParamId.OSC1_SEMI_SHIFT, s.osc1.semiShift.value);
-    this.sendParam(ParamId.OSC1_CENT_SHIFT, s.osc1.centShift.value);
-    this.sendParam(ParamId.OSC1_CYCLE, s.osc1.cycle.value);
+    this.sendParam(ParamId.OSC1_SEMI_SHIFT, s.osc1.semiShift.value as number);
+    this.sendParam(ParamId.OSC1_CENT_SHIFT, s.osc1.centShift.value as number);
+    this.sendParam(ParamId.OSC1_CYCLE, s.osc1.cycle.value as number);
     this.sendParam(ParamId.OSC2_MODE, OscModeToCpp[s.osc2.mode.value]);
-    this.sendParam(ParamId.OSC2_SEMI_SHIFT, s.osc2.semiShift.value);
-    this.sendParam(ParamId.OSC2_CENT_SHIFT, s.osc2.centShift.value);
-    this.sendParam(ParamId.OSC2_CYCLE, s.osc2.cycle.value);
-    this.sendParam(ParamId.OSC2_AMPLITUDE, s.osc2Amplitude.value);
-    this.sendParam(ParamId.NOISE_LEVEL, s.noiseLevel.value);
-    this.sendParam(ParamId.AMPLITUDE_ATTACK, s.envelope.attack.value);
-    this.sendParam(ParamId.AMPLITUDE_DECAY, s.envelope.decay.value);
-    this.sendParam(ParamId.AMPLITUDE_SUSTAIN, s.envelope.sustain.value);
-    this.sendParam(ParamId.AMPLITUDE_RELEASE, s.envelope.release.value);
+    this.sendParam(ParamId.OSC2_SEMI_SHIFT, s.osc2.semiShift.value as number);
+    this.sendParam(ParamId.OSC2_CENT_SHIFT, s.osc2.centShift.value as number);
+    this.sendParam(ParamId.OSC2_CYCLE, s.osc2.cycle.value as number);
+    this.sendParam(ParamId.OSC2_AMPLITUDE, s.osc2Amplitude.value as number);
+    this.sendParam(ParamId.NOISE_LEVEL, s.noiseLevel.value as number);
+    this.sendParam(ParamId.AMPLITUDE_ATTACK, s.envelope.attack.value as number);
+    this.sendParam(ParamId.AMPLITUDE_DECAY, s.envelope.decay.value as number);
+    this.sendParam(ParamId.AMPLITUDE_SUSTAIN, s.envelope.sustain.value as number);
+    this.sendParam(ParamId.AMPLITUDE_RELEASE, s.envelope.release.value as number);
     this.sendParam(ParamId.FILTER_MODE, FilterModeToCpp[s.filter.mode.value]);
-    this.sendParam(ParamId.CUTOFF, s.filter.cutoff.value);
-    this.sendParam(ParamId.RESONANCE, s.filter.resonance.value);
-    this.sendParam(ParamId.DRIVE, s.filter.drive.value);
-    this.sendParam(ParamId.CUTOFF_ENV_AMOUNT, s.cutoffMod.amount.value);
-    this.sendParam(ParamId.CUTOFF_ENV_VELOCITY, s.cutoffMod.velocity.value);
-    this.sendParam(ParamId.CUTOFF_ENV_ATTACK, s.cutoffMod.attack.value);
-    this.sendParam(ParamId.CUTOFF_ENV_DECAY, s.cutoffMod.decay.value);
+    this.sendParam(ParamId.CUTOFF, s.filter.cutoff.value as number);
+    this.sendParam(ParamId.RESONANCE, s.filter.resonance.value as number);
+    this.sendParam(ParamId.DRIVE, s.filter.drive.value as number);
+    this.sendParam(ParamId.CUTOFF_ENV_AMOUNT, s.cutoffMod.amount.value as number);
+    this.sendParam(ParamId.CUTOFF_ENV_VELOCITY, s.cutoffMod.velocity.value as number);
+    this.sendParam(ParamId.CUTOFF_ENV_ATTACK, s.cutoffMod.attack.value as number);
+    this.sendParam(ParamId.CUTOFF_ENV_DECAY, s.cutoffMod.decay.value as number);
     this.sendParam(ParamId.LFO1_MODE, OscModeToCpp[s.lfo1.mode.value]);
-    this.sendParam(ParamId.LFO1_DESTINATION, s.lfo1.destination.value);
-    this.sendParam(ParamId.LFO1_FREQUENCY, s.lfo1.frequency.value);
-    this.sendParam(ParamId.LFO1_MOD_AMOUNT, s.lfo1.modAmount.value);
+    this.sendParam(ParamId.LFO1_DESTINATION, s.lfo1.destination.value as number);
+    this.sendParam(ParamId.LFO1_FREQUENCY, s.lfo1.frequency.value as number);
+    this.sendParam(ParamId.LFO1_MOD_AMOUNT, s.lfo1.modAmount.value as number);
     this.sendParam(ParamId.LFO2_MODE, OscModeToCpp[s.lfo2.mode.value]);
-    this.sendParam(ParamId.LFO2_DESTINATION, s.lfo2.destination.value);
-    this.sendParam(ParamId.LFO2_FREQUENCY, s.lfo2.frequency.value);
-    this.sendParam(ParamId.LFO2_MOD_AMOUNT, s.lfo2.modAmount.value);
+    this.sendParam(ParamId.LFO2_DESTINATION, s.lfo2.destination.value as number);
+    this.sendParam(ParamId.LFO2_FREQUENCY, s.lfo2.frequency.value as number);
+    this.sendParam(ParamId.LFO2_MOD_AMOUNT, s.lfo2.modAmount.value as number);
   }
 }

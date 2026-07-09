@@ -13,12 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { OscillatorMode } from "./oscillator-mode";
-import { FilterMode } from "./filter-mode";
-import { LfoDestination } from "./lfo-destination";
 
-export type ControlValue = number | OscillatorMode | FilterMode | LfoDestination;
-
-export interface Control {
-  value: ControlValue;
-}
+export { themes, darkTheme, retroTheme } from "./tokens.css";
+export type { ThemeId } from "./tokens.css";
+export { setTheme, initTheme } from "./theme-controller";

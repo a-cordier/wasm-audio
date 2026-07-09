@@ -21,6 +21,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title></title>
     <meta name="description" content="" />
@@ -59,57 +60,12 @@
   </body>
 
   <style>
-    :root {
-      --darker: #15202b;
-      --dark-secondary: #192734;
-      --medium: #2b3844;
-      --light-secondary: #cbe2f3;
-      --lighter: #ffffff;
-
-      /* this color is used to emphasis the control when midi learn is toggled => todo rename ? */
-      --control-hander-color-focused: var(--medium);
-      --control-handle-color: var(--dark-secondary);
-      --control-cursor-color: var(--lighter);
-      --control-top-color: var(--light-secondary);
-      --control-label-color: var(--darker);
-      --control-label-font-size: 0.8em;
-
-      --button-disposed-background-color: var(--light-secondary);
-      --button-disposed-label-color: var(--darker);
-      --button-active-background-color: var(--dark-secondary);
-      --button-active-label-color: #b4d455;
-      --button-border: 1px solid var(--light-color);
-
-      --key-sharp-color: var(--dark-secondary);
-      --key-whole-color: var(--light-secondary);
-      --keyboard-panel-color: var(--darker);
-
-      --lcd-led-on-color: #b4d455;
-      --lcd-screen-border-color: var(--lighter);
-      --lcd-screen-background: var(--dark-secondary);
-
-      --main-panel-color: #181818;
-      --main-panel-label-font-family: "Bungee Outline", cursive;
-      --main-panel-label-color: var(--lighter);
-
-      --oscillator-panel-color: #145a6a;
-      --oscillator-mix-panel-color: var(--oscillator-panel-color);
-      --envelope-panel-color: var(--oscillator-panel-color);
-      --filter-panel-color: #ac8f1d;
-      --filter-mod-panel-color: var(--filter-panel-color);
-      --lfo-panel-color: #9a1a40;
-
-      --panel-wrapper-label-color: var(--darker);
-
-      --ui-transition-time: 0.4s;
-    }
-
     html {
       font-family: "Space Mono", monospace;
     }
 
     body {
-      background-color: #121212;
+      background-color: var(--body-background, #121212);
     }
 
     .github-fork-ribbon:before {

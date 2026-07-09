@@ -13,4 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { initTheme } from "./theme/theme-controller";
+import "./components/registry";
 import "./components/root-element";
+
+initTheme();

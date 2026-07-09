@@ -13,77 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LitElement, html, css } from "lit";
+import { html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { OscillatorEvent } from "../../../../types/oscillator-event";
 import { OscillatorMode } from "../../../../types/oscillator-mode";
-
-import "./wave-selector-element";
-import "../../../common/controls/knob-element";
-import "../panel-wrapper-element";
-import { MidiControlID } from "../../../../types/midi-learn-options";
+import { OscillatorState } from "../../../../types/voice";
+import { ControlID } from "../../../../control/types";
+import { SynthPanel } from "../../../common/synth-panel";
 
 @customElement("oscillator-element")
-export class Oscillator extends LitElement {
-  @property({ type: String })
-  private label = "Osc";
-
+export class Oscillator extends SynthPanel {
   @property({ type: Object })
-  private state: any;
+  state: OscillatorState;
 
   @property({ type: Number })
-  private currentLearnerID = MidiControlID.NONE;
+  semiControlID = ControlID.OSC1_SEMI;
 
   @property({ type: Number })
-  private semiControlID = MidiControlID.OSC1_SEMI;
+  centControlID = ControlID.OSC1_CENT;
 
   @property({ type: Number })
-  private centControlID = MidiControlID.OSC1_CENT;
-
-  @property({ type: Number })
-  private cycleControlID = MidiControlID.OSC1_CYCLE;
+  cycleControlID = ControlID.OSC1_CYCLE;
 
   private cycleRange = { min: 5, max: 122 };
-
-  constructor() {
-    super();
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-  }
-
-  onSemiShift(event: CustomEvent) {
-    this.dispatchChange(OscillatorEvent.SEMI_SHIFT, event.detail.value);
-  }
-
-  get semiShiftValue() {
-    return this.state.semiShift.value;
-  }
-
-  onCentShift(event: CustomEvent) {
-    this.dispatchChange(OscillatorEvent.CENT_SHIFT, event.detail.value);
-  }
-
-  get centShiftValue() {
-    return this.state.centShift.value;
-  }
-
-  onCycleChange(event: CustomEvent) {
-    this.dispatchChange(OscillatorEvent.CYCLE, event.detail.value);    
-  }
-
-  get cycleValue() {
-    return this.state.cycle.value;
-  }
-
-  onWaveFormChange(event: CustomEvent) {
-    this.dispatchChange(OscillatorEvent.WAVE_FORM, event.detail.value);
-  }
-
-  dispatchChange(type: OscillatorEvent, value: number | string) {
-    this.dispatchEvent(new CustomEvent("change", { detail: { type, value } }));
-  }
 
   render() {
     return html`
@@ -92,50 +44,41 @@ export class Oscillator extends LitElement {
           <div class="wave-control">
             <wave-selector-element
               .value=${this.state.mode.value as OscillatorMode}
-              @change=${this.onWaveFormChange}
+              @change=${(e: CustomEvent) => this.dispatchChange(OscillatorEvent.WAVE_FORM, e.detail.value)}
             ></wave-selector-element>
           </div>
           <div class="tone-controls">
             <div class="shift-control">
               <div class="knob-control semi-shift-control">
-                <midi-control-wrapper
-                  controlID=${this.semiControlID}
-                  currentLearnerID=${this.currentLearnerID}
-                >
+                <control-learn-wrapper controlID=${this.semiControlID}>
                   <knob-element
-                    .value=${this.semiShiftValue}
-                    @change=${this.onSemiShift}
+                    .value=${this.state.semiShift.value}
+                    @change=${(e: CustomEvent) => this.dispatchChange(OscillatorEvent.SEMI_SHIFT, e.detail.value)}
                   ></knob-element>
-                </midi-control-wrapper>
+                </control-learn-wrapper>
               </div>
               <label>semi</label>
             </div>
             <div class="shift-control">
-              <div class="knob-control cent-shift-control cent">
-                <midi-control-wrapper
-                  controlID=${this.centControlID}
-                  currentLearnerID=${this.currentLearnerID}
-                >
+              <div class="knob-control cent-shift-control">
+                <control-learn-wrapper controlID=${this.centControlID}>
                   <knob-element
-                    .value=${this.centShiftValue}
-                    @change=${this.onCentShift}
+                    .value=${this.state.centShift.value}
+                    @change=${(e: CustomEvent) => this.dispatchChange(OscillatorEvent.CENT_SHIFT, e.detail.value)}
                   ></knob-element>
-                </midi-control-wrapper>
+                </control-learn-wrapper>
               </div>
               <label>cents</label>
             </div>
             <div class="shift-control">
-              <div class="knob-control cycle-shift-control cycle">
-                <midi-control-wrapper
-                  controlID=${this.cycleControlID}
-                  currentLearnerID=${this.currentLearnerID}
-                >
+              <div class="knob-control cycle-shift-control">
+                <control-learn-wrapper controlID=${this.cycleControlID}>
                   <knob-element
                     .range=${this.cycleRange}
-                    .value=${this.cycleValue}
-                    @change=${this.onCycleChange}
+                    .value=${this.state.cycle.value}
+                    @change=${(e: CustomEvent) => this.dispatchChange(OscillatorEvent.CYCLE, e.detail.value)}
                   ></knob-element>
-                </midi-control-wrapper>
+                </control-learn-wrapper>
               </div>
               <label>cycle</label>
             </div>
@@ -146,52 +89,47 @@ export class Oscillator extends LitElement {
   }
 
   static get styles() {
-    // noinspection CssUnresolvedCustomProperty
     return css`
       :host {
         --panel-wrapper-background-color: var(--oscillator-panel-color);
+        container-type: inline-size;
       }
 
       .oscillator-controls {
         position: relative;
-
-        width: 160px;
-        height: 120px;
+        width: 100%;
+        min-height: 120px;
       }
 
-      .oscillator-controls .tone-controls {
+      .tone-controls {
         display: flex;
         justify-content: space-around;
         width: 100%;
         margin-top: 1em;
       }
 
-      .oscillator-controls .tone-controls .shift-control {
+      .shift-control {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
       }
 
-      .oscillator-controls .tone-controls .knob-control {
+      .knob-control {
         display: flex;
         flex-direction: row;
         align-items: center;
-
         width: 100%;
         height: 90%;
       }
 
-      .oscillator-controls .tone-controls .semi-shift-control {
-        --knob-size: 50px;
-      }
+      .semi-shift-control { --knob-size: 50px; }
+      .cent-shift-control { --knob-size: 40px; }
+      .cycle-shift-control { --knob-size: 35px; }
 
-      .oscillator-controls .tone-controls .cent-shift-control {
-        --knob-size: 40px;
-      }
-
-      .oscillator-controls .tone-controls .cycle-shift-control {
-        --knob-size: 35px;
+      @container (max-width: 120px) {
+        .tone-controls { flex-direction: column; gap: 0.5em; }
+        .semi-shift-control, .cent-shift-control, .cycle-shift-control { --knob-size: 30px; }
       }
 
       label {

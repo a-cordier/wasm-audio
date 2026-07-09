@@ -16,33 +16,25 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 
-import "../common/controls/keys-element";
-import "../visualizer-element";
-import "./panels/oscillator/wave-selector-element";
-import "./panels/oscillator/oscillator-element";
-import "./panels/oscillator-mix/oscillator-mix";
-import "./panels/filter/filter-element";
-import "./panels/envelope/envelope-element";
-import "./panels/filter-mod/filter-envelope-element";
-import "./panels/lfo/lfo-element";
-import "./panels/menu/menu-element";
-import "./panels/panel-wrapper-element";
-import "../common/controls/midi-control-wrapper";
-
 import { SynthController } from "../../synth/synth-controller";
+import { createMidi, Midi } from "../../midi/api";
+import { MidiBus } from "../../midi/bus/bus";
+import { KeyboardController } from "../../midi/keyboard";
 
 import { OscillatorEvent } from "../../types/oscillator-event";
 import { FilterEvent } from "../../types/filter-event";
 import { FilterEnvelopeEvent } from "../../types/filter-envelope-event";
 import { OscillatorEnvelopeEvent } from "../../types/oscillator-envelope-event";
 import { LfoEvent } from "../../types/lfo-event";
-import { createMidi, Midi } from "../../midi/api";
-import { MidiBus } from "../../midi/bus/bus";
 import { MenuMode } from "../../types/menu-mode";
 import { VoiceEvent } from "../../types/voice-event";
 import { VoiceState } from "../../types/voice";
-import { MidiControlID } from "../../types/midi-learn-options";
-import { KeyboardController } from "../../midi/keyboard";
+import { SynthChangeEvent, assertNever } from "../../types/events";
+
+import { ControlID } from "../../control/types";
+import { getBindingManager } from "../../control/binding-manager";
+import { MidiControlAdapter } from "../../control/adapters/midi-adapter";
+
 @customElement("wasm-poly-element")
 export class WasmPoly extends LitElement {
   private audioContext: AudioContext;
@@ -52,10 +44,7 @@ export class WasmPoly extends LitElement {
   private voiceManager: SynthController;
   private state: Partial<VoiceState>;
 
-  private currentLearnerID = MidiControlID.NONE;
-
   private showVizualizer = false;
-
   private editMode = false;
 
   @property({ type: Object })
@@ -78,9 +67,10 @@ export class WasmPoly extends LitElement {
     this.setUpVoiceManager();
     this.analyzer.connect(this.audioContext.destination);
     this.registerVoiceHandlers();
+    this.setUpBindingManager();
   }
 
-  setUpVoiceManager() {
+  private setUpVoiceManager() {
     for (const input of this.midi.devices.inputs.values()) {
       input.connect(this.midiBus);
     }
@@ -91,24 +81,23 @@ export class WasmPoly extends LitElement {
     });
 
     new KeyboardController().connect(this.midiBus);
-
     this.voiceManager.connectBus(this.midiBus).connect(this.analyzer);
   }
 
-  async onKeyOn(event: CustomEvent) {
-    if (this.audioContext.state === "suspended") {
-      await this.audioContext.resume();
-    }
-    const { frequency, midiValue } = event.detail;
-    this.voiceManager.next({ frequency, midiValue });
+  private setUpBindingManager() {
+    const bindingManager = getBindingManager();
+    const midiAdapter = new MidiControlAdapter(this.midiBus);
+    bindingManager.registerSource(midiAdapter);
+
+    bindingManager.addEventListener("control-change", ((e: CustomEvent) => {
+      const { controlId, value } = e.detail;
+      this.voiceManager.handleControlChange(controlId, value);
+      this.state = this.voiceManager.getState();
+      this.requestUpdate();
+    }) as EventListener);
   }
 
-  onKeyOff(event: CustomEvent) {
-    const { midiValue } = event.detail;
-    this.voiceManager.stop({ midiValue });
-  }
-
-  registerVoiceHandlers() {
+  private registerVoiceHandlers() {
     this.voiceManager
       .subscribe(VoiceEvent.NOTE_ON, (note) => {
         this.pressedKeys.add(note.midiValue);
@@ -158,159 +147,128 @@ export class WasmPoly extends LitElement {
       });
   }
 
-  onOsc1Change(event: CustomEvent) {
+  async onKeyOn(event: CustomEvent) {
+    if (this.audioContext.state === "suspended") {
+      await this.audioContext.resume();
+    }
+    const { frequency, midiValue } = event.detail;
+    this.voiceManager.next({ frequency, midiValue });
+  }
+
+  onKeyOff(event: CustomEvent) {
+    const { midiValue } = event.detail;
+    this.voiceManager.stop({ midiValue });
+  }
+
+  onOsc1Change(event: SynthChangeEvent<OscillatorEvent>) {
     switch (event.detail.type) {
-      case OscillatorEvent.WAVE_FORM:
-        this.voiceManager.setOsc1Mode(event.detail.value);
-        break;
-      case OscillatorEvent.SEMI_SHIFT:
-        this.voiceManager.setOsc1SemiShift(event.detail.value);
-        break;
-      case OscillatorEvent.CENT_SHIFT:
-        this.voiceManager.setOsc1CentShift(event.detail.value);
-        break;
-      case OscillatorEvent.CYCLE:
-        this.voiceManager.setOsc1Cycle(event.detail.value);
+      case OscillatorEvent.WAVE_FORM: this.voiceManager.setOsc1Mode(event.detail.value as number); break;
+      case OscillatorEvent.SEMI_SHIFT: this.voiceManager.setOsc1SemiShift(event.detail.value as number); break;
+      case OscillatorEvent.CENT_SHIFT: this.voiceManager.setOsc1CentShift(event.detail.value as number); break;
+      case OscillatorEvent.CYCLE: this.voiceManager.setOsc1Cycle(event.detail.value as number); break;
+      case OscillatorEvent.MIX: break;
+      case OscillatorEvent.NOISE: break;
+      default: assertNever(event.detail.type);
     }
   }
 
-  onAmplitudeEnvelopeChange(event: CustomEvent) {
+  onOsc2Change(event: SynthChangeEvent<OscillatorEvent>) {
     switch (event.detail.type) {
-      case OscillatorEnvelopeEvent.ATTACK:
-        this.voiceManager.setAmplitudeEnvelopeAttack(event.detail.value);
-        break;
-      case OscillatorEnvelopeEvent.DECAY:
-        this.voiceManager.setAmplitudeEnvelopeDecay(event.detail.value);
-        break;
-      case OscillatorEnvelopeEvent.SUSTAIN:
-        this.voiceManager.setAmplitudeEnvelopeSustain(event.detail.value);
-        break;
-      case OscillatorEnvelopeEvent.RELEASE:
-        this.voiceManager.setAmplitudeEnvelopeRelease(event.detail.value);
-        break;
+      case OscillatorEvent.WAVE_FORM: this.voiceManager.setOsc2Mode(event.detail.value as number); break;
+      case OscillatorEvent.SEMI_SHIFT: this.voiceManager.setOsc2SemiShift(event.detail.value as number); break;
+      case OscillatorEvent.CENT_SHIFT: this.voiceManager.setOsc2CentShift(event.detail.value as number); break;
+      case OscillatorEvent.CYCLE: this.voiceManager.setOsc2Cycle(event.detail.value as number); break;
+      case OscillatorEvent.MIX: break;
+      case OscillatorEvent.NOISE: break;
+      default: assertNever(event.detail.type);
     }
   }
 
-  onOscMixChange(event: CustomEvent) {
+  onOscMixChange(event: SynthChangeEvent<OscillatorEvent>) {
     switch (event.detail.type) {
-      case OscillatorEvent.MIX:
-        this.voiceManager.setOsc2Amplitude(event.detail.value);
-        break;
-      case OscillatorEvent.NOISE:
-        this.voiceManager.setNoiseLevel(event.detail.value);
-        break;
+      case OscillatorEvent.MIX: this.voiceManager.setOsc2Amplitude(event.detail.value as number); break;
+      case OscillatorEvent.NOISE: this.voiceManager.setNoiseLevel(event.detail.value as number); break;
+      case OscillatorEvent.WAVE_FORM: break;
+      case OscillatorEvent.SEMI_SHIFT: break;
+      case OscillatorEvent.CENT_SHIFT: break;
+      case OscillatorEvent.CYCLE: break;
+      default: assertNever(event.detail.type);
     }
   }
 
-  onOsc2Change(event: CustomEvent) {
+  onFilterChange(event: SynthChangeEvent<FilterEvent>) {
     switch (event.detail.type) {
-      case OscillatorEvent.WAVE_FORM:
-        this.voiceManager.setOsc2Mode(event.detail.value);
-        break;
-      case OscillatorEvent.SEMI_SHIFT:
-        this.voiceManager.setOsc2SemiShift(event.detail.value);
-        break;
-      case OscillatorEvent.CENT_SHIFT:
-        this.voiceManager.setOsc2CentShift(event.detail.value);
-        break;
-      case OscillatorEvent.CYCLE:
-        this.voiceManager.setOsc2Cycle(event.detail.value);
-        break;
+      case FilterEvent.MODE: this.voiceManager.setFilterMode(event.detail.value as number); break;
+      case FilterEvent.CUTOFF: this.voiceManager.setFilterCutoff(event.detail.value as number); break;
+      case FilterEvent.RESONANCE: this.voiceManager.setFilterResonance(event.detail.value as number); break;
+      case FilterEvent.DRIVE: this.voiceManager.setDrive(event.detail.value as number); break;
+      default: assertNever(event.detail.type);
     }
   }
 
-  onFilterChange(event: CustomEvent) {
+  onAmplitudeEnvelopeChange(event: SynthChangeEvent<OscillatorEnvelopeEvent>) {
     switch (event.detail.type) {
-      case FilterEvent.MODE:
-        this.voiceManager.setFilterMode(event.detail.value);
-        break;
-      case FilterEvent.CUTOFF:
-        this.voiceManager.setFilterCutoff(event.detail.value);
-        break;
-      case FilterEvent.RESONANCE:
-        this.voiceManager.setFilterResonance(event.detail.value);
-        break;
-      case FilterEvent.DRIVE:
-        this.voiceManager.setDrive(event.detail.value);
-        break;
+      case OscillatorEnvelopeEvent.ATTACK: this.voiceManager.setAmplitudeEnvelopeAttack(event.detail.value as number); break;
+      case OscillatorEnvelopeEvent.DECAY: this.voiceManager.setAmplitudeEnvelopeDecay(event.detail.value as number); break;
+      case OscillatorEnvelopeEvent.SUSTAIN: this.voiceManager.setAmplitudeEnvelopeSustain(event.detail.value as number); break;
+      case OscillatorEnvelopeEvent.RELEASE: this.voiceManager.setAmplitudeEnvelopeRelease(event.detail.value as number); break;
+      default: assertNever(event.detail.type);
     }
   }
 
-  onFilterEnvelopeChange(event: CustomEvent) {
+  onFilterEnvelopeChange(event: SynthChangeEvent<FilterEnvelopeEvent>) {
     switch (event.detail.type) {
-      case FilterEnvelopeEvent.ATTACK:
-        this.voiceManager.setCutoffEnvelopeAttack(event.detail.value);
-        break;
-      case FilterEnvelopeEvent.DECAY:
-        this.voiceManager.setCutoffEnvelopeDecay(event.detail.value);
-        break;
-      case FilterEnvelopeEvent.AMOUNT:
-        this.voiceManager.setCutoffEnvelopeAmount(event.detail.value);
-        break;
-      case FilterEnvelopeEvent.VELOCITY:
-        this.voiceManager.setCutoffEnvelopeVelocity(event.detail.value);
-        break;
+      case FilterEnvelopeEvent.ATTACK: this.voiceManager.setCutoffEnvelopeAttack(event.detail.value as number); break;
+      case FilterEnvelopeEvent.DECAY: this.voiceManager.setCutoffEnvelopeDecay(event.detail.value as number); break;
+      case FilterEnvelopeEvent.AMOUNT: this.voiceManager.setCutoffEnvelopeAmount(event.detail.value as number); break;
+      case FilterEnvelopeEvent.VELOCITY: this.voiceManager.setCutoffEnvelopeVelocity(event.detail.value as number); break;
+      default: assertNever(event.detail.type);
     }
   }
 
-  onLfo1Change(event: CustomEvent) {
+  onLfo1Change(event: SynthChangeEvent<LfoEvent>) {
     switch (event.detail.type) {
-      case LfoEvent.WAVE_FORM:
-        this.voiceManager.setLfo1Mode(event.detail.value);
-        break;
-      case LfoEvent.FREQUENCY:
-        this.voiceManager.setLfo1Frequency(event.detail.value);
-        break;
-      case LfoEvent.MOD_AMOUNT:
-        this.voiceManager.setLfo1ModAmount(event.detail.value);
-        break;
-      case LfoEvent.DESTINATION:
-        this.voiceManager.setLfo1Destination(event.detail.value);
+      case LfoEvent.WAVE_FORM: this.voiceManager.setLfo1Mode(event.detail.value as number); break;
+      case LfoEvent.FREQUENCY: this.voiceManager.setLfo1Frequency(event.detail.value as number); break;
+      case LfoEvent.MOD_AMOUNT: this.voiceManager.setLfo1ModAmount(event.detail.value as number); break;
+      case LfoEvent.DESTINATION: this.voiceManager.setLfo1Destination(event.detail.value as number); break;
+      default: assertNever(event.detail.type);
     }
   }
 
-  onLfo2Change(event: CustomEvent) {
+  onLfo2Change(event: SynthChangeEvent<LfoEvent>) {
     switch (event.detail.type) {
-      case LfoEvent.WAVE_FORM:
-        this.voiceManager.setLfo2Mode(event.detail.value);
-        break;
-      case LfoEvent.FREQUENCY:
-        this.voiceManager.setLfo2Frequency(event.detail.value);
-        break;
-      case LfoEvent.MOD_AMOUNT:
-        this.voiceManager.setLfo2ModAmount(event.detail.value);
-        break;
-      case LfoEvent.DESTINATION:
-        this.voiceManager.setLfo2Destination(event.detail.value);
+      case LfoEvent.WAVE_FORM: this.voiceManager.setLfo2Mode(event.detail.value as number); break;
+      case LfoEvent.FREQUENCY: this.voiceManager.setLfo2Frequency(event.detail.value as number); break;
+      case LfoEvent.MOD_AMOUNT: this.voiceManager.setLfo2ModAmount(event.detail.value as number); break;
+      case LfoEvent.DESTINATION: this.voiceManager.setLfo2Destination(event.detail.value as number); break;
+      default: assertNever(event.detail.type);
     }
   }
 
   async onMenuChange(event: CustomEvent) {
     const { type, option, shouldUpdate } = event.detail;
+    const bindingManager = getBindingManager();
+
     switch (type) {
       case MenuMode.MIDI_LEARN:
-        this.currentLearnerID = option.value;
         if (shouldUpdate) {
-          this.voiceManager.setLearnerID(this.currentLearnerID);
+          bindingManager.startLearning(option.value);
+        } else {
+          bindingManager.stopLearning();
         }
         break;
       case MenuMode.MIDI_CHANNEL:
-        this.unlearn();
-        // Channel filtering is handled by bus route filters — future enhancement
+        bindingManager.stopLearning();
         break;
       case MenuMode.PRESET:
-        this.unlearn();
+        bindingManager.stopLearning();
         if (shouldUpdate) {
           this.state = this.voiceManager.setState(option.value);
         }
         break;
     }
     await this.requestUpdate();
-  }
-
-  unlearn() {
-    this.currentLearnerID = MidiControlID.NONE;
-    this.voiceManager.setLearnerID(this.currentLearnerID);
   }
 
   computeVizualizerIfEnabled() {
@@ -343,12 +301,11 @@ export class WasmPoly extends LitElement {
               @change=${this.onMenuChange}
             ></menu-element>
           </div>
-          <div class="panels-row">
+          <div class="panels-row upper">
             <oscillator-element
-              .currentLearnerID=${this.currentLearnerID}
-              .semiControlID=${MidiControlID.OSC1_SEMI}
-              .centControlID=${MidiControlID.OSC1_CENT}
-              .cycleControlID=${MidiControlID.OSC1_CYCLE}
+              .semiControlID=${ControlID.OSC1_SEMI}
+              .centControlID=${ControlID.OSC1_CENT}
+              .cycleControlID=${ControlID.OSC1_CYCLE}
               label="Osc. 1"
               .state=${this.state.osc1}
               @change=${this.onOsc1Change}
@@ -356,49 +313,42 @@ export class WasmPoly extends LitElement {
             <oscillator-mix-element
               .mix=${this.state.osc2Amplitude}
               .noise=${this.state.noiseLevel}
-              .currentLearnerID=${this.currentLearnerID}
               @change=${this.onOscMixChange}
             ></oscillator-mix-element>
             <oscillator-element
-              .currentLearnerID=${this.currentLearnerID}
-              .semiControlID=${MidiControlID.OSC2_SEMI}
-              .centControlID=${MidiControlID.OSC2_CENT}
-              .cycleControlID=${MidiControlID.OSC2_CYCLE}
+              .semiControlID=${ControlID.OSC2_SEMI}
+              .centControlID=${ControlID.OSC2_CENT}
+              .cycleControlID=${ControlID.OSC2_CYCLE}
               label="Osc. 2"
               .state=${this.state.osc2}
               @change=${this.onOsc2Change}
             ></oscillator-element>
             <filter-element
-              .currentLearnerID=${this.currentLearnerID}
               .state=${this.state.filter}
               @change=${this.onFilterChange}
             ></filter-element>
           </div>
           <div class="panels-row lower">
             <envelope-element
-              .currentLearnerID=${this.currentLearnerID}
               label="Envelope"
               .state=${this.state.envelope}
               @change=${this.onAmplitudeEnvelopeChange}
             ></envelope-element>
             <lfo-element
-              .currentLearnerID=${this.currentLearnerID}
-              .frequencyControlID=${MidiControlID.LFO1_FREQ}
-              .modAmountControlID=${MidiControlID.LFO1_MOD}
+              .frequencyControlID=${ControlID.LFO1_FREQ}
+              .modAmountControlID=${ControlID.LFO1_MOD}
               label="LFO 1"
               .state=${this.state.lfo1}
               @change=${this.onLfo1Change}
             ></lfo-element>
             <lfo-element
-              .currentLearnerID=${this.currentLearnerID}
-              .frequencyControlID=${MidiControlID.LFO2_FREQ}
-              .modAmountControlID=${MidiControlID.LFO2_MOD}
+              .frequencyControlID=${ControlID.LFO2_FREQ}
+              .modAmountControlID=${ControlID.LFO2_MOD}
               label="LFO 2"
               .state=${this.state.lfo2}
               @change=${this.onLfo2Change}
             ></lfo-element>
             <filter-envelope-element
-              .currentLearnerID=${this.currentLearnerID}
               .state=${this.state.cutoffMod}
               @change=${this.onFilterEnvelopeChange}
             ></filter-envelope-element>
@@ -441,39 +391,70 @@ export class WasmPoly extends LitElement {
 
       .synth {
         margin: 20px auto;
-        width: 650px;
-
+        width: calc(650px + 3em);
+        max-width: 100%;
         background-color: var(--main-panel-color);
-
         border-radius: 0.5rem;
         padding: 1.5em;
+        box-sizing: border-box;
       }
 
-      .synth .panels-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+      /* ── Grid rows ── */
+
+      .panels-row {
+        display: grid;
+        gap: 0.5rem;
+        align-items: start;
       }
 
-      .synth .panels-row.lower {
+      .panels-row > * {
+        min-width: 0;
+      }
+
+      /* Upper: Osc1(160) Mix(60) Osc2(160) Filter(160) → 8:3:8:8 */
+      .panels-row.upper {
+        grid-template-columns: 8fr 3fr 8fr 8fr;
+      }
+
+      /* Lower: Env(160) LFO1(130) LFO2(130) FilterMod(130) → 6:5:5:5 */
+      .panels-row.lower {
+        grid-template-columns: 6fr 5fr 5fr 5fr;
         margin-top: 1em;
       }
 
-      .synth .keyboard {
+      /* ── Keyboard ── */
+
+      .keyboard {
         --key-height: 100px;
         --panel-wrapper-background-color: var(--keyboard-panel-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-top: 15px;
+        margin-top: 2em;
       }
 
-      .synth .keyboard .keys {
+      .keyboard .keys {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 635px;
-        margin: -1.5em auto 0.5em 0.6em;
+        width: 90%;
+        margin: -1em auto 0.5em auto;
+      }
+
+      /* ── Responsive breakpoints ── */
+
+      @media (max-width: 600px) {
+        .synth { padding: 0.75em; }
+        .keyboard { --key-height: 60px; }
+
+        .panels-row.upper,
+        .panels-row.lower {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 400px) {
+        .panels-row.upper,
+        .panels-row.lower {
+          grid-template-columns: 1fr;
+        }
       }
     `;
   }
