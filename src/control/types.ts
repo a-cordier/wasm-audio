@@ -43,6 +43,7 @@ export enum ControlID {
   CUT_VEL,
   CUT_ATTACK,
   CUT_DECAY,
+  GLIDE_TIME,
 }
 
 export interface ControlSignal {
@@ -95,4 +96,5 @@ export const LearnOptions = new SelectOptions([
   toSelectOption(ControlID.LFO1_MOD),
   toSelectOption(ControlID.LFO2_FREQ),
   toSelectOption(ControlID.LFO2_MOD),
+  toSelectOption(ControlID.GLIDE_TIME),
 ]);

@@ -16,8 +16,9 @@
 import { OscillatorMode } from "./oscillator-mode";
 import { FilterMode } from "./filter-mode";
 import { LfoDestination } from "./lfo-destination";
+import { VoiceMode } from "./voice-mode";
 
-export type ControlValue = number | OscillatorMode | FilterMode | LfoDestination;
+export type ControlValue = number | OscillatorMode | FilterMode | LfoDestination | VoiceMode;
 
 export interface Control {
   value: ControlValue;

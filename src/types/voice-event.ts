@@ -25,4 +25,5 @@ export enum VoiceEvent {
   LFO1 = "LFO1",
   LFO2 = "LFO2",
   CUTOFF_MOD = "CUTOFF_MOD",
+  VOICE_CONFIG = "VOICE_CONFIG",
 }

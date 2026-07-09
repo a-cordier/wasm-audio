@@ -18,6 +18,7 @@ import { VoiceState, createVoiceState } from "../types/voice";
 import { OscillatorMode } from "../types/oscillator-mode";
 import { FilterMode } from "../types/filter-mode";
 import { LfoDestination } from "../types/lfo-destination";
+import { VoiceMode } from "../types/voice-mode";
 import { MidiEvent, MidiTarget, Disposable } from "../midi/types";
 import { MidiBus } from "../midi/bus/bus";
 import { noteFrequency } from "../midi/codec/notes";
@@ -318,6 +319,29 @@ export class SynthController extends EventTarget implements MidiTarget {
     return this;
   }
 
+  // --- Voice Config ---
+
+  setVoiceMode(mode: VoiceMode) {
+    this.state.voiceConfig.voiceMode.value = mode;
+    this.sendParam(ParamId.VOICE_MODE, mode);
+    this.dispatch(VoiceEvent.VOICE_CONFIG, { ...this.state.voiceConfig });
+    return this;
+  }
+
+  setGlideTime(time: number) {
+    this.state.voiceConfig.glideTime.value = time;
+    this.sendParam(ParamId.GLIDE_TIME, time);
+    this.dispatch(VoiceEvent.VOICE_CONFIG, { ...this.state.voiceConfig });
+    return this;
+  }
+
+  setRetrigger(value: number) {
+    this.state.voiceConfig.retrigger.value = value;
+    this.sendParam(ParamId.RETRIGGER, value);
+    this.dispatch(VoiceEvent.VOICE_CONFIG, { ...this.state.voiceConfig });
+    return this;
+  }
+
   dumpState() {
     console.log(JSON.stringify(this.state));
   }
@@ -387,6 +411,9 @@ export class SynthController extends EventTarget implements MidiTarget {
       (v) => { this.state.cutoffMod.amount.value = v; }, () => this.state.cutoffMod);
     reg(ControlID.CUT_VEL, ParamId.CUTOFF_ENV_VELOCITY, VoiceEvent.CUTOFF_MOD,
       (v) => { this.state.cutoffMod.velocity.value = v; }, () => this.state.cutoffMod);
+
+    reg(ControlID.GLIDE_TIME, ParamId.GLIDE_TIME, VoiceEvent.VOICE_CONFIG,
+      (v) => { this.state.voiceConfig.glideTime.value = v; }, () => this.state.voiceConfig);
   }
 
   private sendParam(id: number, value: number) {
@@ -426,5 +453,8 @@ export class SynthController extends EventTarget implements MidiTarget {
     this.sendParam(ParamId.LFO2_DESTINATION, s.lfo2.destination.value as number);
     this.sendParam(ParamId.LFO2_FREQUENCY, s.lfo2.frequency.value as number);
     this.sendParam(ParamId.LFO2_MOD_AMOUNT, s.lfo2.modAmount.value as number);
+    this.sendParam(ParamId.VOICE_MODE, s.voiceConfig.voiceMode.value as number);
+    this.sendParam(ParamId.GLIDE_TIME, s.voiceConfig.glideTime.value as number);
+    this.sendParam(ParamId.RETRIGGER, s.voiceConfig.retrigger.value as number);
   }
 }

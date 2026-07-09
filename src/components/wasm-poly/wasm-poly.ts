@@ -152,6 +152,10 @@ export class WasmPoly extends LitElement {
       .subscribe(VoiceEvent.CUTOFF_MOD, (newState) => {
         this.state.cutoffMod = newState;
         this.requestUpdate();
+      })
+      .subscribe(VoiceEvent.VOICE_CONFIG, (newState) => {
+        this.state.voiceConfig = newState;
+        this.requestUpdate();
       });
   }
 
@@ -424,7 +428,7 @@ export class WasmPoly extends LitElement {
         grid-template-columns: 8fr 3fr 8fr 8fr;
       }
 
-      /* Lower: Env(160) LFO1(130) LFO2(130) FilterMod(130) → 6:5:5:5 */
+      /* Lower: Env LFO1 LFO2 FilterMod → 6:5:5:5 */
       .panels-row.lower {
         grid-template-columns: 6fr 5fr 5fr 5fr;
         margin-top: 1em;

@@ -44,6 +44,12 @@ export interface LFOState {
   destination: Control;
 }
 
+export interface VoiceConfigState {
+  voiceMode: Control;
+  glideTime: Control;
+  retrigger: Control;
+}
+
 export interface VoiceState {
   osc1: OscillatorState;
   osc2: OscillatorState;
@@ -54,6 +60,7 @@ export interface VoiceState {
   cutoffMod: CutoffModState;
   lfo1: LFOState;
   lfo2: LFOState;
+  voiceConfig: VoiceConfigState;
 }
 
 function cloneControl(c: Control): Control {
@@ -69,7 +76,14 @@ function cloneOscillator(s: OscillatorState): OscillatorState {
   };
 }
 
+const defaultVoiceConfig: VoiceConfigState = {
+  voiceMode: { value: 0 },
+  glideTime: { value: 0 },
+  retrigger: { value: 1 },
+};
+
 export function createVoiceState(src: Partial<VoiceState>): VoiceState {
+  const vc = src.voiceConfig ?? defaultVoiceConfig;
   return {
     osc1: cloneOscillator(src.osc1),
     osc2: cloneOscillator(src.osc2),
@@ -104,6 +118,11 @@ export function createVoiceState(src: Partial<VoiceState>): VoiceState {
       destination: cloneControl(src.lfo2.destination),
       frequency: cloneControl(src.lfo2.frequency),
       modAmount: cloneControl(src.lfo2.modAmount),
+    },
+    voiceConfig: {
+      voiceMode: cloneControl(vc.voiceMode),
+      glideTime: cloneControl(vc.glideTime),
+      retrigger: cloneControl(vc.retrigger),
     },
   };
 }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { SelectOptions } from "../types/select-option";
+import { VoiceMode } from "../types/voice-mode";
 
 export const PresetOptions = new SelectOptions([
   {
@@ -62,6 +63,11 @@ export const PresetOptions = new SelectOptions([
         destination: { value: 0 },
         frequency: { value: 0 },
         modAmount: { value: 0 },
+      },
+      voiceConfig: {
+        voiceMode: { value: VoiceMode.POLY },
+        glideTime: { value: 0 },
+        retrigger: { value: 1 },
       },
     },
   },
@@ -944,6 +950,168 @@ export const PresetOptions = new SelectOptions([
         destination: { value: 4 },
         frequency: { value: 7 },
         modAmount: { value: 8 },
+      },
+    },
+  },
+  {
+    name: "MONO LEAD",
+    value: {
+      osc1: {
+        mode: { value: 1 },
+        semiShift: { value: 63.5 },
+        centShift: { value: 63.5 },
+        cycle: { value: 63.5 },
+      },
+      osc2: {
+        mode: { value: 2 },
+        semiShift: { value: 63.5 },
+        centShift: { value: 65 },
+        cycle: { value: 50 },
+      },
+      osc2Amplitude: { value: 50 },
+      noiseLevel: { value: 0 },
+      envelope: {
+        attack: { value: 0 },
+        decay: { value: 15 },
+        sustain: { value: 100 },
+        release: { value: 10 },
+      },
+      filter: {
+        mode: { value: 0 },
+        cutoff: { value: 70 },
+        resonance: { value: 50 },
+        drive: { value: 20 },
+      },
+      cutoffMod: {
+        attack: { value: 0 },
+        decay: { value: 20 },
+        amount: { value: 50 },
+        velocity: { value: 40 },
+      },
+      lfo1: {
+        mode: { value: 3 },
+        destination: { value: 0 },
+        frequency: { value: 30 },
+        modAmount: { value: 5 },
+      },
+      lfo2: {
+        mode: { value: 0 },
+        destination: { value: 0 },
+        frequency: { value: 0 },
+        modAmount: { value: 0 },
+      },
+      voiceConfig: {
+        voiceMode: { value: VoiceMode.MONO },
+        glideTime: { value: 0.05 },
+        retrigger: { value: 0 },
+      },
+    },
+  },
+  {
+    name: "MONO BASS",
+    value: {
+      osc1: {
+        mode: { value: 1 },
+        semiShift: { value: 63.5 },
+        centShift: { value: 63.5 },
+        cycle: { value: 63.5 },
+      },
+      osc2: {
+        mode: { value: 2 },
+        semiShift: { value: 63.5 },
+        centShift: { value: 63.5 },
+        cycle: { value: 55 },
+      },
+      osc2Amplitude: { value: 40 },
+      noiseLevel: { value: 0 },
+      envelope: {
+        attack: { value: 0 },
+        decay: { value: 25 },
+        sustain: { value: 60 },
+        release: { value: 8 },
+      },
+      filter: {
+        mode: { value: 1 },
+        cutoff: { value: 15 },
+        resonance: { value: 60 },
+        drive: { value: 40 },
+      },
+      cutoffMod: {
+        attack: { value: 0 },
+        decay: { value: 20 },
+        amount: { value: 70 },
+        velocity: { value: 50 },
+      },
+      lfo1: {
+        mode: { value: 0 },
+        destination: { value: 0 },
+        frequency: { value: 0 },
+        modAmount: { value: 0 },
+      },
+      lfo2: {
+        mode: { value: 0 },
+        destination: { value: 0 },
+        frequency: { value: 0 },
+        modAmount: { value: 0 },
+      },
+      voiceConfig: {
+        voiceMode: { value: VoiceMode.MONO },
+        glideTime: { value: 0 },
+        retrigger: { value: 1 },
+      },
+    },
+  },
+  {
+    name: "GLIDE LEAD",
+    value: {
+      osc1: {
+        mode: { value: 1 },
+        semiShift: { value: 63.5 },
+        centShift: { value: 63.5 },
+        cycle: { value: 63.5 },
+      },
+      osc2: {
+        mode: { value: 1 },
+        semiShift: { value: 63.5 },
+        centShift: { value: 67 },
+        cycle: { value: 63.5 },
+      },
+      osc2Amplitude: { value: 60 },
+      noiseLevel: { value: 0 },
+      envelope: {
+        attack: { value: 5 },
+        decay: { value: 20 },
+        sustain: { value: 90 },
+        release: { value: 20 },
+      },
+      filter: {
+        mode: { value: 0 },
+        cutoff: { value: 80 },
+        resonance: { value: 40 },
+        drive: { value: 15 },
+      },
+      cutoffMod: {
+        attack: { value: 0 },
+        decay: { value: 30 },
+        amount: { value: 35 },
+        velocity: { value: 30 },
+      },
+      lfo1: {
+        mode: { value: 3 },
+        destination: { value: 0 },
+        frequency: { value: 25 },
+        modAmount: { value: 4 },
+      },
+      lfo2: {
+        mode: { value: 0 },
+        destination: { value: 2 },
+        frequency: { value: 5 },
+        modAmount: { value: 8 },
+      },
+      voiceConfig: {
+        voiceMode: { value: VoiceMode.MONO },
+        glideTime: { value: 0.25 },
+        retrigger: { value: 0 },
       },
     },
   },

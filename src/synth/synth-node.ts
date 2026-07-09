@@ -52,9 +52,12 @@ export const ParamId = Object.freeze({
   LFO1_MOD_AMOUNT: 27,
   LFO2_FREQUENCY: 28,
   LFO2_MOD_AMOUNT: 29,
+  VOICE_MODE: 30,
+  GLIDE_TIME: 31,
+  RETRIGGER: 32,
 });
 
-const PARAM_COUNT = 30;
+const PARAM_COUNT = 33;
 const MIDI_QUEUE_CAPACITY = 64;
 
 // C++ Oscillator::Mode values (oscillator.h)
