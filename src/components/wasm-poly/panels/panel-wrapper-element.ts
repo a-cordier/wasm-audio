@@ -43,13 +43,17 @@ export class PanelWrapper extends LitElement {
     return css`
       :host {
         display: block;
+        height: 100%;
+        container-type: inline-size;
       }
 
       .wrapper {
         position: relative;
 
         width: 100%;
+        height: 100%;
         box-sizing: border-box;
+        overflow: hidden;
 
         background-color: var(--panel-wrapper-background-color, transparent);
 
@@ -60,7 +64,7 @@ export class PanelWrapper extends LitElement {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
       }
 
       .header {
@@ -78,7 +82,12 @@ export class PanelWrapper extends LitElement {
       }
 
       .content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         width: 100%;
+        min-width: 0;
       }
 
       .footer:empty {

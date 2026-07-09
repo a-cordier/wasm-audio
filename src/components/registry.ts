@@ -20,7 +20,6 @@ import "./common/controls/keys-element";
 import "./common/controls/control-learn-wrapper";
 
 import "./common/lcd/lcd-element";
-import "./common/lcd/lcd-char-element";
 
 import "./common/icons/sine-wave-icon";
 import "./common/icons/square-wave-icon";
@@ -37,6 +36,7 @@ import "./wasm-poly/panels/envelope/envelope-element";
 import "./wasm-poly/panels/lfo/lfo-element";
 import "./wasm-poly/panels/lfo/lcd-selector-element";
 import "./wasm-poly/panels/filter-mod/filter-envelope-element";
+import "./wasm-poly/panels/voice-config/voice-config-element";
 import "./wasm-poly/panels/menu/menu-element";
 
 import "./visualizer-element";

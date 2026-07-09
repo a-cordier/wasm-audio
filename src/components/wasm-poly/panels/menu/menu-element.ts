@@ -125,12 +125,12 @@ export class Menu extends LitElement {
 
       .menu {
         display: flex;
-        --lcd-screen-height: 15px;
+        align-items: stretch;
         --lcd-screen-width: 130px;
       }
 
       .lcd-wrapper {
-        margin: 0.3em 0.5em 0 0.5em;
+        margin: 0 0.5em;
       }
 
       .menu .button-wrapper button {

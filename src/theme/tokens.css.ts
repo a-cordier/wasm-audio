@@ -44,6 +44,8 @@ export const darkTheme = `
     --lcd-led-border-radius: 20%;
     --lcd-screen-border-color: var(--lighter);
     --lcd-screen-background: var(--dark-secondary);
+    --lcd-font-size: 10px;
+    --lcd-text-color: #b4d455;
 
     --main-panel-color: #181818;
     --main-panel-label-font-family: "Bungee Outline", cursive;
@@ -58,6 +60,11 @@ export const darkTheme = `
     --voice-config-panel-color: #4a2d7a;
 
     --panel-wrapper-label-color: var(--darker);
+
+    --control-size-lg: 50px;
+    --control-size-md: 40px;
+    --control-size-sm: 30px;
+    --lcd-width-default: min(120px, 100%);
 
     --ui-transition-time: 0.4s;
 
@@ -95,6 +102,8 @@ export const retroTheme = `
     --lcd-led-border-radius: 50%;
     --lcd-screen-border-color: var(--lighter);
     --lcd-screen-background: var(--dark-secondary);
+    --lcd-font-size: 10px;
+    --lcd-text-color: #ff6347;
 
     --main-panel-color: #2a1a0e;
     --main-panel-label-font-family: "Bungee Outline", cursive;
@@ -109,6 +118,11 @@ export const retroTheme = `
     --voice-config-panel-color: #4a2a5e;
 
     --panel-wrapper-label-color: var(--darker);
+
+    --control-size-lg: 50px;
+    --control-size-md: 40px;
+    --control-size-sm: 30px;
+    --lcd-width-default: min(120px, 100%);
 
     --ui-transition-time: 0.4s;
 

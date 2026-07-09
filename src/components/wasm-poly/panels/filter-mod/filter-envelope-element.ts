@@ -68,6 +68,7 @@ export class FilterEnvelope extends SynthPanel {
         --panel-wrapper-background-color: var(--filter-mod-panel-color);
         --fader-height: 120px;
         --knob-size: 50px;
+        container-type: inline-size;
       }
 
       .envelope-controls {
@@ -95,6 +96,15 @@ export class FilterEnvelope extends SynthPanel {
 
       .mod-controls .mod { --knob-size: 40px; }
       .mod-controls .velocity { --knob-size: 25px; }
+
+      @container (max-width: 100px) {
+        .envelope-controls { flex-direction: column; gap: 0.5em; }
+        .time-controls { width: 100%; }
+        .mod-controls { flex-direction: row; gap: 0.5em; height: auto; }
+        .mod-controls .mod { --knob-size: 30px; }
+        .mod-controls .velocity { --knob-size: 25px; }
+        :host { --fader-height: 80px; }
+      }
     `;
   }
 }

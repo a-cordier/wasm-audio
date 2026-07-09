@@ -16,57 +16,52 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 
-import { chars } from "./lcd-chars";
-
-import "./lcd-char-element";
-
 @customElement("lcd-element")
 export class LCD extends LitElement {
   @property({ type: String })
   public text;
 
-  @property({ type: Number })
-  public columns = 12;
-
   render() {
-    const gridColumns = Math.max(Array.from(this.text).length, this.columns);
     return html`
-      <div
-        class="lcd"
-        style="grid-template-columns: repeat(${gridColumns}, 1fr)"
-      >
-        ${Array.from(this.text).map(this.createLcdChar)}
+      <div class="lcd">
+        <span class="lcd-text">${this.text}</span>
       </div>
     `;
   }
 
-  createLcdChar(char: string) {
-    const lcdChar = chars[char];
-    return html`
-      <lcd-char-element .char=${lcdChar} class="char"></lcd-char-element>
-    `;
-  }
-
   static get styles() {
-    // noinspection CssUnresolvedCustomProperty
     return css`
+      :host {
+        display: block;
+        height: 100%;
+      }
+
       .lcd {
         width: var(--lcd-screen-width, 120px);
-        height: var(--lcd-screen-height, 14px);
+        max-width: 100%;
+        height: 100%;
+        box-sizing: border-box;
 
-        display: grid;
+        display: flex;
+        align-items: center;
+        justify-content: center;
 
         border: 1px solid gray;
 
         background-color: var(--lcd-screen-background, darkslategray);
         border-color: var(--lcd-screen-border-color);
 
-        padding: 5px;
+        padding: 4px 6px;
       }
 
-      .char {
-        width: var(--lcd-char-width, 85%);
-        grid-row: 1;
+      .lcd-text {
+        font-family: "Silkscreen", monospace;
+        font-size: var(--lcd-font-size, 10px);
+        color: var(--lcd-text-color, #b4d455);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: clip;
+        letter-spacing: 0.5px;
       }
     `;
   }

@@ -51,6 +51,10 @@ export class OscillatorMix extends SynthPanel {
 
   static get styles() {
     return css`
+      :host {
+        container-type: inline-size;
+      }
+
       .oscillator-mix {
         --panel-wrapper-background-color: var(--oscillator-mix-panel-color);
       }
@@ -64,8 +68,13 @@ export class OscillatorMix extends SynthPanel {
         min-height: 130px;
       }
 
-      .oscillator-mix .mix { --knob-size: 40px; }
-      .oscillator-mix .noise { --knob-size: 30px; }
+      .oscillator-mix .mix { --knob-size: var(--control-size-md, 40px); }
+      .oscillator-mix .noise { --knob-size: var(--control-size-sm, 30px); }
+
+      @container (max-width: 60px) {
+        .oscillator-mix .mix { --knob-size: var(--control-size-sm, 30px); }
+        .oscillator-mix .noise { --knob-size: 25px; }
+      }
     `;
   }
 }

@@ -60,7 +60,9 @@ export class VoiceConfigElement extends SynthPanel {
     return css`
       :host {
         --panel-wrapper-background-color: var(--voice-config-panel-color, var(--filter-mod-panel-color));
-        --knob-size: 40px;
+        --knob-size: var(--control-size-sm, 30px);
+        container-type: inline-size;
+        height: 100%;
       }
 
       .voice-config {
@@ -69,18 +71,22 @@ export class VoiceConfigElement extends SynthPanel {
         align-items: center;
         justify-content: center;
         gap: 0.75em;
-        min-height: 160px;
+        height: 100%;
         padding: 0.5em 0;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       .mode-selector {
         display: flex;
+        flex-direction: column;
         gap: 0.25em;
+        max-width: 100%;
       }
 
       .mode-selector button,
       .retrigger-btn {
-        padding: 0.3em 0.6em;
+        padding: 0.2em 0.4em;
         font-size: 0.7em;
         font-weight: bold;
         background-color: var(--button-disposed-background-color);
@@ -105,9 +111,10 @@ export class VoiceConfigElement extends SynthPanel {
 
       .mono-controls {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: space-evenly;
-        gap: 1em;
+        justify-content: center;
+        gap: 0.5em;
         width: 100%;
         transition: opacity 0.15s ease;
       }
@@ -115,6 +122,15 @@ export class VoiceConfigElement extends SynthPanel {
       .mono-controls.hidden {
         opacity: 0.3;
         pointer-events: none;
+      }
+
+      @container (min-width: 100px) {
+        .mono-controls {
+          flex-direction: row;
+          justify-content: space-evenly;
+          gap: 1em;
+        }
+        :host { --knob-size: var(--control-size-md, 40px); }
       }
     `;
   }

@@ -29,6 +29,8 @@ import { LfoEvent } from "../../types/lfo-event";
 import { MenuMode } from "../../types/menu-mode";
 import { VoiceEvent } from "../../types/voice-event";
 import { VoiceState } from "../../types/voice";
+import { VoiceConfigEvent } from "../../types/voice-config-event";
+import { VoiceMode } from "../../types/voice-mode";
 import { SynthChangeEvent, assertNever } from "../../types/events";
 
 import { ControlID } from "../../control/types";
@@ -258,6 +260,15 @@ export class WasmPoly extends LitElement {
     }
   }
 
+  onVoiceConfigChange(event: SynthChangeEvent<VoiceConfigEvent>) {
+    switch (event.detail.type) {
+      case VoiceConfigEvent.VOICE_MODE: this.voiceManager.setVoiceMode(event.detail.value as VoiceMode); break;
+      case VoiceConfigEvent.GLIDE_TIME: this.voiceManager.setGlideTime(event.detail.value as number); break;
+      case VoiceConfigEvent.RETRIGGER: this.voiceManager.setRetrigger(event.detail.value as number); break;
+      default: assertNever(event.detail.type);
+    }
+  }
+
   async onMenuChange(event: CustomEvent) {
     const { type, option, shouldUpdate } = event.detail;
     const bindingManager = getBindingManager();
@@ -314,6 +325,11 @@ export class WasmPoly extends LitElement {
             ></menu-element>
           </div>
           <div class="panels-row upper">
+            <voice-config-element
+              label="Voice"
+              .state=${this.state.voiceConfig}
+              @change=${this.onVoiceConfigChange}
+            ></voice-config-element>
             <oscillator-element
               .semiControlID=${ControlID.OSC1_SEMI}
               .centControlID=${ControlID.OSC1_CENT}
@@ -416,16 +432,16 @@ export class WasmPoly extends LitElement {
       .panels-row {
         display: grid;
         gap: 0.5rem;
-        align-items: start;
+        align-items: stretch;
       }
 
       .panels-row > * {
         min-width: 0;
       }
 
-      /* Upper: Osc1(160) Mix(60) Osc2(160) Filter(160) → 8:3:8:8 */
+      /* Upper: Voice Osc1 Mix Osc2 Filter → 3:8:3:8:8 */
       .panels-row.upper {
-        grid-template-columns: 8fr 3fr 8fr 8fr;
+        grid-template-columns: 3fr 8fr 3fr 8fr 8fr;
       }
 
       /* Lower: Env LFO1 LFO2 FilterMod → 6:5:5:5 */

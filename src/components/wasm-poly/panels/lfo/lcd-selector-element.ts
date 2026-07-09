@@ -82,6 +82,9 @@ export class LCDSelector extends LitElement {
     // noinspection CssUnresolvedCustomProperty
     return css`
       .lcd-selector {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         margin: auto;
       }
 

@@ -101,7 +101,11 @@ export class Lfo extends SynthPanel {
         min-height: 160px;
       }
 
-      .destination-control { margin: 10px auto; }
+      .destination-control {
+        margin: 10px auto;
+        max-width: 100%;
+        overflow: hidden;
+      }
 
       .modulation-controls {
         display: flex;
