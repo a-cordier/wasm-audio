@@ -116,6 +116,7 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     this.transport = TransportState.STOPPED;
     this.node.stop();
     this.stopDrain();
+    this.allNotesOff();
     this._currentStep = -1;
     this.dispatchEvent(new CustomEvent("transport", { detail: { state: this.transport } }));
   }
@@ -203,6 +204,14 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
 
   clearPattern(): void {
     this.node?.pattern.clear();
+  }
+
+  private allNotesOff(): void {
+    if (!this.bus || !this.node) return;
+    const ch = this.node.config.getConfig().outputChannel as Channel;
+    for (let note = 0; note < 128; note++) {
+      this.bus.send(Status.NOTE_OFF, ch, note, 0);
+    }
   }
 
   // --- Drain loop ---
