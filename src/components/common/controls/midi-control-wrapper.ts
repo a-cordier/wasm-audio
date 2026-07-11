@@ -16,7 +16,7 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
-import { MidiControlID } from "../../../types/midi-learn-options";
+import { MidiControlID } from "../../../instruments/poly-ticks/types/midi-learn-options";
 
 @customElement("midi-control-wrapper")
 export class MidiControlWrapper extends LitElement {

@@ -3,11 +3,11 @@ import { resolve } from "path";
 import { copyFileSync, mkdirSync, readFileSync } from "fs";
 
 const workletFiles: Record<string, string> = {
-  "synth-processor.js": "src/synth",
-  "voice-kernel.wasmmodule.js": "src/synth/engine",
+  "synth-processor.js": "src/instruments/poly-ticks",
+  "voice-kernel.wasmmodule.js": "src/instruments/poly-ticks/engine",
   "wasm-worklet-processor.js": "src/runtime",
   "worklet-drain.js": "src/midi/transport",
-  "seq-processor.js": "src/sequels",
+  "seq-processor.js": "src/instruments/sequels",
 };
 
 function workletsPlugin(): Plugin {

@@ -21,15 +21,15 @@ import { MidiBus } from "../midi/bus/bus";
 import { KeyboardController } from "../midi/keyboard";
 import { Channel } from "../midi/types";
 
-import { SynthController } from "../synth/synth-controller";
-import { SequencerController } from "../sequels/sequencer-controller";
+import { SynthController } from "../instruments/poly-ticks/synth-controller";
+import { SequencerController } from "../instruments/sequels/sequencer-controller";
 
 import { SlotConfig, createBranchSlot, createLeafSlot } from "../core/slot";
 import type { Plugin } from "../core/types";
 
 import "./device-slot/device-slot";
-import "./poly-ticks/wasm-poly";
-import "./sequels/sequencer-element";
+import "../instruments/poly-ticks/ui/poly-ticks-element";
+import "../instruments/sequels/ui/sequels-element";
 
 @customElement("root-element")
 export class Root extends LitElement {

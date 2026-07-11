@@ -1,0 +1,163 @@
+/*
+ * Copyright (C) 2020 Antoine CORDIER
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *         http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import { LitElement, html, css } from "lit";
+import { customElement, property } from "lit/decorators.js";
+import { classMap } from "lit/directives/class-map.js";
+
+import { LearnOptions } from "../../../../../control/types";
+import { MenuMode } from "../../../types/menu-mode";
+import { PresetOptions } from "../../../presets";
+
+@customElement("menu-element")
+export class Menu extends LitElement {
+  @property({ type: Number })
+  private mode = MenuMode.PRESET;
+
+  render() {
+    return html`
+      <div class="menu">
+        <div class="button-wrapper">
+          <button
+            class="${this.computeButtonClasses(MenuMode.PRESET)}"
+            @click=${this.createSwitchModeHandler(MenuMode.PRESET)}
+          >
+            PRESET
+          </button>
+        </div>
+        <div class="button-wrapper">
+          <button
+            class="${this.computeButtonClasses(MenuMode.MIDI_LEARN)}"
+            @click=${this.createSwitchModeHandler(MenuMode.MIDI_LEARN)}
+          >
+            LEARN
+          </button>
+        </div>
+        <div class="lcd-wrapper">
+          <lcd-element .text=${this.options.getCurrent().name}></lcd-element>
+        </div>
+        <div class="button-wrapper select">
+          <button @click=${this.previousOption}>PREV</button>
+        </div>
+        <div class="button-wrapper select">
+          <button @click=${this.nextOption}>NEXT</button>
+        </div>
+      </div>
+    `;
+  }
+
+  computeButtonClasses(mode: MenuMode) {
+    return classMap({
+      active: this.mode === mode,
+    });
+  }
+
+  createSwitchModeHandler(mode: MenuMode) {
+    return () => {
+      this.mode = mode;
+      this.dispatchMenuChange();
+    };
+  }
+
+  nextOption() {
+    this.options.next();
+    this.dispatchMenuChange(true);
+    this.requestUpdate();
+  }
+
+  previousOption() {
+    this.options.previous();
+    this.dispatchMenuChange(true);
+    this.requestUpdate();
+  }
+
+  dispatchMenuChange(shouldUpdate = false) {
+    this.dispatchEvent(
+      new CustomEvent("change", {
+        detail: {
+          type: this.mode,
+          option: this.options.getCurrent(),
+          shouldUpdate,
+        },
+      })
+    );
+  }
+
+  get options() {
+    switch (this.mode) {
+      case MenuMode.PRESET:
+        return PresetOptions;
+      case MenuMode.MIDI_LEARN:
+      default:
+        return LearnOptions;
+    }
+  }
+
+  static get styles() {
+    return css`
+      :host {
+        display: block;
+      }
+
+      .menu {
+        display: flex;
+        align-items: stretch;
+        --lcd-screen-width: 130px;
+      }
+
+      .lcd-wrapper {
+        margin: 0 0.5em;
+      }
+
+      .menu .button-wrapper button {
+        font-size: var(--button-font-size, 0.5em);
+        background-color: var(--button-disposed-background-color);
+        border: var(--button-border);
+        box-shadow: var(--box-shadow);
+        transition: all 0.1s ease-in-out;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        height: 100%;
+        color: var(--button-disposed-label-color);
+      }
+
+      .menu .button-wrapper button:disabled {
+        opacity: 0.5;
+        color: white;
+      }
+
+      .menu .button-wrapper button:focus { outline: none; }
+
+      .menu .button-wrapper button.active {
+        background-color: var(--button-active-background-color);
+        border: 1px solid transparent;
+        color: var(--button-active-label-color);
+        box-shadow: var(--box-shadow);
+        transition: all 0.1s ease-in-out;
+        cursor: auto;
+      }
+
+      .menu .button-wrapper.select { margin: 0 1px; }
+
+      .menu .button-wrapper.select button:active {
+        transform: scale(0.99);
+        background-color: var(--button-active-background-color);
+        color: var(--button-active-label-color);
+      }
+    `;
+  }
+}

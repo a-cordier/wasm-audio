@@ -26,19 +26,19 @@ import "./common/icons/square-wave-icon";
 import "./common/icons/sawtooth-wave-icon";
 import "./common/icons/triangle-wave-icon";
 
-import "./poly-ticks/panels/panel-wrapper-element";
-import "./poly-ticks/panels/oscillator/wave-selector-element";
-import "./poly-ticks/panels/oscillator/oscillator-element";
-import "./poly-ticks/panels/oscillator-mix/oscillator-mix";
-import "./poly-ticks/panels/filter/filter-element";
-import "./poly-ticks/panels/filter/filter-selector-element";
-import "./poly-ticks/panels/envelope/envelope-element";
-import "./poly-ticks/panels/lfo/lfo-element";
-import "./poly-ticks/panels/lfo/lcd-selector-element";
-import "./poly-ticks/panels/filter-mod/filter-envelope-element";
+import "./common/panel-wrapper-element";
+import "../instruments/poly-ticks/ui/panels/oscillator/wave-selector-element";
+import "../instruments/poly-ticks/ui/panels/oscillator/oscillator-element";
+import "../instruments/poly-ticks/ui/panels/oscillator-mix/oscillator-mix";
+import "../instruments/poly-ticks/ui/panels/filter/filter-element";
+import "../instruments/poly-ticks/ui/panels/filter/filter-selector-element";
+import "../instruments/poly-ticks/ui/panels/envelope/envelope-element";
+import "../instruments/poly-ticks/ui/panels/lfo/lfo-element";
+import "../instruments/poly-ticks/ui/panels/lfo/lcd-selector-element";
+import "../instruments/poly-ticks/ui/panels/filter-mod/filter-envelope-element";
 
-import "./sequels/panels/sequencer-toolbar";
-import "./sequels/panels/step-grid-panel";
+import "../instruments/sequels/ui/panels/sequencer-toolbar";
+import "../instruments/sequels/ui/panels/step-grid-panel";
 
 import "./device-slot/device-slot";
 
