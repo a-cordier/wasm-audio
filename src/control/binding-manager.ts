@@ -20,12 +20,38 @@ import { Disposable } from "../midi/types";
 
 export class BindingManager extends EventTarget {
   private bindings = new Map<string, ControlID>();
+  private slotBindings = new Map<string, string>();
   private adapters: ControlSourceAdapter[] = [];
   private subscriptions: Disposable[] = [];
   private _learningTarget: ControlID = ControlID.NONE;
+  private _learningSlotId: string | null = null;
 
   get learningTarget(): ControlID {
     return this._learningTarget;
+  }
+
+  get isLearning(): boolean {
+    return this._learningSlotId !== null;
+  }
+
+  get learningSlotId(): string | null {
+    return this._learningSlotId;
+  }
+
+  isLearningSlot(slotId: string): boolean {
+    return this._learningSlotId === slotId;
+  }
+
+  enterLearnMode(slotId: string) {
+    this._learningSlotId = slotId;
+    this._learningTarget = ControlID.NONE;
+    this.dispatchEvent(new Event("learn-state-change"));
+  }
+
+  exitLearnMode() {
+    this._learningSlotId = null;
+    this._learningTarget = ControlID.NONE;
+    this.dispatchEvent(new Event("learn-state-change"));
   }
 
   registerSource(adapter: ControlSourceAdapter) {
@@ -47,16 +73,23 @@ export class BindingManager extends EventTarget {
 
   private handleSignal(signal: ControlSignal) {
     if (this._learningTarget !== ControlID.NONE) {
+      const slotId = this._learningSlotId;
       this.bindings.set(signal.sourceId, this._learningTarget);
+      if (!slotId) {
+        this.bindings.delete(signal.sourceId);
+      } else {
+        this.slotBindings.set(signal.sourceId, slotId);
+      }
       this._learningTarget = ControlID.NONE;
       this.dispatchEvent(new Event("learn-state-change"));
     }
 
     const controlId = this.bindings.get(signal.sourceId);
     if (controlId !== undefined) {
+      const slotId = this.slotBindings.get(signal.sourceId) ?? null;
       this.dispatchEvent(
         new CustomEvent("control-change", {
-          detail: { controlId, value: signal.value },
+          detail: { controlId, value: signal.value, slotId },
         })
       );
     }
@@ -78,6 +111,7 @@ export class BindingManager extends EventTarget {
 
   clearBindings() {
     this.bindings.clear();
+    this.slotBindings.clear();
   }
 
   destroy() {
@@ -109,14 +143,33 @@ export function getBindingManager(): BindingManager {
  */
 export class LearnController implements ReactiveController {
   private host: ReactiveControllerHost;
+  private _slotId: string | null = null;
 
-  constructor(host: ReactiveControllerHost) {
+  constructor(host: ReactiveControllerHost, slotId?: string) {
     this.host = host;
+    this._slotId = slotId ?? null;
     host.addController(this);
   }
 
   get learningTarget(): ControlID {
     return getBindingManager().learningTarget;
+  }
+
+  get isLearning(): boolean {
+    return getBindingManager().isLearning;
+  }
+
+  get learningSlotId(): string | null {
+    return getBindingManager().learningSlotId;
+  }
+
+  isActiveForSlot(slotId: string): boolean {
+    return getBindingManager().isLearningSlot(slotId);
+  }
+
+  get isActiveForMySlot(): boolean {
+    if (!this._slotId) return this.isLearning;
+    return getBindingManager().isLearningSlot(this._slotId);
   }
 
   hostConnected() {

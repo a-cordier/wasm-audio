@@ -19,23 +19,29 @@ import { OscillatorMode } from "../types/oscillator-mode";
 import { FilterMode } from "../types/filter-mode";
 import { LfoDestination } from "../types/lfo-destination";
 import { VoiceMode } from "../types/voice-mode";
-import { MidiEvent, MidiTarget, Disposable } from "../midi/types";
-import { MidiBus } from "../midi/bus/bus";
+import { MidiEvent, MidiTarget } from "../midi/types";
 import { noteFrequency } from "../midi/codec/notes";
 import { isNoteOn, isNoteOff } from "../midi/codec/decode";
 import { VoiceEvent } from "../types/voice-event";
 import { PresetOptions } from "./presets";
 import { ControlID } from "../control/types";
+import { InstrumentPlugin, PluginDescriptor, Learnable, HasPresets, LearnableParam, PresetEntry } from "../core/types";
 
 type ControlHandler = (value: number) => void;
 
-export class SynthController extends EventTarget implements MidiTarget {
+export class SynthController extends EventTarget implements InstrumentPlugin, MidiTarget, Learnable, HasPresets {
+  readonly descriptor: PluginDescriptor = {
+    id: "wasm-poly",
+    name: "WASM POLY",
+    tag: "wasm-poly-element",
+    type: "instrument",
+  };
+
   private synthNode: SynthNode | null = null;
   private output: GainNode;
   private audioContext: AudioContext;
 
   private state: VoiceState;
-  private busSubscription: Disposable | null = null;
   private _observers = new Map<Function, EventListenerOrEventListenerObject>();
 
   private controlHandlers = new Map<ControlID, ControlHandler>();
@@ -54,9 +60,21 @@ export class SynthController extends EventTarget implements MidiTarget {
     this.syncParams();
   }
 
-  connectBus(bus: MidiBus): this {
-    this.busSubscription = bus.subscribe((event) => this.receive(event));
-    return this;
+  connectAudio(destination: AudioNode): void {
+    this.output.connect(destination);
+  }
+
+  disconnectAudio(): void {
+    this.output.disconnect();
+  }
+
+  loadState(state: unknown): void {
+    if (state) this.setState(state);
+  }
+
+  dispose(): void {
+    this.output.disconnect();
+    this.synthNode = null;
   }
 
   receive(event: MidiEvent): void {
@@ -91,6 +109,9 @@ export class SynthController extends EventTarget implements MidiTarget {
     this.synthNode?.noteOff(midiValue);
   }
 
+  /**
+   * @deprecated Use connectAudio() instead. Kept for backward compat during migration.
+   */
   connect(input: AudioNode) {
     this.output.connect(input);
   }
@@ -120,7 +141,43 @@ export class SynthController extends EventTarget implements MidiTarget {
   setState(newState) {
     this.state = createVoiceState(newState);
     this.syncParams();
+    this.notifyStateChange();
     return this.getState();
+  }
+
+  private notifyStateChange() {
+    const s = this.state;
+    this.dispatch(VoiceEvent.OSC1, { ...s.osc1 });
+    this.dispatch(VoiceEvent.OSC_MIX, s.osc2Amplitude);
+    this.dispatch(VoiceEvent.NOISE, s.noiseLevel);
+    this.dispatch(VoiceEvent.OSC2, { ...s.osc2 });
+    this.dispatch(VoiceEvent.FILTER, { ...s.filter });
+    this.dispatch(VoiceEvent.ENVELOPE, { ...s.envelope });
+    this.dispatch(VoiceEvent.LFO1, { ...s.lfo1 });
+    this.dispatch(VoiceEvent.LFO2, { ...s.lfo2 });
+    this.dispatch(VoiceEvent.CUTOFF_MOD, { ...s.cutoffMod });
+    this.dispatch(VoiceEvent.VOICE_CONFIG, { ...s.voiceConfig });
+  }
+
+  getLearnableParams(): LearnableParam[] {
+    return [
+      ControlID.OSC1_SEMI, ControlID.OSC1_CENT, ControlID.OSC1_CYCLE,
+      ControlID.OSC_MIX, ControlID.NOISE,
+      ControlID.OSC2_SEMI, ControlID.OSC2_CENT, ControlID.OSC2_CYCLE,
+      ControlID.CUTOFF, ControlID.RESONANCE, ControlID.DRIVE,
+      ControlID.ATTACK, ControlID.DECAY, ControlID.SUSTAIN, ControlID.RELEASE,
+      ControlID.LFO1_FREQ, ControlID.LFO1_MOD,
+      ControlID.LFO2_FREQ, ControlID.LFO2_MOD,
+      ControlID.CUT_MOD, ControlID.CUT_VEL, ControlID.CUT_ATTACK, ControlID.CUT_DECAY,
+      ControlID.GLIDE_TIME,
+    ].map((id) => ({ id, name: ControlID[id].replace(/_/g, " ") }));
+  }
+
+  getFactoryPresets(): PresetEntry[] {
+    return PresetOptions.map((o: { name: string; value: unknown }) => ({
+      name: o.name,
+      state: o.value,
+    })) as PresetEntry[];
   }
 
   // --- Oscillator 1 ---

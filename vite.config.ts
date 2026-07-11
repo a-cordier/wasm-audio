@@ -7,6 +7,7 @@ const workletFiles: Record<string, string> = {
   "voice-kernel.wasmmodule.js": "src/synth/engine",
   "wasm-worklet-processor.js": "src/runtime",
   "worklet-drain.js": "src/midi/transport",
+  "seq-processor.js": "src/sequencer",
 };
 
 function workletsPlugin(): Plugin {

@@ -13,14 +13,95 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LitElement, html } from "lit";
-import { customElement } from "lit/decorators.js";
+import { LitElement, html, css } from "lit";
+import { customElement, state } from "lit/decorators.js";
 
+import { createMidi, Midi } from "../midi/api";
+import { MidiBus } from "../midi/bus/bus";
+import { KeyboardController } from "../midi/keyboard";
+import { Channel } from "../midi/types";
+
+import { SynthController } from "../synth/synth-controller";
+import { SequencerController } from "../sequencer/sequencer-controller";
+
+import { SlotConfig, createBranchSlot, createLeafSlot } from "../core/slot";
+import type { Plugin } from "../core/types";
+
+import "./device-slot/device-slot";
 import "./wasm-poly/wasm-poly";
+import "./sequencer/sequencer-element";
 
 @customElement("root-element")
 export class Root extends LitElement {
+  private audioContext = new AudioContext();
+  private midi: Midi;
+  private midiBus: MidiBus;
+
+  private plugins = new Map<string, Plugin>();
+  private slotTree: SlotConfig;
+
+  @state()
+  private ready = false;
+
+  async connectedCallback() {
+    super.connectedCallback();
+
+    this.midi = await createMidi();
+    this.midiBus = this.midi.bus("main");
+
+    for (const input of this.midi.devices.inputs.values()) {
+      input.connect(this.midiBus);
+    }
+    this.midi.onPortChange((port, event) => {
+      if (event === "connected" && "connect" in port) {
+        (port as any).connect(this.midiBus);
+      }
+    });
+
+    new KeyboardController().connect(this.midiBus);
+
+    await this.audioContext.audioWorklet.addModule("synth-processor.js");
+    await this.audioContext.audioWorklet.addModule("seq-processor.js");
+
+    const synth = new SynthController(this.audioContext);
+    synth.init();
+    this.plugins.set("wasm-poly", synth);
+
+    const sequencer = new SequencerController(this.audioContext);
+    sequencer.init();
+    this.plugins.set("sequencer", sequencer);
+
+    this.slotTree = createBranchSlot("root", "DAW", [
+      createLeafSlot("slot-synth", "POLYTIK", "wasm-poly", {
+        midiChannel: 0 as Channel,
+      }),
+      createLeafSlot("slot-seq", "SEQUELS", "sequencer", {
+        outputChannel: 0 as Channel,
+      }),
+    ]);
+
+    this.ready = true;
+  }
+
   render() {
-    return html`<wasm-poly-element></wasm-poly-element>`;
+    if (!this.ready) return html``;
+    return html`
+      <device-slot
+        .config=${this.slotTree}
+        .plugins=${this.plugins}
+        .bus=${this.midiBus}
+        .midi=${this.midi}
+        .audioContext=${this.audioContext}
+      ></device-slot>
+    `;
+  }
+
+  static get styles() {
+    return css`
+      :host {
+        display: block;
+        width: 100%;
+      }
+    `;
   }
 }

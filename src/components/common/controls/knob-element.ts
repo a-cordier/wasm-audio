@@ -15,6 +15,7 @@
  */
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { classMap } from "lit/directives/class-map.js";
 import { clamp } from "./clamp";
 
 function scale(value: number, range: ValueRange, newRange: ValueRange): number {
@@ -52,6 +53,9 @@ export class Knob extends LitElement {
 
   @property({ type: String })
   private label: string;
+
+  @property({ type: String, attribute: "label-position" })
+  labelPosition: "bottom" | "left" = "bottom";
 
   async connectedCallback() {
     super.connectedCallback();
@@ -103,8 +107,13 @@ export class Knob extends LitElement {
   }
 
   render() {
+    const wrapperClasses = {
+      "knob-wrapper": true,
+      "label-left": this.labelPosition === "left",
+    };
     return html`
-      <div class="knob-wrapper" class="knob-wrapper">
+      <div class=${classMap(wrapperClasses)}>
+        ${this.labelPosition === "left" ? html`<span class="label">${this.label}</span>` : ""}
         <svg
           class="knob"
           shape-rendering="geometricPrecision"
@@ -148,7 +157,7 @@ export class Knob extends LitElement {
             <circle class="knob__top" r="150" cy="250" cx="250" />
           </g>
         </svg>
-        <div class="label">${this.label}</div>
+        ${this.labelPosition !== "left" ? html`<span class="label">${this.label}</span>` : ""}
       </div>
     `;
   }
@@ -163,13 +172,26 @@ export class Knob extends LitElement {
 
       .knob-wrapper {
         position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         max-width: var(--knob-size, 100px);
+      }
+
+      .knob-wrapper.label-left {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.4em;
+        max-width: none;
       }
 
       .knob {
         height: var(--knob-size, 100px);
         width: var(--knob-size, 100px);
         cursor: pointer;
+        outline: 1px solid var(--learn-outline-color, transparent);
+        outline-offset: 2px;
+        border-radius: 50%;
       }
 
       .knob__background {
@@ -194,6 +216,10 @@ export class Knob extends LitElement {
         display: flex;
         justify-content: center;
         margin-top: -5px;
+      }
+
+      .label-left .label {
+        margin-top: 0;
       }
     `;
   }

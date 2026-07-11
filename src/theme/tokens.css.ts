@@ -58,6 +58,7 @@ export const darkTheme = `
     --filter-mod-panel-color: var(--filter-panel-color);
     --lfo-panel-color: #9a1a40;
     --voice-config-panel-color: #4a2d7a;
+    --sequencer-panel-color: #3a3d42;
 
     --panel-wrapper-label-color: var(--darker);
 
@@ -116,6 +117,7 @@ export const retroTheme = `
     --filter-mod-panel-color: var(--filter-panel-color);
     --lfo-panel-color: #800020;
     --voice-config-panel-color: #4a2a5e;
+    --sequencer-panel-color: #4a4540;
 
     --panel-wrapper-label-color: var(--darker);
 

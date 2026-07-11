@@ -17,16 +17,12 @@ import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 
 import { SynthController } from "../../synth/synth-controller";
-import { createMidi, Midi } from "../../midi/api";
-import { MidiBus } from "../../midi/bus/bus";
-import { KeyboardController } from "../../midi/keyboard";
 
 import { OscillatorEvent } from "../../types/oscillator-event";
 import { FilterEvent } from "../../types/filter-event";
 import { FilterEnvelopeEvent } from "../../types/filter-envelope-event";
 import { OscillatorEnvelopeEvent } from "../../types/oscillator-envelope-event";
 import { LfoEvent } from "../../types/lfo-event";
-import { MenuMode } from "../../types/menu-mode";
 import { VoiceEvent } from "../../types/voice-event";
 import { VoiceState } from "../../types/voice";
 import { VoiceConfigEvent } from "../../types/voice-config-event";
@@ -34,17 +30,11 @@ import { VoiceMode } from "../../types/voice-mode";
 import { SynthChangeEvent, assertNever } from "../../types/events";
 
 import { ControlID } from "../../control/types";
-import { getBindingManager } from "../../control/binding-manager";
-import { MidiControlAdapter } from "../../control/adapters/midi-adapter";
 
 @customElement("wasm-poly-element")
 export class WasmPoly extends LitElement {
-  private audioContext: AudioContext;
-  private analyzer: AnalyserNode;
-  private midi: Midi;
-  private midiBus: MidiBus;
-  private voiceManager: SynthController;
-  private state: Partial<VoiceState>;
+  private analyzer: AnalyserNode | null = null;
+  private state: Partial<VoiceState> = {};
 
   private showVizualizer = false;
   private editMode = false;
@@ -53,51 +43,19 @@ export class WasmPoly extends LitElement {
   @property({ type: Object })
   private pressedKeys = new Set<number>();
 
-  constructor() {
-    super();
-    this.audioContext = new AudioContext();
-    this.analyzer = this.audioContext.createAnalyser();
-    this.voiceManager = new SynthController(this.audioContext);
-    this.state = this.voiceManager.getState();
-  }
+  @property({ attribute: false })
+  voiceManager!: SynthController;
 
-  async connectedCallback() {
+  @property({ attribute: false })
+  audioContext!: AudioContext;
+
+  connectedCallback() {
     super.connectedCallback();
-    await this.audioContext.audioWorklet.addModule("synth-processor.js");
-    this.voiceManager.init();
-    this.midi = await createMidi();
-    this.midiBus = this.midi.bus("main");
-    this.setUpVoiceManager();
-    this.analyzer.connect(this.audioContext.destination);
+    if (!this.voiceManager || !this.audioContext) return;
+    this.state = this.voiceManager.getState();
+    this.analyzer = this.audioContext.createAnalyser();
+    this.voiceManager.connect(this.analyzer);
     this.registerVoiceHandlers();
-    this.setUpBindingManager();
-  }
-
-  private setUpVoiceManager() {
-    for (const input of this.midi.devices.inputs.values()) {
-      input.connect(this.midiBus);
-    }
-    this.midi.onPortChange((port, event) => {
-      if (event === "connected" && "connect" in port) {
-        (port as any).connect(this.midiBus);
-      }
-    });
-
-    new KeyboardController().connect(this.midiBus);
-    this.voiceManager.connectBus(this.midiBus).connect(this.analyzer);
-  }
-
-  private setUpBindingManager() {
-    const bindingManager = getBindingManager();
-    const midiAdapter = new MidiControlAdapter(this.midiBus);
-    bindingManager.registerSource(midiAdapter);
-
-    bindingManager.addEventListener("control-change", ((e: CustomEvent) => {
-      const { controlId, value } = e.detail;
-      this.voiceManager.handleControlChange(controlId, value);
-      this.state = this.voiceManager.getState();
-      this.requestUpdate();
-    }) as EventListener);
   }
 
   private scheduleKeyUpdate() {
@@ -269,31 +227,6 @@ export class WasmPoly extends LitElement {
     }
   }
 
-  async onMenuChange(event: CustomEvent) {
-    const { type, option, shouldUpdate } = event.detail;
-    const bindingManager = getBindingManager();
-
-    switch (type) {
-      case MenuMode.MIDI_LEARN:
-        if (shouldUpdate) {
-          bindingManager.startLearning(option.value);
-        } else {
-          bindingManager.stopLearning();
-        }
-        break;
-      case MenuMode.MIDI_CHANNEL:
-        bindingManager.stopLearning();
-        break;
-      case MenuMode.PRESET:
-        bindingManager.stopLearning();
-        if (shouldUpdate) {
-          this.state = this.voiceManager.setState(option.value);
-        }
-        break;
-    }
-    await this.requestUpdate();
-  }
-
   computeVizualizerIfEnabled() {
     if (this.showVizualizer) {
       return html`
@@ -318,12 +251,6 @@ export class WasmPoly extends LitElement {
     return html`
       <div class="content">
         <div class="synth">
-          <div class="menu">
-            <menu-element
-              .analyser=${this.analyzer}
-              @change=${this.onMenuChange}
-            ></menu-element>
-          </div>
           <div class="panels-row upper">
             <oscillator-element
               .semiControlID=${ControlID.OSC1_SEMI}
@@ -397,8 +324,7 @@ export class WasmPoly extends LitElement {
   static get styles() {
     return css`
       .content {
-        width: 85%;
-        margin: auto;
+        width: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -408,16 +334,10 @@ export class WasmPoly extends LitElement {
         margin: auto;
       }
 
-      .menu {
-        margin: 0 0 15px 0;
-      }
-
       .synth {
-        margin: 20px auto;
-        width: calc(650px + 3em);
-        max-width: 100%;
+        width: 100%;
         background-color: var(--main-panel-color);
-        border-radius: 0.5rem;
+        border-radius: 0 0 0.5rem 0.5rem;
         padding: 1.5em;
         box-sizing: border-box;
       }

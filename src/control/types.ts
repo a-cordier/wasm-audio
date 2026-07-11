@@ -44,6 +44,11 @@ export enum ControlID {
   CUT_ATTACK,
   CUT_DECAY,
   GLIDE_TIME,
+
+  // Sequencer
+  SEQ_BPM,
+  SEQ_SWING,
+  SEQ_GATE,
 }
 
 export interface ControlSignal {

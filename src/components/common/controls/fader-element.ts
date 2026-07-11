@@ -110,6 +110,8 @@ export class Fader extends LitElement {
         border: 2px solid var(--lighter-color, white);
         border-radius: 4px;
         padding: 1px;
+        outline: 1px solid var(--learn-outline-color, transparent);
+        outline-offset: 2px;
       }
 
       .cursor-wrapper {
