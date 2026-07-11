@@ -78,6 +78,10 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
   }
 
   receive(event: MidiEvent): void {
+    if (this.audioContext.state === "suspended") {
+      this.audioContext.resume();
+    }
+
     if (isNoteOn(event)) {
       const frequency = noteFrequency(event.data1);
       this.synthNode?.noteOn(event.data1, frequency, event.data2);

@@ -10,12 +10,20 @@ const workletFiles: Record<string, string> = {
   "seq-processor.js": "src/instruments/sequels",
 };
 
+const BASE = "/wasm-audio/";
+
 function workletsPlugin(): Plugin {
   return {
     name: "worklets",
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const fileName = req.url?.split("?")[0].slice(1);
+        let path = req.url?.split("?")[0] ?? "";
+        if (path.startsWith(BASE)) {
+          path = path.slice(BASE.length);
+        } else if (path.startsWith("/")) {
+          path = path.slice(1);
+        }
+        const fileName = path;
         if (fileName && fileName in workletFiles) {
           try {
             const dir = resolve(__dirname, workletFiles[fileName]);

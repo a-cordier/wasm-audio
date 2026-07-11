@@ -21,6 +21,8 @@ import {
   computeOctave,
   computePitchClassIndex,
 } from "../../../midi/codec/notes";
+import { MidiBus } from "../../../midi/bus/bus";
+import { Status, Channel } from "../../../midi/types";
 
 const octaves = createMidiOctaves(440).map(mapKeys);
 
@@ -43,6 +45,8 @@ function mapKeys(octave) {
   });
 }
 
+const DEFAULT_VELOCITY = 100;
+
 @customElement("keys-element")
 export class Keys extends LitElement {
   @property({ type: Number })
@@ -53,6 +57,12 @@ export class Keys extends LitElement {
 
   @property({ type: Object })
   private pressedKeys;
+
+  @property({ attribute: false })
+  bus?: MidiBus;
+
+  @property({ type: Number })
+  channel: Channel = 0 as Channel;
 
   private mouseControlledKey = null;
 
@@ -104,22 +114,22 @@ export class Keys extends LitElement {
   }
 
   async keyOn(key) {
-    this.pressedKeys.add(key.midiValue);
-    this.dispatchEvent(
-      new CustomEvent("keyOn", {
-        detail: key,
-      })
-    );
+    if (this.bus) {
+      this.bus.send(Status.NOTE_ON, this.channel, key.midiValue, DEFAULT_VELOCITY);
+    } else {
+      this.pressedKeys?.add(key.midiValue);
+      this.dispatchEvent(new CustomEvent("keyOn", { detail: key }));
+    }
     await this.requestUpdate();
   }
 
   async keyOff(key) {
-    this.pressedKeys.delete(key.midiValue);
-    this.dispatchEvent(
-      new CustomEvent("keyOff", {
-        detail: key,
-      })
-    );
+    if (this.bus) {
+      this.bus.send(Status.NOTE_OFF, this.channel, key.midiValue, 0);
+    } else {
+      this.pressedKeys?.delete(key.midiValue);
+      this.dispatchEvent(new CustomEvent("keyOff", { detail: key }));
+    }
     await this.requestUpdate();
   }
 

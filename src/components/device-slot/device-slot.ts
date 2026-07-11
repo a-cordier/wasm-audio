@@ -52,6 +52,9 @@ export class DeviceSlot extends LitElement {
   @property({ attribute: false })
   parentOutput?: AudioNode;
 
+  @property({ attribute: false })
+  selectedSlotId = "";
+
   @state()
   private midiChannel: Channel | "omni" = "omni";
 
@@ -258,6 +261,15 @@ export class DeviceSlot extends LitElement {
         }
       }
       this.wireRouting();
+
+      if (this.kbActive) {
+        const channel = this.midiChannel === "omni" ? (0 as Channel) : this.midiChannel;
+        this.dispatchEvent(new CustomEvent("slot-selected", {
+          detail: { slotId: this.config.id, channel, isInstrument: true },
+          bubbles: true,
+          composed: true,
+        }));
+      }
     } else if (isMidiSourcePlugin(this.plugin!)) {
       const next = Math.max(0, Math.min(15, this.outputChannel + delta));
       this.outputChannel = next as Channel;
@@ -285,6 +297,26 @@ export class DeviceSlot extends LitElement {
     return "IN";
   }
 
+  private get kbActive(): boolean {
+    return this.config?.id === this.selectedSlotId;
+  }
+
+  private onKbToggle() {
+    if (this.kbActive) {
+      this.dispatchEvent(new CustomEvent("slot-deselected", {
+        bubbles: true,
+        composed: true,
+      }));
+    } else {
+      const channel = this.midiChannel === "omni" ? (0 as Channel) : this.midiChannel;
+      this.dispatchEvent(new CustomEvent("slot-selected", {
+        detail: { slotId: this.config.id, channel, isInstrument: true },
+        bubbles: true,
+        composed: true,
+      }));
+    }
+  }
+
   render() {
     if (!this.config) return nothing;
 
@@ -309,6 +341,7 @@ export class DeviceSlot extends LitElement {
               .midi=${this.midi}
               .audioContext=${this.audioContext}
               .parentOutput=${this.mixNode}
+              .selectedSlotId=${this.selectedSlotId}
             ></device-slot>
           `;
         })}
@@ -325,6 +358,7 @@ export class DeviceSlot extends LitElement {
           <span class="slot-label">${this.config.name}</span>
           <div class="slot-controls">
             ${this.renderPresetBrowser()}
+            ${this.renderKbButton()}
             ${this.renderLearnButton()}
             ${this.renderDeviceSelector()}
             ${this.renderChannelSelector()}
@@ -346,6 +380,8 @@ export class DeviceSlot extends LitElement {
           <wasm-poly-element
             .voiceManager=${this.plugin}
             .audioContext=${this.audioContext}
+            .bus=${this.bus}
+            .midiChannel=${this.midiChannel}
           ></wasm-poly-element>
         `;
       case "sequencer-element":
@@ -358,6 +394,17 @@ export class DeviceSlot extends LitElement {
       default:
         return nothing;
     }
+  }
+
+  private renderKbButton() {
+    if (!this.plugin || !isInstrumentPlugin(this.plugin)) return nothing;
+
+    return html`
+      <button
+        class=${classMap({ "kb-btn": true, active: this.kbActive })}
+        @click=${this.onKbToggle}
+      >KB</button>
+    `;
   }
 
   private renderLearnButton() {
@@ -512,7 +559,8 @@ export class DeviceSlot extends LitElement {
       max-width: 120px;
     }
 
-    .learn-btn {
+    .learn-btn,
+    .kb-btn {
       font-size: 0.55em;
       font-weight: 700;
       padding: 4px 10px;
@@ -526,9 +574,13 @@ export class DeviceSlot extends LitElement {
       transition: background 0.15s, color 0.15s;
     }
 
-    .learn-btn.active {
+    .learn-btn.active,
+    .kb-btn.active {
       background: var(--button-active-background-color, #b4d455);
       color: var(--button-active-label-color, #15202b);
+    }
+
+    .learn-btn.active {
       animation: learn-blink 0.8s ease-in-out infinite alternate;
     }
 

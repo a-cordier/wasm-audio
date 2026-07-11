@@ -55,6 +55,7 @@ const KEY_TO_MIDI = new Map<string, number>([
 export class KeyboardController implements MidiSource {
   private pressedKeys = new Set<string>();
   private connections: { target: MidiTarget; filter?: RouteFilter }[] = [];
+  private enabled = true;
   private event: MidiEvent = {
     status: Status.NOTE_ON,
     channel: DEFAULT_CHANNEL,
@@ -66,6 +67,14 @@ export class KeyboardController implements MidiSource {
   constructor() {
     document.addEventListener("keydown", this.onKeyDown);
     document.addEventListener("keyup", this.onKeyUp);
+  }
+
+  setChannel(channel: Channel): void {
+    this.event.channel = channel;
+  }
+
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
   }
 
   connect(target: MidiTarget, filter?: RouteFilter): Disposable {
@@ -89,6 +98,8 @@ export class KeyboardController implements MidiSource {
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
+    if (!this.enabled) return;
+
     const midi = KEY_TO_MIDI.get(e.key);
     if (midi === undefined || this.pressedKeys.has(e.key)) return;
 

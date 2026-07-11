@@ -36,12 +36,16 @@ export class Root extends LitElement {
   private audioContext = new AudioContext();
   private midi: Midi;
   private midiBus: MidiBus;
+  private keyboard: KeyboardController;
 
   private plugins = new Map<string, Plugin>();
   private slotTree: SlotConfig;
 
   @state()
   private ready = false;
+
+  @state()
+  private selectedSlotId = "";
 
   async connectedCallback() {
     super.connectedCallback();
@@ -58,7 +62,8 @@ export class Root extends LitElement {
       }
     });
 
-    new KeyboardController().connect(this.midiBus);
+    this.keyboard = new KeyboardController();
+    this.keyboard.connect(this.midiBus);
 
     await this.audioContext.audioWorklet.addModule("synth-processor.js");
     await this.audioContext.audioWorklet.addModule("seq-processor.js");
@@ -80,7 +85,23 @@ export class Root extends LitElement {
       }),
     ]);
 
+    this.selectedSlotId = "slot-synth";
+    this.keyboard.setChannel(0 as Channel);
+
     this.ready = true;
+  }
+
+  private onSlotSelected(e: CustomEvent<{ slotId: string; channel: Channel; isInstrument: boolean }>) {
+    this.selectedSlotId = e.detail.slotId;
+    this.keyboard.setEnabled(e.detail.isInstrument);
+    if (e.detail.isInstrument) {
+      this.keyboard.setChannel(e.detail.channel);
+    }
+  }
+
+  private onSlotDeselected() {
+    this.selectedSlotId = "";
+    this.keyboard.setEnabled(false);
   }
 
   render() {
@@ -92,6 +113,9 @@ export class Root extends LitElement {
         .bus=${this.midiBus}
         .midi=${this.midi}
         .audioContext=${this.audioContext}
+        .selectedSlotId=${this.selectedSlotId}
+        @slot-selected=${this.onSlotSelected}
+        @slot-deselected=${this.onSlotDeselected}
       ></device-slot>
     `;
   }

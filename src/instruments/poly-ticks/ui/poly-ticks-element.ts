@@ -30,6 +30,8 @@ import { VoiceMode } from "../types/voice-mode";
 import { SynthChangeEvent, assertNever } from "../../../types/events";
 
 import { ControlID } from "../../../control/types";
+import { MidiBus } from "../../../midi/bus/bus";
+import { Channel } from "../../../midi/types";
 
 @customElement("wasm-poly-element")
 export class WasmPoly extends LitElement {
@@ -48,6 +50,12 @@ export class WasmPoly extends LitElement {
 
   @property({ attribute: false })
   audioContext!: AudioContext;
+
+  @property({ attribute: false })
+  bus?: MidiBus;
+
+  @property({ attribute: false })
+  midiChannel: Channel | "omni" = "omni";
 
   connectedCallback() {
     super.connectedCallback();
@@ -119,17 +127,8 @@ export class WasmPoly extends LitElement {
       });
   }
 
-  async onKeyOn(event: CustomEvent) {
-    if (this.audioContext.state === "suspended") {
-      await this.audioContext.resume();
-    }
-    const { frequency, midiValue } = event.detail;
-    this.voiceManager.next({ frequency, midiValue });
-  }
-
-  onKeyOff(event: CustomEvent) {
-    const { midiValue } = event.detail;
-    this.voiceManager.stop({ midiValue });
+  private get resolvedChannel(): Channel {
+    return this.midiChannel === "omni" ? (0 as Channel) : this.midiChannel;
   }
 
   onOsc1Change(event: SynthChangeEvent<OscillatorEvent>) {
@@ -308,8 +307,8 @@ export class WasmPoly extends LitElement {
               <div class="keys">
                 <keys-element
                   .pressedKeys=${this.pressedKeys}
-                  @keyOn=${this.onKeyOn}
-                  @keyOff=${this.onKeyOff}
+                  .bus=${this.bus}
+                  .channel=${this.resolvedChannel}
                 ></keys-element>
               </div>
             </panel-wrapper-element>
