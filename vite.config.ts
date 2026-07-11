@@ -45,6 +45,7 @@ function workletsPlugin(): Plugin {
 }
 
 export default defineConfig({
+  base: "/wasm-audio/",
   plugins: [workletsPlugin()],
   server: {
     headers: {

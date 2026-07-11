@@ -1,11 +1,23 @@
-name: Build
+name: Deploy to GitHub Pages
 on:
   push:
     branches:
       - master
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -29,7 +41,11 @@ jobs:
           npm ci
           npm run build
 
-      - name: deploy
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: dist
+          path: dist
+
+      - name: deploy
+        id: deploy
+        uses: actions/deploy-pages@v4
