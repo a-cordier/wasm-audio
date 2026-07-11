@@ -252,6 +252,11 @@ export class WasmPoly extends LitElement {
       <div class="content">
         <div class="synth">
           <div class="panels-row upper">
+            <envelope-element
+              label="Envelope"
+              .state=${this.state.envelope}
+              @change=${this.onAmplitudeEnvelopeChange}
+            ></envelope-element>
             <oscillator-element
               .semiControlID=${ControlID.OSC1_SEMI}
               .centControlID=${ControlID.OSC1_CENT}
@@ -273,17 +278,12 @@ export class WasmPoly extends LitElement {
               .state=${this.state.osc2}
               @change=${this.onOsc2Change}
             ></oscillator-element>
+          </div>
+          <div class="panels-row lower">
             <filter-element
               .state=${this.state.filter}
               @change=${this.onFilterChange}
             ></filter-element>
-          </div>
-          <div class="panels-row lower">
-            <envelope-element
-              label="Envelope"
-              .state=${this.state.envelope}
-              @change=${this.onAmplitudeEnvelopeChange}
-            ></envelope-element>
             <lfo-element
               .frequencyControlID=${ControlID.LFO1_FREQ}
               .modAmountControlID=${ControlID.LFO1_MOD}
@@ -354,9 +354,9 @@ export class WasmPoly extends LitElement {
         min-width: 0;
       }
 
-      /* Upper: Osc1 Mix Osc2 Filter → 8:3:8:8 */
+      /* Upper: Env Osc1 Mix Osc2 → 8:8:3:8 */
       .panels-row.upper {
-        grid-template-columns: 8fr 3fr 8fr 8fr;
+        grid-template-columns: 8fr 8fr 3fr 8fr;
       }
 
       /* Lower: Env LFO1 LFO2 FilterMod → 6:5:5:5 */
