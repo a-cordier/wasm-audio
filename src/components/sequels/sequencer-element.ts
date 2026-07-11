@@ -16,8 +16,8 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
-import { SequencerController } from "../../sequencer/sequencer-controller";
-import { Direction, Subdivision, DEFAULT_CONFIG } from "../../sequencer/types";
+import { SequencerController } from "../../sequels/sequencer-controller";
+import { Direction, Subdivision, DEFAULT_CONFIG } from "../../sequels/types";
 import { ControlID } from "../../control/types";
 import { ToolbarEvent } from "./panels/sequencer-toolbar";
 import { StepData } from "./panels/step-grid-panel";

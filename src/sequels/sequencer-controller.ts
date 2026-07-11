@@ -38,8 +38,8 @@ const HEADER_BYTES = 2 * Int32Array.BYTES_PER_ELEMENT;
  */
 export class SequencerController extends EventTarget implements MidiSourcePlugin, Learnable {
   readonly descriptor: PluginDescriptor = {
-    id: "sequencer",
-    name: "SEQUENCER",
+    id: "sequels",
+    name: "SEQUELS",
     tag: "sequencer-element",
     type: "midi-source",
   };

@@ -22,14 +22,14 @@ import { KeyboardController } from "../midi/keyboard";
 import { Channel } from "../midi/types";
 
 import { SynthController } from "../synth/synth-controller";
-import { SequencerController } from "../sequencer/sequencer-controller";
+import { SequencerController } from "../sequels/sequencer-controller";
 
 import { SlotConfig, createBranchSlot, createLeafSlot } from "../core/slot";
 import type { Plugin } from "../core/types";
 
 import "./device-slot/device-slot";
-import "./wasm-poly/wasm-poly";
-import "./sequencer/sequencer-element";
+import "./poly-ticks/wasm-poly";
+import "./sequels/sequencer-element";
 
 @customElement("root-element")
 export class Root extends LitElement {
@@ -65,17 +65,17 @@ export class Root extends LitElement {
 
     const synth = new SynthController(this.audioContext);
     synth.init();
-    this.plugins.set("wasm-poly", synth);
+    this.plugins.set("poly-ticks", synth);
 
     const sequencer = new SequencerController(this.audioContext);
     sequencer.init();
-    this.plugins.set("sequencer", sequencer);
+    this.plugins.set("sequels", sequencer);
 
     this.slotTree = createBranchSlot("root", "DAW", [
-      createLeafSlot("slot-synth", "POLYTIK", "wasm-poly", {
+      createLeafSlot("slot-synth", "POLY TICKS", "poly-ticks", {
         midiChannel: 0 as Channel,
       }),
-      createLeafSlot("slot-seq", "SEQUELS", "sequencer", {
+      createLeafSlot("slot-seq", "SEQUELS", "sequels", {
         outputChannel: 0 as Channel,
       }),
     ]);

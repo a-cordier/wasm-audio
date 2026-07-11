@@ -31,8 +31,8 @@ type ControlHandler = (value: number) => void;
 
 export class SynthController extends EventTarget implements InstrumentPlugin, MidiTarget, Learnable, HasPresets {
   readonly descriptor: PluginDescriptor = {
-    id: "wasm-poly",
-    name: "WASM POLY",
+    id: "poly-ticks",
+    name: "POLY TICKS",
     tag: "wasm-poly-element",
     type: "instrument",
   };
