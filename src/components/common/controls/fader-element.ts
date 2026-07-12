@@ -15,8 +15,9 @@
  */
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { styleMap } from "lit/directives/style-map.js";
 import { clamp } from "./clamp";
+import type { FaderSkin } from "./skins/types";
+import { faderChannelStripSkin } from "./skins/fader-channel-strip-skin";
 
 @customElement("fader-element")
 export class Fader extends LitElement {
@@ -26,14 +27,15 @@ export class Fader extends LitElement {
   @property({ type: Number })
   public value = 127;
 
-  toggleActive(event) {
-    const host = this.shadowRoot.host as HTMLElement;
-    const parent = host.offsetParent as HTMLElement;
-    const wrapper = this.cursorWrapperElement;
-    const height = wrapper.offsetHeight;
-    const position = event.pageY - (parent.offsetTop + wrapper.offsetTop);
+  @property({ attribute: false })
+  public skin: FaderSkin = faderChannelStripSkin;
 
-    this.updateValue((1 - position / height) * 127);
+  toggleActive(event) {
+    const svgEl = this.shadowRoot.querySelector(".fader-svg") as SVGElement;
+    const rect = svgEl.getBoundingClientRect();
+    const position = (event.clientY - rect.top) / rect.height;
+
+    this.updateValue((1 - position) * 127);
 
     const drag = (event: DragEvent) => {
       event.preventDefault();
@@ -61,81 +63,45 @@ export class Fader extends LitElement {
     );
   }
 
-  computeFaderCursorStyle() {
-    return styleMap({
-      height: `${(this.value / 127) * 100}%`,
-    });
-  }
-
-  get cursorElement() {
-    return html` <div
-      class="fader-cursor"
-      style="${this.computeFaderCursorStyle()}"
-    ></div>`;
-  }
-
-  get cursorWrapperElement(): HTMLElement {
-    return this.shadowRoot.querySelector(".cursor-wrapper");
-  }
-
   render() {
+    const normalizedValue = this.value / 127;
     return html`
-      <div class="fader">
-        <div class="fader-wrapper">
-          <div
-            class="cursor-wrapper"
-            @mousedown="${this.toggleActive}"
-            @wheel="${this.onWheel}"
-          >
-            ${this.cursorElement}
-          </div>
-        </div>
+      <div
+        class="fader"
+        @mousedown="${this.toggleActive}"
+        @wheel="${this.onWheel}"
+      >
+        ${this.skin.render({ value: normalizedValue, active: false })}
         <label>${this.label}</label>
       </div>
     `;
   }
 
   static get styles() {
-    // noinspection CssUnresolvedCustomProperty
     return css`
+      :host {
+        user-select: none;
+      }
+
       .fader {
         display: flex;
         flex-direction: column;
         align-items: center;
       }
 
-      .fader-wrapper {
-        width: var(--fader-width, 20px);
-        height: var(--fader-height, 100px);
-        border: 2px solid var(--lighter-color, white);
-        border-radius: 4px;
-        padding: 1px;
+      .fader-svg {
+        width: var(--fader-width, 50px);
+        height: var(--fader-height, 140px);
+        cursor: pointer;
         outline: 1px solid var(--learn-outline-color, transparent);
         outline-offset: 2px;
-      }
-
-      .cursor-wrapper {
-        width: 100%;
-        height: 100%;
-        margin: 0 auto;
-
-        position: relative;
-      }
-
-      .fader-cursor {
-        display: block;
-        width: 100%;
-
-        background-color: var(--control-handle-color);
-
-        position: absolute;
-        bottom: 0;
+        border-radius: 4px;
       }
 
       label {
         display: block;
         color: var(--control-label-color);
-        font-size: 0.8em;
+        font-size: var(--control-label-font-size, 0.8em);
         margin-top: 0.3em;
       }
     `;

@@ -59,6 +59,7 @@ export class Envelope extends SynthPanel {
       :host {
         --panel-wrapper-background-color: var(--envelope-panel-color);
         --fader-height: 120px;
+        --fader-width: 40px;
         container-type: inline-size;
       }
 
@@ -70,12 +71,15 @@ export class Envelope extends SynthPanel {
         min-height: 160px;
       }
 
-      @container (max-width: 80px) {
+      @container (max-width: 120px) {
         .envelope-controls {
           flex-wrap: wrap;
           gap: 0.25em;
         }
-        :host { --fader-height: 80px; }
+        :host {
+          --fader-height: 80px;
+          --fader-width: 32px;
+        }
       }
     `;
   }
