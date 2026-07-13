@@ -27,6 +27,7 @@ import "./common/icons/sawtooth-wave-icon";
 import "./common/icons/triangle-wave-icon";
 
 import "./common/panel-wrapper-element";
+import "./common/row-element";
 import "../instruments/poly-ticks/ui/panels/oscillator/wave-selector-element";
 import "../instruments/poly-ticks/ui/panels/oscillator/oscillator-element";
 import "../instruments/poly-ticks/ui/panels/oscillator-mix/oscillator-mix";

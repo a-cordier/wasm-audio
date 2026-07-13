@@ -67,6 +67,9 @@ export const darkTheme = `
     --control-size-sm: 30px;
     --lcd-width-default: min(120px, 100%);
 
+    --row-toggle-bg: var(--medium);
+    --row-toggle-icon-color: var(--light-secondary);
+
     --ui-transition-time: 0.4s;
 
     --body-background: #121212;
@@ -125,6 +128,9 @@ export const retroTheme = `
     --control-size-md: 40px;
     --control-size-sm: 30px;
     --lcd-width-default: min(120px, 100%);
+
+    --row-toggle-bg: var(--medium);
+    --row-toggle-icon-color: var(--light-secondary);
 
     --ui-transition-time: 0.4s;
 

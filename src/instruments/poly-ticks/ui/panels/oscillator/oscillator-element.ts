@@ -98,14 +98,14 @@ export class Oscillator extends SynthPanel {
       .oscillator-controls {
         position: relative;
         width: 100%;
-        min-height: 120px;
+        min-height: 100px;
       }
 
       .tone-controls {
         display: flex;
         justify-content: space-around;
         width: 100%;
-        margin-top: 1em;
+        margin-top: 0.5em;
       }
 
       .shift-control {

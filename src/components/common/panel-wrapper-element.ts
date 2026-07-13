@@ -77,7 +77,7 @@ export class PanelWrapper extends LitElement {
       label {
         display: block;
         color: var(--panel-wrapper-label-color, white);
-        margin: 0 auto 0.5em auto;
+        margin: 0 auto 0.25em auto;
         text-align: center;
       }
 

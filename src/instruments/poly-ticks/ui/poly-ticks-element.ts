@@ -250,69 +250,75 @@ export class WasmPoly extends LitElement {
     return html`
       <div class="content">
         <div class="synth">
-          <div class="panels-row upper">
-            <envelope-element
-              label="Envelope"
-              .state=${this.state.envelope}
-              @change=${this.onAmplitudeEnvelopeChange}
-            ></envelope-element>
-            <oscillator-element
-              .semiControlID=${ControlID.OSC1_SEMI}
-              .centControlID=${ControlID.OSC1_CENT}
-              .cycleControlID=${ControlID.OSC1_CYCLE}
-              label="Osc. 1"
-              .state=${this.state.osc1}
-              @change=${this.onOsc1Change}
-            ></oscillator-element>
-            <oscillator-mix-element
-              .mix=${this.state.osc2Amplitude}
-              .noise=${this.state.noiseLevel}
-              @change=${this.onOscMixChange}
-            ></oscillator-mix-element>
-            <oscillator-element
-              .semiControlID=${ControlID.OSC2_SEMI}
-              .centControlID=${ControlID.OSC2_CENT}
-              .cycleControlID=${ControlID.OSC2_CYCLE}
-              label="Osc. 2"
-              .state=${this.state.osc2}
-              @change=${this.onOsc2Change}
-            ></oscillator-element>
-          </div>
-          <div class="panels-row lower">
-            <filter-element
-              .state=${this.state.filter}
-              @change=${this.onFilterChange}
-            ></filter-element>
-            <lfo-element
-              .frequencyControlID=${ControlID.LFO1_FREQ}
-              .modAmountControlID=${ControlID.LFO1_MOD}
-              label="LFO 1"
-              .state=${this.state.lfo1}
-              @change=${this.onLfo1Change}
-            ></lfo-element>
-            <lfo-element
-              .frequencyControlID=${ControlID.LFO2_FREQ}
-              .modAmountControlID=${ControlID.LFO2_MOD}
-              label="LFO 2"
-              .state=${this.state.lfo2}
-              @change=${this.onLfo2Change}
-            ></lfo-element>
-            <filter-envelope-element
-              .state=${this.state.cutoffMod}
-              @change=${this.onFilterEnvelopeChange}
-            ></filter-envelope-element>
-          </div>
-          <div class="keyboard">
-            <panel-wrapper-element>
-              <div class="keys">
-                <keys-element
-                  .pressedKeys=${this.pressedKeys}
-                  .bus=${this.bus}
-                  .channel=${this.resolvedChannel}
-                ></keys-element>
-              </div>
-            </panel-wrapper-element>
-          </div>
+          <row-element>
+            <div class="panels-row upper">
+              <envelope-element
+                label="Envelope"
+                .state=${this.state.envelope}
+                @change=${this.onAmplitudeEnvelopeChange}
+              ></envelope-element>
+              <oscillator-element
+                .semiControlID=${ControlID.OSC1_SEMI}
+                .centControlID=${ControlID.OSC1_CENT}
+                .cycleControlID=${ControlID.OSC1_CYCLE}
+                label="Osc. 1"
+                .state=${this.state.osc1}
+                @change=${this.onOsc1Change}
+              ></oscillator-element>
+              <oscillator-mix-element
+                .mix=${this.state.osc2Amplitude}
+                .noise=${this.state.noiseLevel}
+                @change=${this.onOscMixChange}
+              ></oscillator-mix-element>
+              <oscillator-element
+                .semiControlID=${ControlID.OSC2_SEMI}
+                .centControlID=${ControlID.OSC2_CENT}
+                .cycleControlID=${ControlID.OSC2_CYCLE}
+                label="Osc. 2"
+                .state=${this.state.osc2}
+                @change=${this.onOsc2Change}
+              ></oscillator-element>
+            </div>
+          </row-element>
+          <row-element>
+            <div class="panels-row lower">
+              <filter-element
+                .state=${this.state.filter}
+                @change=${this.onFilterChange}
+              ></filter-element>
+              <lfo-element
+                .frequencyControlID=${ControlID.LFO1_FREQ}
+                .modAmountControlID=${ControlID.LFO1_MOD}
+                label="LFO 1"
+                .state=${this.state.lfo1}
+                @change=${this.onLfo1Change}
+              ></lfo-element>
+              <lfo-element
+                .frequencyControlID=${ControlID.LFO2_FREQ}
+                .modAmountControlID=${ControlID.LFO2_MOD}
+                label="LFO 2"
+                .state=${this.state.lfo2}
+                @change=${this.onLfo2Change}
+              ></lfo-element>
+              <filter-envelope-element
+                .state=${this.state.cutoffMod}
+                @change=${this.onFilterEnvelopeChange}
+              ></filter-envelope-element>
+            </div>
+          </row-element>
+          <row-element>
+            <div class="keyboard">
+              <panel-wrapper-element>
+                <div class="keys">
+                  <keys-element
+                    .pressedKeys=${this.pressedKeys}
+                    .bus=${this.bus}
+                    .channel=${this.resolvedChannel}
+                  ></keys-element>
+                </div>
+              </panel-wrapper-element>
+            </div>
+          </row-element>
         </div>
         ${this.computeVizualizerIfEnabled()}
         ${this.computeDumpButtonIfEnabled()}
@@ -361,7 +367,6 @@ export class WasmPoly extends LitElement {
       /* Lower: Env LFO1 LFO2 FilterMod → 6:5:5:5 */
       .panels-row.lower {
         grid-template-columns: 6fr 5fr 5fr 5fr;
-        margin-top: 1em;
       }
 
       /* ── Keyboard ── */
@@ -369,7 +374,12 @@ export class WasmPoly extends LitElement {
       .keyboard {
         --key-height: 100px;
         --panel-wrapper-background-color: var(--keyboard-panel-color);
-        margin-top: 2em;
+      }
+
+      /* ── Row spacing ── */
+
+      row-element + row-element {
+        margin-top: 1em;
       }
 
       .keyboard .keys {

@@ -65,7 +65,7 @@ export class OscillatorMix extends SynthPanel {
         align-items: center;
         justify-content: space-evenly;
         width: 100%;
-        min-height: 130px;
+        min-height: 105px;
       }
 
       .oscillator-mix .mix { --knob-size: var(--control-size-md, 40px); }

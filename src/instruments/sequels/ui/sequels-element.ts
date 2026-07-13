@@ -86,15 +86,18 @@ export class SequencerElement extends LitElement {
   render() {
     return html`
       <div class="sequencer-layout">
-        <sequencer-toolbar
-          .bpm=${this.bpm}
-          .subdivision=${this.subdivision}
-          .playing=${this.playing}
-          .direction=${this.direction}
-          .loop=${this.loop}
-          @change=${this.onToolbarChange}
-        ></sequencer-toolbar>
-        <div class="pattern-section">
+        <row-element>
+          <sequencer-toolbar
+            .bpm=${this.bpm}
+            .subdivision=${this.subdivision}
+            .playing=${this.playing}
+            .direction=${this.direction}
+            .loop=${this.loop}
+            @change=${this.onToolbarChange}
+          ></sequencer-toolbar>
+        </row-element>
+        <row-element>
+          <div class="pattern-section">
           <div class="pattern-header">
             <div class="pattern-controls">
               <div class="lcd-control">
@@ -138,6 +141,7 @@ export class SequencerElement extends LitElement {
             @velocity-select=${this.onVelocitySelect}
           ></step-grid-panel>
         </div>
+        </row-element>
       </div>
     `;
   }
