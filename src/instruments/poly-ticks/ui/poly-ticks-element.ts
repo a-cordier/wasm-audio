@@ -35,11 +35,7 @@ import { Channel } from "../../../midi/types";
 
 @customElement("wasm-poly-element")
 export class WasmPoly extends LitElement {
-  private analyzer: AnalyserNode | null = null;
   private state: Partial<VoiceState> = {};
-
-  private showVizualizer = false;
-  private editMode = false;
   private _pendingKeyUpdate = false;
 
   @property({ type: Object })
@@ -61,8 +57,6 @@ export class WasmPoly extends LitElement {
     super.connectedCallback();
     if (!this.voiceManager || !this.audioContext) return;
     this.state = this.voiceManager.getState();
-    this.analyzer = this.audioContext.createAnalyser();
-    this.voiceManager.connect(this.analyzer);
     this.registerVoiceHandlers();
   }
 
@@ -226,26 +220,6 @@ export class WasmPoly extends LitElement {
     }
   }
 
-  computeVizualizerIfEnabled() {
-    if (this.showVizualizer) {
-      return html`
-        <div class="visualizer">
-          <visualizer-element
-            .analyser=${this.analyzer}
-            width="650"
-            height="200"
-          ></visualizer-element>
-        </div>
-      `;
-    }
-  }
-
-  computeDumpButtonIfEnabled() {
-    if (this.editMode) {
-      return html`<button @click=${this.voiceManager.dumpState}>Dump</button>`;
-    }
-  }
-
   render() {
     return html`
       <div class="content">
@@ -320,8 +294,6 @@ export class WasmPoly extends LitElement {
             </div>
           </row-element>
         </div>
-        ${this.computeVizualizerIfEnabled()}
-        ${this.computeDumpButtonIfEnabled()}
       </div>
     `;
   }
@@ -335,10 +307,6 @@ export class WasmPoly extends LitElement {
         align-items: center;
       }
 
-      .visualizer {
-        margin: auto;
-      }
-
       .synth {
         width: 100%;
         background-color: var(--main-panel-color);
@@ -346,8 +314,6 @@ export class WasmPoly extends LitElement {
         padding: 1.5em;
         box-sizing: border-box;
       }
-
-      /* ── Grid rows ── */
 
       .panels-row {
         display: grid;
@@ -360,24 +326,18 @@ export class WasmPoly extends LitElement {
         min-width: 0;
       }
 
-      /* Upper: Env Osc1 Mix Osc2 → 8:8:3:8 */
       .panels-row.upper {
         grid-template-columns: 8fr 8fr 3fr 8fr;
       }
 
-      /* Lower: Env LFO1 LFO2 FilterMod → 6:5:5:5 */
       .panels-row.lower {
         grid-template-columns: 6fr 5fr 5fr 5fr;
       }
-
-      /* ── Keyboard ── */
 
       .keyboard {
         --key-height: 100px;
         --panel-wrapper-background-color: var(--keyboard-panel-color);
       }
-
-      /* ── Row spacing ── */
 
       row-element + row-element {
         margin-top: 0.5em;
@@ -392,8 +352,6 @@ export class WasmPoly extends LitElement {
         padding: 0.5em 5%;
         box-sizing: border-box;
       }
-
-      /* ── Responsive breakpoints ── */
 
       @media (max-width: 600px) {
         .synth { padding: 0.75em; }
