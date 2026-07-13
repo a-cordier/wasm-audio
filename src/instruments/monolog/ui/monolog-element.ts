@@ -5,7 +5,7 @@ import { classMap } from "lit/directives/class-map.js";
 import { MonologController } from "../monolog-controller";
 import { MonologState } from "../types/monolog-state";
 import { MonologEvent } from "../types/monolog-event";
-import { MonologLfoDestinationOptions } from "../types/lfo-destination";
+import { MonologLfoDestination } from "../types/lfo-destination";
 import { ControlID } from "../../../control/types";
 import { MidiBus } from "../../../midi/bus/bus";
 import { Channel } from "../../../midi/types";
@@ -17,7 +17,6 @@ import "../../../components/common/controls/control-learn-wrapper";
 import "../../../components/common/panel-wrapper-element";
 import "../../../components/common/row-element";
 import "../../poly-ticks/ui/panels/oscillator/wave-selector-element";
-import "../../poly-ticks/ui/panels/lfo/lcd-selector-element";
 
 @customElement("monolog-element")
 export class MonologElement extends LitElement {
@@ -219,14 +218,18 @@ export class MonologElement extends LitElement {
 
   private renderLfoPanel() {
     if (!this.lfoState) return nothing;
+    const dest = this.lfoState.destination.value;
     return html`
       <panel-wrapper-element label="LFO" style="--panel-wrapper-background-color: var(--monolog-lfo-panel-color)">
         <div class="knob-row">
-          <lcd-selector-element
-            .options=${MonologLfoDestinationOptions}
-            .value=${this.lfoState.destination.value}
-            @change=${(e: CustomEvent) => this.controller.setLfoDestination(e.detail.value)}
-          ></lcd-selector-element>
+          <div class="dest-group">
+            <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.PITCH })}
+              @click=${() => this.controller.setLfoDestination(MonologLfoDestination.PITCH)}>PIT</button>
+            <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.CUTOFF })}
+              @click=${() => this.controller.setLfoDestination(MonologLfoDestination.CUTOFF)}>CUT</button>
+            <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.PULSE_WIDTH })}
+              @click=${() => this.controller.setLfoDestination(MonologLfoDestination.PULSE_WIDTH)}>PW</button>
+          </div>
           <control-learn-wrapper .controlID=${ControlID.ML_LFO_RATE}>
             <knob-element .value=${this.lfoState.rate.value} .label=${"RATE"}
               @change=${(e: CustomEvent) => this.controller.setLfoRate(e.detail.value)}></knob-element>
@@ -301,6 +304,31 @@ export class MonologElement extends LitElement {
         justify-content: space-evenly;
         gap: 0.5em;
         width: 100%;
+      }
+
+      .dest-group {
+        display: flex;
+        gap: 2px;
+        margin-bottom: 0.8em;
+      }
+
+      .dest-btn {
+        font-size: 0.55em;
+        font-weight: 700;
+        padding: 2px 8px;
+        background: #4a4a4a;
+        color: #939597;
+        border: 1px solid #5a5a5a;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        transition: background 0.15s, color 0.15s;
+      }
+
+      .dest-btn.active {
+        background: #2a2a2a;
+        color: var(--monolog-accent, #F5DF4D);
+        border-color: var(--monolog-accent, #F5DF4D);
       }
 
       .legato-toggle {
