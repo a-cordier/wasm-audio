@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { LitElement, html, css } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import {
   createMidiOctaves,
@@ -64,18 +64,68 @@ export class Keys extends LitElement {
   @property({ type: Number })
   channel: Channel = 0 as Channel;
 
+  @state()
+  private effectiveLower = this.lowerKey;
+
+  @state()
+  private effectiveHigher = this.higherKey;
+
   private mouseControlledKey = null;
+  private resizeObserver: ResizeObserver | null = null;
 
   get octaves() {
     return octaves.slice(
-      computeOctave(this.lowerKey),
-      computeOctave(this.higherKey) + 1
+      computeOctave(this.effectiveLower),
+      computeOctave(this.effectiveHigher) + 1
     );
   }
+
+  private computeKeyRange() {
+    const width = this.clientWidth;
+    if (width === 0) return;
+
+    const octaveMinWidth = 250;
+    const maxOctaves = Math.max(1, Math.floor(width / octaveMinWidth));
+    const requestedOctaves = computeOctave(this.higherKey) - computeOctave(this.lowerKey) + 1;
+
+    if (maxOctaves >= requestedOctaves) {
+      if (this.effectiveLower !== this.lowerKey || this.effectiveHigher !== this.higherKey) {
+        this.effectiveLower = this.lowerKey;
+        this.effectiveHigher = this.higherKey;
+      }
+      return;
+    }
+
+    const centerMidi = Math.round((this.lowerKey + this.higherKey) / 2);
+    const centerOctave = computeOctave(centerMidi);
+    const halfBelow = Math.floor(maxOctaves / 2);
+    const startOctave = Math.max(0, centerOctave - halfBelow);
+    const newLower = (startOctave + 1) * 12;
+    const newHigher = (startOctave + maxOctaves + 1) * 12 - 1;
+    if (this.effectiveLower !== newLower || this.effectiveHigher !== newHigher) {
+      this.effectiveLower = newLower;
+      this.effectiveHigher = newHigher;
+    }
+  }
+
+  private onResize = () => this.computeKeyRange();
 
   async connectedCallback() {
     super.connectedCallback();
     this.registerMouseUpHandler();
+
+    this.resizeObserver = new ResizeObserver(this.onResize);
+    this.resizeObserver.observe(this);
+  }
+
+  protected firstUpdated() {
+    this.computeKeyRange();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
   }
 
   registerMouseUpHandler() {
@@ -188,7 +238,9 @@ export class Keys extends LitElement {
 
         display: grid;
         grid-template-columns: repeat(84, 1fr);
+      }
 
+      .octave + .octave {
         margin-left: -7px;
       }
 

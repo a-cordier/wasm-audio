@@ -86,7 +86,7 @@ export class SequencerElement extends LitElement {
   render() {
     return html`
       <div class="sequencer-layout">
-        <row-element>
+        <row-element label="Transport">
           <sequencer-toolbar
             .bpm=${this.bpm}
             .subdivision=${this.subdivision}
@@ -96,7 +96,7 @@ export class SequencerElement extends LitElement {
             @change=${this.onToolbarChange}
           ></sequencer-toolbar>
         </row-element>
-        <row-element>
+        <row-element label="Pattern">
           <div class="pattern-section">
           <div class="pattern-header">
             <div class="pattern-controls">

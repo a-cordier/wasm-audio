@@ -250,7 +250,7 @@ export class WasmPoly extends LitElement {
     return html`
       <div class="content">
         <div class="synth">
-          <row-element>
+          <row-element label="Oscillators">
             <div class="panels-row upper">
               <envelope-element
                 label="Envelope"
@@ -280,7 +280,7 @@ export class WasmPoly extends LitElement {
               ></oscillator-element>
             </div>
           </row-element>
-          <row-element>
+          <row-element label="Modulation">
             <div class="panels-row lower">
               <filter-element
                 .state=${this.state.filter}
@@ -306,7 +306,7 @@ export class WasmPoly extends LitElement {
               ></filter-envelope-element>
             </div>
           </row-element>
-          <row-element>
+          <row-element label="Keyboard">
             <div class="keyboard">
               <panel-wrapper-element>
                 <div class="keys">
@@ -353,6 +353,7 @@ export class WasmPoly extends LitElement {
         display: grid;
         gap: 0.5rem;
         align-items: stretch;
+        grid-auto-rows: 1fr;
       }
 
       .panels-row > * {
@@ -379,15 +380,17 @@ export class WasmPoly extends LitElement {
       /* ── Row spacing ── */
 
       row-element + row-element {
-        margin-top: 1em;
+        margin-top: 0.5em;
       }
 
       .keyboard .keys {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 90%;
-        margin: -1em auto 0.5em auto;
+        width: 100%;
+        margin: 0 auto;
+        padding: 0.5em 5%;
+        box-sizing: border-box;
       }
 
       /* ── Responsive breakpoints ── */
