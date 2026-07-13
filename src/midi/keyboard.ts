@@ -15,6 +15,11 @@
  */
 import { MidiEvent, MidiSource, MidiTarget, RouteFilter, Status, Channel, Disposable } from "./types";
 
+export interface KbTarget {
+  channel: Channel;
+  octaveShift: number;
+}
+
 const DEFAULT_VELOCITY = 60;
 const DEFAULT_CHANNEL: Channel = 0;
 
@@ -55,8 +60,7 @@ const KEY_TO_MIDI = new Map<string, number>([
 export class KeyboardController implements MidiSource {
   private pressedKeys = new Set<string>();
   private connections: { target: MidiTarget; filter?: RouteFilter }[] = [];
-  private enabled = true;
-  private octaveShift = 0;
+  private targets: KbTarget[] = [];
   private event: MidiEvent = {
     status: Status.NOTE_ON,
     channel: DEFAULT_CHANNEL,
@@ -70,16 +74,8 @@ export class KeyboardController implements MidiSource {
     document.addEventListener("keyup", this.onKeyUp);
   }
 
-  setChannel(channel: Channel): void {
-    this.event.channel = channel;
-  }
-
-  setEnabled(enabled: boolean): void {
-    this.enabled = enabled;
-  }
-
-  setOctaveShift(semitones: number): void {
-    this.octaveShift = semitones;
+  setTargets(targets: KbTarget[]): void {
+    this.targets = targets;
   }
 
   connect(target: MidiTarget, filter?: RouteFilter): Disposable {
@@ -103,18 +99,21 @@ export class KeyboardController implements MidiSource {
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
-    if (!this.enabled) return;
+    if (this.targets.length === 0) return;
 
     const baseMidi = KEY_TO_MIDI.get(e.key);
     if (baseMidi === undefined || this.pressedKeys.has(e.key)) return;
 
-    const midi = Math.max(0, Math.min(127, baseMidi + this.octaveShift));
     this.pressedKeys.add(e.key);
     this.event.status = Status.NOTE_ON;
-    this.event.data1 = midi;
     this.event.data2 = DEFAULT_VELOCITY;
     this.event.timestamp = performance.now();
-    this.emit();
+
+    for (const t of this.targets) {
+      this.event.channel = t.channel;
+      this.event.data1 = Math.max(0, Math.min(127, baseMidi + t.octaveShift));
+      this.emit();
+    }
   };
 
   private onKeyUp = (e: KeyboardEvent): void => {
@@ -123,12 +122,15 @@ export class KeyboardController implements MidiSource {
     const baseMidi = KEY_TO_MIDI.get(e.key);
     if (baseMidi === undefined) return;
 
-    const midi = Math.max(0, Math.min(127, baseMidi + this.octaveShift));
     this.event.status = Status.NOTE_OFF;
-    this.event.data1 = midi;
     this.event.data2 = 0;
     this.event.timestamp = performance.now();
-    this.emit();
+
+    for (const t of this.targets) {
+      this.event.channel = t.channel;
+      this.event.data1 = Math.max(0, Math.min(127, baseMidi + t.octaveShift));
+      this.emit();
+    }
   };
 
   private emit(): void {

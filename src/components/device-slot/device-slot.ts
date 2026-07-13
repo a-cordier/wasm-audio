@@ -55,7 +55,7 @@ export class DeviceSlot extends LitElement {
   parentOutput?: AudioNode;
 
   @property({ attribute: false })
-  selectedSlotId = "";
+  selectedSlotIds: Set<string> = new Set();
 
   @state()
   private midiChannel: Channel | "omni" = "omni";
@@ -300,12 +300,13 @@ export class DeviceSlot extends LitElement {
   }
 
   private get kbActive(): boolean {
-    return this.config?.id === this.selectedSlotId;
+    return this.selectedSlotIds.has(this.config?.id);
   }
 
   private onKbToggle() {
     if (this.kbActive) {
       this.dispatchEvent(new CustomEvent("slot-deselected", {
+        detail: { slotId: this.config.id },
         bubbles: true,
         composed: true,
       }));
@@ -343,7 +344,7 @@ export class DeviceSlot extends LitElement {
               .midi=${this.midi}
               .audioContext=${this.audioContext}
               .parentOutput=${this.mixNode}
-              .selectedSlotId=${this.selectedSlotId}
+              .selectedSlotIds=${this.selectedSlotIds}
             ></device-slot>
           `;
         })}

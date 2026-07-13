@@ -18,7 +18,7 @@ import { customElement, state } from "lit/decorators.js";
 
 import { createMidi, Midi } from "../midi/api";
 import { MidiBus } from "../midi/bus/bus";
-import { KeyboardController } from "../midi/keyboard";
+import { KeyboardController, KbTarget } from "../midi/keyboard";
 import { Channel } from "../midi/types";
 
 import { SlotConfig, createBranchSlot, createLeafSlot } from "../core/slot";
@@ -44,7 +44,9 @@ export class Root extends LitElement {
   private ready = false;
 
   @state()
-  private selectedSlotId = "";
+  private selectedSlotIds: Set<string> = new Set();
+
+  private kbSlotConfigs = new Map<string, KbTarget>();
 
   async connectedCallback() {
     super.connectedCallback();
@@ -85,25 +87,40 @@ export class Root extends LitElement {
       }),
     ]);
 
-    this.selectedSlotId = "slot-synth";
-    this.keyboard.setChannel(0 as Channel);
+    const defaultReg = pluginRegistry.get("poly-ticks");
+    this.kbSlotConfigs.set("slot-synth", {
+      channel: 0 as Channel,
+      octaveShift: defaultReg?.keyboardOctaveShift ?? 0,
+    });
+    this.selectedSlotIds = new Set(["slot-synth"]);
+    this.syncKeyboardTargets();
 
     this.ready = true;
   }
 
   private onSlotSelected(e: CustomEvent<{ slotId: string; pluginId?: string; channel: Channel; isInstrument: boolean }>) {
-    this.selectedSlotId = e.detail.slotId;
-    this.keyboard.setEnabled(e.detail.isInstrument);
-    if (e.detail.isInstrument) {
-      this.keyboard.setChannel(e.detail.channel);
-      const reg = e.detail.pluginId ? pluginRegistry.get(e.detail.pluginId) : undefined;
-      this.keyboard.setOctaveShift(reg?.keyboardOctaveShift ?? 0);
+    const { slotId, pluginId, channel, isInstrument } = e.detail;
+    if (isInstrument) {
+      const reg = pluginId ? pluginRegistry.get(pluginId) : undefined;
+      this.kbSlotConfigs.set(slotId, {
+        channel,
+        octaveShift: reg?.keyboardOctaveShift ?? 0,
+      });
+      this.selectedSlotIds = new Set([...this.selectedSlotIds, slotId]);
     }
+    this.syncKeyboardTargets();
   }
 
-  private onSlotDeselected() {
-    this.selectedSlotId = "";
-    this.keyboard.setEnabled(false);
+  private onSlotDeselected(e: CustomEvent<{ slotId: string }>) {
+    this.kbSlotConfigs.delete(e.detail.slotId);
+    const next = new Set(this.selectedSlotIds);
+    next.delete(e.detail.slotId);
+    this.selectedSlotIds = next;
+    this.syncKeyboardTargets();
+  }
+
+  private syncKeyboardTargets() {
+    this.keyboard.setTargets(Array.from(this.kbSlotConfigs.values()));
   }
 
   render() {
@@ -115,7 +132,7 @@ export class Root extends LitElement {
         .bus=${this.midiBus}
         .midi=${this.midi}
         .audioContext=${this.audioContext}
-        .selectedSlotId=${this.selectedSlotId}
+        .selectedSlotIds=${this.selectedSlotIds}
         @slot-selected=${this.onSlotSelected}
         @slot-deselected=${this.onSlotDeselected}
       ></device-slot>
