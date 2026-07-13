@@ -56,6 +56,7 @@ export class KeyboardController implements MidiSource {
   private pressedKeys = new Set<string>();
   private connections: { target: MidiTarget; filter?: RouteFilter }[] = [];
   private enabled = true;
+  private octaveShift = 0;
   private event: MidiEvent = {
     status: Status.NOTE_ON,
     channel: DEFAULT_CHANNEL,
@@ -75,6 +76,10 @@ export class KeyboardController implements MidiSource {
 
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
+  }
+
+  setOctaveShift(semitones: number): void {
+    this.octaveShift = semitones;
   }
 
   connect(target: MidiTarget, filter?: RouteFilter): Disposable {
@@ -100,9 +105,10 @@ export class KeyboardController implements MidiSource {
   private onKeyDown = (e: KeyboardEvent): void => {
     if (!this.enabled) return;
 
-    const midi = KEY_TO_MIDI.get(e.key);
-    if (midi === undefined || this.pressedKeys.has(e.key)) return;
+    const baseMidi = KEY_TO_MIDI.get(e.key);
+    if (baseMidi === undefined || this.pressedKeys.has(e.key)) return;
 
+    const midi = Math.max(0, Math.min(127, baseMidi + this.octaveShift));
     this.pressedKeys.add(e.key);
     this.event.status = Status.NOTE_ON;
     this.event.data1 = midi;
@@ -114,9 +120,10 @@ export class KeyboardController implements MidiSource {
   private onKeyUp = (e: KeyboardEvent): void => {
     if (!this.pressedKeys.delete(e.key)) return;
 
-    const midi = KEY_TO_MIDI.get(e.key);
-    if (midi === undefined) return;
+    const baseMidi = KEY_TO_MIDI.get(e.key);
+    if (baseMidi === undefined) return;
 
+    const midi = Math.max(0, Math.min(127, baseMidi + this.octaveShift));
     this.event.status = Status.NOTE_OFF;
     this.event.data1 = midi;
     this.event.data2 = 0;

@@ -15,10 +15,12 @@
  */
 
 import { LitElement, html, css, nothing } from "lit";
+import { html as staticHtml, unsafeStatic } from "lit/static-html.js";
 import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 
 import { Plugin, InstrumentPlugin, MidiSourcePlugin, isInstrumentPlugin, isMidiSourcePlugin, isLearnable, hasPresets, PresetEntry } from "../../core/types";
+import { pluginRegistry } from "../../core/plugin-registry";
 import { SlotConfig } from "../../core/slot";
 import { MidiBus } from "../../midi/bus/bus";
 import { Midi } from "../../midi/api";
@@ -265,7 +267,7 @@ export class DeviceSlot extends LitElement {
       if (this.kbActive) {
         const channel = this.midiChannel === "omni" ? (0 as Channel) : this.midiChannel;
         this.dispatchEvent(new CustomEvent("slot-selected", {
-          detail: { slotId: this.config.id, channel, isInstrument: true },
+          detail: { slotId: this.config.id, pluginId: this.config.pluginId, channel, isInstrument: true },
           bubbles: true,
           composed: true,
         }));
@@ -310,7 +312,7 @@ export class DeviceSlot extends LitElement {
     } else {
       const channel = this.midiChannel === "omni" ? (0 as Channel) : this.midiChannel;
       this.dispatchEvent(new CustomEvent("slot-selected", {
-        detail: { slotId: this.config.id, channel, isInstrument: true },
+        detail: { slotId: this.config.id, pluginId: this.config.pluginId, channel, isInstrument: true },
         bubbles: true,
         composed: true,
       }));
@@ -373,27 +375,17 @@ export class DeviceSlot extends LitElement {
 
   private renderPluginElement() {
     if (!this.plugin) return nothing;
-
-    switch (this.plugin.descriptor.tag) {
-      case "wasm-poly-element":
-        return html`
-          <wasm-poly-element
-            .voiceManager=${this.plugin}
-            .audioContext=${this.audioContext}
-            .bus=${this.bus}
-            .midiChannel=${this.midiChannel}
-          ></wasm-poly-element>
-        `;
-      case "sequencer-element":
-        return html`
-          <sequencer-element
-            .sequencer=${this.plugin}
-            .audioContext=${this.audioContext}
-          ></sequencer-element>
-        `;
-      default:
-        return nothing;
-    }
+    const reg = pluginRegistry.get(this.plugin.descriptor.id);
+    if (!reg) return nothing;
+    const tag = unsafeStatic(reg.elementTag);
+    return staticHtml`
+      <${tag}
+        .plugin=${this.plugin}
+        .audioContext=${this.audioContext}
+        .bus=${this.bus}
+        .midiChannel=${this.midiChannel}
+      ></${tag}>
+    `;
   }
 
   private renderKbButton() {

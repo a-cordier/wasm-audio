@@ -8,6 +8,8 @@ const workletFiles: Record<string, string> = {
   "wasm-worklet-processor.js": "src/runtime",
   "worklet-drain.js": "src/midi/transport",
   "seq-processor.js": "src/instruments/sequels",
+  "monolog-processor.js": "src/instruments/monolog",
+  "monolog-kernel.wasmmodule.js": "src/instruments/monolog/engine",
 };
 
 const BASE = "/wasm-audio/";

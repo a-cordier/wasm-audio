@@ -21,15 +21,14 @@ import { MidiBus } from "../midi/bus/bus";
 import { KeyboardController } from "../midi/keyboard";
 import { Channel } from "../midi/types";
 
-import { SynthController } from "../instruments/poly-ticks/synth-controller";
-import { SequencerController } from "../instruments/sequels/sequencer-controller";
-
 import { SlotConfig, createBranchSlot, createLeafSlot } from "../core/slot";
+import { pluginRegistry } from "../core/plugin-registry";
 import type { Plugin } from "../core/types";
 
 import "./device-slot/device-slot";
-import "../instruments/poly-ticks/ui/poly-ticks-element";
-import "../instruments/sequels/ui/sequels-element";
+import "../instruments/poly-ticks/register";
+import "../instruments/monolog/register";
+import "../instruments/sequels/register";
 
 @customElement("root-element")
 export class Root extends LitElement {
@@ -65,20 +64,21 @@ export class Root extends LitElement {
     this.keyboard = new KeyboardController();
     this.keyboard.connect(this.midiBus);
 
-    await this.audioContext.audioWorklet.addModule("synth-processor.js");
-    await this.audioContext.audioWorklet.addModule("seq-processor.js");
-
-    const synth = new SynthController(this.audioContext);
-    synth.init();
-    this.plugins.set("poly-ticks", synth);
-
-    const sequencer = new SequencerController(this.audioContext);
-    sequencer.init();
-    this.plugins.set("sequels", sequencer);
+    for (const reg of pluginRegistry.getAll()) {
+      for (const mod of reg.workletModules ?? []) {
+        await this.audioContext.audioWorklet.addModule(mod);
+      }
+      const plugin = reg.controllerFactory(this.audioContext);
+      plugin.init();
+      this.plugins.set(reg.descriptor.id, plugin);
+    }
 
     this.slotTree = createBranchSlot("root", "DAW", [
       createLeafSlot("slot-synth", "POLY TICKS", "poly-ticks", {
         midiChannel: 0 as Channel,
+      }),
+      createLeafSlot("slot-monolog", "MONOLOG", "monolog", {
+        midiChannel: 1 as Channel,
       }),
       createLeafSlot("slot-seq", "SEQUELS", "sequels", {
         outputChannel: 0 as Channel,
@@ -91,11 +91,13 @@ export class Root extends LitElement {
     this.ready = true;
   }
 
-  private onSlotSelected(e: CustomEvent<{ slotId: string; channel: Channel; isInstrument: boolean }>) {
+  private onSlotSelected(e: CustomEvent<{ slotId: string; pluginId?: string; channel: Channel; isInstrument: boolean }>) {
     this.selectedSlotId = e.detail.slotId;
     this.keyboard.setEnabled(e.detail.isInstrument);
     if (e.detail.isInstrument) {
       this.keyboard.setChannel(e.detail.channel);
+      const reg = e.detail.pluginId ? pluginRegistry.get(e.detail.pluginId) : undefined;
+      this.keyboard.setOctaveShift(reg?.keyboardOctaveShift ?? 0);
     }
   }
 

@@ -32,6 +32,7 @@ import { SynthChangeEvent, assertNever } from "../../../types/events";
 import { ControlID } from "../../../control/types";
 import { MidiBus } from "../../../midi/bus/bus";
 import { Channel } from "../../../midi/types";
+import type { Plugin } from "../../../core/types";
 
 @customElement("wasm-poly-element")
 export class WasmPoly extends LitElement {
@@ -42,7 +43,7 @@ export class WasmPoly extends LitElement {
   private pressedKeys = new Set<number>();
 
   @property({ attribute: false })
-  voiceManager!: SynthController;
+  plugin?: Plugin;
 
   @property({ attribute: false })
   audioContext!: AudioContext;
@@ -53,9 +54,13 @@ export class WasmPoly extends LitElement {
   @property({ attribute: false })
   midiChannel: Channel | "omni" = "omni";
 
+  private get voiceManager(): SynthController {
+    return this.plugin as SynthController;
+  }
+
   connectedCallback() {
     super.connectedCallback();
-    if (!this.voiceManager || !this.audioContext) return;
+    if (!this.plugin || !this.audioContext) return;
     this.state = this.voiceManager.getState();
     this.registerVoiceHandlers();
   }
@@ -280,7 +285,7 @@ export class WasmPoly extends LitElement {
               ></filter-envelope-element>
             </div>
           </row-element>
-          <row-element label="Keyboard">
+          <row-element label="Keyboard" ?collapsed=${true}>
             <div class="keyboard">
               <panel-wrapper-element>
                 <div class="keys">

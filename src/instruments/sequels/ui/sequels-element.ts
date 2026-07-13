@@ -22,6 +22,7 @@ import { ControlID } from "../../../control/types";
 import { ToolbarEvent } from "./panels/sequencer-toolbar";
 import { StepData } from "./panels/step-grid-panel";
 import { SynthChangeEvent } from "../../../types/events";
+import type { Plugin } from "../../../core/types";
 
 import "./panels/sequencer-toolbar";
 import "./panels/step-grid-panel";
@@ -29,10 +30,14 @@ import "./panels/step-grid-panel";
 @customElement("sequencer-element")
 export class SequencerElement extends LitElement {
   @property({ attribute: false })
-  sequencer!: SequencerController;
+  plugin?: Plugin;
 
   @property({ attribute: false })
   audioContext!: AudioContext;
+
+  private get sequencer(): SequencerController {
+    return this.plugin as SequencerController;
+  }
 
   @state()
   private playing = false;
@@ -72,7 +77,7 @@ export class SequencerElement extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    if (!this.sequencer) return;
+    if (!this.plugin) return;
 
     this.sequencer.addEventListener("position", ((e: CustomEvent) => {
       this.currentStep = e.detail.step;

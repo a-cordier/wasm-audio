@@ -26,7 +26,7 @@ export interface PluginDescriptor {
 
 export interface Plugin {
   readonly descriptor: PluginDescriptor;
-  init(ctx: AudioContext): void | Promise<void>;
+  init(ctx?: AudioContext): void | Promise<void>;
   getState(): unknown;
   loadState(state: unknown): void;
   dispose(): void;

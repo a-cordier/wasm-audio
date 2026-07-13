@@ -28,18 +28,6 @@ import "./common/icons/triangle-wave-icon";
 
 import "./common/panel-wrapper-element";
 import "./common/row-element";
-import "../instruments/poly-ticks/ui/panels/oscillator/wave-selector-element";
-import "../instruments/poly-ticks/ui/panels/oscillator/oscillator-element";
-import "../instruments/poly-ticks/ui/panels/oscillator-mix/oscillator-mix";
-import "../instruments/poly-ticks/ui/panels/filter/filter-element";
-import "../instruments/poly-ticks/ui/panels/filter/filter-selector-element";
-import "../instruments/poly-ticks/ui/panels/envelope/envelope-element";
-import "../instruments/poly-ticks/ui/panels/lfo/lfo-element";
-import "../instruments/poly-ticks/ui/panels/lfo/lcd-selector-element";
-import "../instruments/poly-ticks/ui/panels/filter-mod/filter-envelope-element";
-
-import "../instruments/sequels/ui/panels/sequencer-toolbar";
-import "../instruments/sequels/ui/panels/step-grid-panel";
 
 import "./device-slot/device-slot";
 

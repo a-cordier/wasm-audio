@@ -49,6 +49,25 @@ export enum ControlID {
   SEQ_BPM,
   SEQ_SWING,
   SEQ_GATE,
+
+  // Monolog
+  ML_CUTOFF,
+  ML_RESONANCE,
+  ML_DRIVE,
+  ML_SUB_LEVEL,
+  ML_NOISE_LEVEL,
+  ML_PW,
+  ML_AMP_ATTACK,
+  ML_AMP_DECAY,
+  ML_AMP_SUSTAIN,
+  ML_AMP_RELEASE,
+  ML_FLT_ATTACK,
+  ML_FLT_DECAY,
+  ML_FLT_AMOUNT,
+  ML_FLT_VELOCITY,
+  ML_LFO_RATE,
+  ML_LFO_AMOUNT,
+  ML_GLIDE,
 }
 
 export interface ControlSignal {

@@ -60,6 +60,14 @@ export const darkTheme = `
     --voice-config-panel-color: #4a2d7a;
     --sequencer-panel-color: #3a3d42;
 
+    --monolog-panel-color: #1a1a1a;
+    --monolog-osc-panel-color: #2e2e2e;
+    --monolog-filter-panel-color: #383830;
+    --monolog-env-panel-color: #30302c;
+    --monolog-lfo-panel-color: #2c2c28;
+    --monolog-perf-panel-color: #333333;
+    --monolog-accent: #F5DF4D;
+
     --panel-wrapper-label-color: var(--darker);
 
     --control-size-lg: 50px;
@@ -121,6 +129,14 @@ export const retroTheme = `
     --lfo-panel-color: #800020;
     --voice-config-panel-color: #4a2a5e;
     --sequencer-panel-color: #4a4540;
+
+    --monolog-panel-color: #1a1a1a;
+    --monolog-osc-panel-color: #2e2e2e;
+    --monolog-filter-panel-color: #383830;
+    --monolog-env-panel-color: #30302c;
+    --monolog-lfo-panel-color: #2c2c28;
+    --monolog-perf-panel-color: #333333;
+    --monolog-accent: #F5DF4D;
 
     --panel-wrapper-label-color: var(--darker);
 
