@@ -17,15 +17,12 @@
 
 namespace wasm_audio {
 namespace Constants {
-	constexpr float sampleRate = 44100.f;
 	constexpr float epsilon = 0.000001f;
 	constexpr float pi = 3.14159265358979323846264338327950288f;
 	constexpr float twoPi = 2.f * pi;
 	constexpr float semiFactor = 1.0594630943592953f;
 	constexpr float centFactor = 1.0005777895065548f;
 	constexpr unsigned renderFrames = 128;
-	constexpr float subOscPresence = 0.25f;
-	constexpr float voiceGain = 0.5f;
 
 	constexpr float e = 2.71828182845904523536028747135266250;
 	constexpr float log2e = 1.44269504088896340735992468100189214;
@@ -41,4 +38,10 @@ namespace Constants {
 	constexpr float sqrtOneOverTwo = 0.707106781186547524400844362104849039;
 	constexpr float oneOverTwoPi = 1.f / twoPi;
 } // namespace Constants
+
+// Poly-ticks-specific constants (kept here temporarily for backward compatibility)
+namespace PolyTicksConstants {
+	constexpr float subOscPresence = 0.25f;
+	constexpr float voiceGain = 0.5f;
+} // namespace PolyTicksConstants
 } // namespace wasm_audio

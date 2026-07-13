@@ -61,21 +61,28 @@ namespace Envelope {
 		}
 
 		void setSampleCount(int count) {
+			if (count == sampleCount) return;
 			sampleCount = count;
-			exponentialCoefficient = computeExponentialCoefficient(ya, yb, sampleCount);
+			dirty = true;
 		}
 
 		void setStartLevel(float value) {
+			if (value == ya) return;
 			ya = value;
-			exponentialCoefficient = computeExponentialCoefficient(ya, yb, sampleCount);
+			dirty = true;
 		}
 
 		void setEndLevel(float value) {
+			if (value == yb) return;
 			yb = value;
-			exponentialCoefficient = computeExponentialCoefficient(ya, yb, sampleCount);
+			dirty = true;
 		}
 
 		float computeLevel() {
+			if (dirty) {
+				exponentialCoefficient = computeExponentialCoefficient(ya, yb, sampleCount);
+				dirty = false;
+			}
 			switch (type) {
 				case RampType::EXPONENTIAL:
 					level = sample == 0 ? ya : level + level * exponentialCoefficient;
@@ -100,6 +107,7 @@ namespace Envelope {
 
 		void reset() {
 			sample = 0;
+			dirty = true;
 		}
 
 		private:
@@ -109,6 +117,7 @@ namespace Envelope {
 		int sample;
 		float level = 0.f;
 		float exponentialCoefficient;
+		bool dirty = false;
 		RampType type;
 		Stage stage;
 		Stage nextStage;
@@ -145,10 +154,11 @@ namespace Envelope {
 			}
 		}
 
+		// Retrigger from any stage, starting from the current level to avoid clicks.
 		void enterAttackStage() {
-			if (stage == Stage::OFF) {
-				stage = Stage::ATTACK;
-			}
+			attackTimeLine.setStartLevel(level);
+			attackTimeLine.reset();
+			stage = Stage::ATTACK;
 		}
 
 		void enterReleaseStage() {
@@ -201,10 +211,11 @@ namespace Envelope {
 			decayTimeLine.reset();
 			releaseTimeLine.reset();
 			stage = Stage::OFF;
+			level = 0.f;
 		}
 
 		private:
-		float sampleRate = Constants::sampleRate;
+		float sampleRate;
 		float level = 0.f;
 
 		Stage stage;

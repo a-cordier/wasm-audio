@@ -16,12 +16,14 @@
 #pragma once
 
 #include "constants.h"
+#include "dc-blocker.h"
 #include "envelope.h"
 #include "filter.h"
 #include "oscillator.h"
 #include "range.h"
 #include "sample-parameters.h"
 #include "sub-oscillator.h"
+#include "waveshaper.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -88,15 +90,14 @@ namespace Voice {
 			renderFrames(renderFrames),
 			osc1(Oscillator::Kernel{ sampleRate }),
 			osc2(Oscillator::Kernel{ sampleRate }),
-			noise(Oscillator::Kernel{ sampleRate }),
 			lfo1(Oscillator::Kernel{ sampleRate }),
 			lfo2(Oscillator::Kernel{ sampleRate }),
-			filter(std::make_unique<Filter::ResonantKernel>()),
+			filter(std::make_unique<Filter::SVFKernel>(sampleRate)),
 			subOsc(sampleRate),
+			dcBlocker(sampleRate),
 			amplitudeEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.5f, 0.5f, 0.9f }),
 			cutoffEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.01f, 2.f, 0.f }),
 			state(State::DISPOSED) {
-			noise.setMode(Oscillator::Mode::NOISE);
 		}
 
 		void process(uintptr_t outputPtr, unsigned channelCount) {
@@ -299,10 +300,10 @@ namespace Voice {
 		void reset() {
 			osc1.reset();
 			osc2.reset();
-			noise.reset();
 			lfo1.reset();
 			lfo2.reset();
 			filter->reset();
+			dcBlocker.reset();
 			amplitudeEnvelope.reset();
 			cutoffEnvelope.reset();
 			state = State::DISPOSED;
@@ -333,24 +334,20 @@ namespace Voice {
 		}
 
 		float computeSample() {
-			float sample = computeRawSample() * velocity * amplitudeEnvelope.nextLevel();
+			float sample = computeRawSample();
 			float filtered = filter->nextSample(sample, sampleParameters.cutoff, sampleParameters.resonance);
-			return shape(filtered);
-		}
-
-		float shape(float sample) {
-			float amount = sampleParameters.overdrive;
-			float k = 2.f * amount / (1.f - amount);
-			return (1.f + k) * sample / (1.f + k * abs(sample));
+			float shaped = Waveshaper::softClip(filtered, sampleParameters.overdrive);
+			float clean = dcBlocker.process(shaped);
+			return clean * velocity * amplitudeEnvelope.nextLevel();
 		}
 
 		float computeRawSample() {
 			float osc1Sample = osc1.nextSample(sampleParameters.frequency) * sampleParameters.osc1Amplitude;
 			float osc2Sample = osc2.nextSample(sampleParameters.frequency) * sampleParameters.osc2Amplitude;
-			float noiseSample = noise.nextSample(sampleParameters.frequency) * sampleParameters.noiseLevel;
+			float noiseSample = noise.nextSample() * sampleParameters.noiseLevel;
 			subOsc.setOsc2Amplitude(sampleParameters.osc2Amplitude);
-			float subOscSample = subOsc.nextSample(sampleParameters.frequency) * Constants::subOscPresence;
-			return (1 - Constants::subOscPresence) * (osc1Sample + osc2Sample) + subOscSample + noiseSample;
+			float subOscSample = subOsc.nextSample(sampleParameters.frequency) * PolyTicksConstants::subOscPresence;
+			return (1 - PolyTicksConstants::subOscPresence) * (osc1Sample + osc2Sample) + subOscSample + noiseSample;
 		}
 
 		void applyModulations() {
@@ -402,7 +399,7 @@ namespace Voice {
 
 		Oscillator::Kernel osc1;
 		Oscillator::Kernel osc2;
-		Oscillator::Kernel noise;
+		Oscillator::NoiseKernel noise;
 		SubOsc subOsc;
 
 		Oscillator::Kernel lfo1;
@@ -414,6 +411,7 @@ namespace Voice {
 		Envelope::Kernel amplitudeEnvelope;
 
 		std::unique_ptr<Filter::Kernel> filter;
+		DCBlocker dcBlocker;
 
 		Envelope::Kernel cutoffEnvelope;
 
@@ -421,8 +419,8 @@ namespace Voice {
 
 		SampleParameters sampleParameters;
 
-		float sampleRate = Constants::sampleRate;
-		unsigned renderFrames = Constants::renderFrames;
+		float sampleRate;
+		unsigned renderFrames;
 		float velocity = 1.f;
 	};
 

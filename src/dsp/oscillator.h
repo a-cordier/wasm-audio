@@ -97,7 +97,6 @@ namespace Oscillator {
 		void reset() {
 			phase = 0.f;
 			phaseIncrement = 0.f;
-			lastValue = 0.f;
 		}
 
 		private:
@@ -132,22 +131,24 @@ namespace Oscillator {
 			return value;
 		}
 
+		// PolyBLAMP triangle: direct computation from phase, amplitude-stable at all frequencies.
+		// Replaces the old leaky-integrator approach which was frequency-dependent.
 		float computeTriangle() {
-			auto value = computeSquare();
-			value = phaseIncrement * value + (1.f - phaseIncrement) * lastValue;
-			lastValue = value;
-			return value;
+			float t = phase / Constants::twoPi;
+			float dt = phaseIncrement / Constants::twoPi;
+
+			float naive = (t < 0.5f) ? (4.0f * t - 1.0f) : (3.0f - 4.0f * t);
+
+			naive += 4.0f * computePolyBLAMP(t, dt);
+			float t2 = t + 0.5f;
+			if (t2 >= 1.0f) t2 -= 1.0f;
+			naive -= 4.0f * computePolyBLAMP(t2, dt);
+
+			return naive;
 		}
 
 		float computeNoise() {
-			const static int q = 15;
-			const static float c1 = (1 << q) - 1;
-			const static float c2 = ((int)(c1 / 3)) + 1;
-			const static float c3 = 1.f / c1;
-			const static float c4 = c2 - 1.f;
-			float c5 = 6.f * computeRandomValue() * c2;
-			float c6 = 3.f * c4;
-			return (c5 - c6) * c3;
+			return computeRandomValue() * 2.0f - 1.0f;
 		}
 
 		float computeRandomValue() {
@@ -171,6 +172,20 @@ namespace Oscillator {
 			} else {
 				return 0.f;
 			}
+		}
+
+		// Integrated PolyBLEP for correcting slope (ramp) discontinuities in the triangle.
+		// Derived as the running integral of computePolyBLEP, continuous across the transition.
+		float computePolyBLAMP(float t, float dt) {
+			if (t < dt) {
+				float d = t / dt;
+				float x = 1.0f - d;
+				return dt * x * x * x / 3.0f;
+			} else if (t > 1.0f - dt) {
+				float d = (t - (1.0f - dt)) / dt;
+				return dt * d * d * d / 3.0f;
+			}
+			return 0.0f;
 		}
 
 		void updatePhase(float frequency) {
@@ -200,7 +215,6 @@ namespace Oscillator {
 
 		float phase = 0.f;
 		float phaseIncrement = 0.f;
-		float lastValue = 0.f;
 
 		float semiShift = 0.f;
 		float centShift = 0.f;
@@ -210,7 +224,30 @@ namespace Oscillator {
 
 		float dutyCycle = 0.5f;
 
-		float sampleRate = Constants::sampleRate;
+		float sampleRate;
+	};
+
+	// Standalone noise generator, no phase/frequency dependency.
+	class NoiseKernel {
+		public:
+		float nextSample() {
+			rngState ^= rngState << 13;
+			rngState ^= rngState >> 17;
+			rngState ^= rngState << 5;
+			return static_cast<float>(rngState) / static_cast<float>(UINT32_MAX) * 2.0f - 1.0f;
+		}
+
+		void reset() {
+			rngState = nextSeed();
+		}
+
+		private:
+		static uint32_t nextSeed() {
+			static uint32_t counter = 1000;
+			return ++counter * 2654435761u;
+		}
+
+		uint32_t rngState = nextSeed();
 	};
 } // namespace Oscillator
 } // namespace wasm_audio

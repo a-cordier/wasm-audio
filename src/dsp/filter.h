@@ -50,13 +50,88 @@ namespace Filter {
 		Mode mode = Mode::LOWPASS_PLUS;
 	};
 
-	class ResonantKernel : public Kernel {
+	// Linear-trapezoidal State Variable Filter (Andrew Simper / Cytomic).
+	// Cutoff: 0..1 mapped exponentially to 20..20000 Hz internally.
+	// Resonance: 0..1 where 1 approaches self-oscillation.
+	class SVFKernel : public Kernel {
 		public:
-		ResonantKernel() :
+		SVFKernel(float sampleRate) :
+			Kernel(Mode::LOWPASS),
+			sampleRate(sampleRate) {}
+
+		SVFKernel(float sampleRate, Mode mode) :
+			Kernel(mode),
+			sampleRate(sampleRate) {}
+
+		float nextSample(float sample, float cutoff, float resonance) override {
+			float cutoffHz = 20.0f * std::pow(1000.0f, cutoff);
+			cutoffHz = std::min(cutoffHz, sampleRate * 0.49f);
+
+			float g = std::tan(Constants::pi * cutoffHz / sampleRate);
+			float k = 2.0f * (1.0f - resonance);
+			k = std::max(k, 0.01f);
+
+			float a1 = 1.0f / (1.0f + g * (g + k));
+			float a2 = g * a1;
+			float a3 = g * a2;
+
+			float v3 = sample - ic2eq;
+			float v1 = a1 * ic1eq + a2 * v3;
+			float v2 = ic2eq + a2 * ic1eq + a3 * v3;
+			ic1eq = 2.0f * v1 - ic1eq;
+			ic2eq = 2.0f * v2 - ic2eq;
+
+			switch (mode) {
+				case Mode::LOWPASS:
+					return v2;
+				case Mode::LOWPASS_PLUS:
+					return processCascade(v2, g);
+				case Mode::HIGHPASS:
+					return sample - k * v1 - v2;
+				case Mode::BANDPASS:
+					return v1;
+				default:
+					return 0.0f;
+			}
+		}
+
+		void reset() override {
+			ic1eq = 0.0f;
+			ic2eq = 0.0f;
+			ic1eq2 = 0.0f;
+			ic2eq2 = 0.0f;
+		}
+
+		private:
+		float processCascade(float input, float g) {
+			float k2 = Constants::sqrtTwo;
+			float a1 = 1.0f / (1.0f + g * (g + k2));
+			float a2 = g * a1;
+			float a3 = g * a2;
+
+			float v3 = input - ic2eq2;
+			float v1 = a1 * ic1eq2 + a2 * v3;
+			float v2 = ic2eq2 + a2 * ic1eq2 + a3 * v3;
+			ic1eq2 = 2.0f * v1 - ic1eq2;
+			ic2eq2 = 2.0f * v2 - ic2eq2;
+
+			return v2;
+		}
+
+		float sampleRate;
+		float ic1eq = 0.0f;
+		float ic2eq = 0.0f;
+		float ic1eq2 = 0.0f;
+		float ic2eq2 = 0.0f;
+	};
+
+	class NaiveResonantKernel : public Kernel {
+		public:
+		NaiveResonantKernel() :
 			Kernel(Mode::LOWPASS) {
 		}
 
-		ResonantKernel(Mode mode) :
+		NaiveResonantKernel(Mode mode) :
 			Kernel(mode) {
 		}
 
@@ -95,43 +170,6 @@ namespace Filter {
 	};
 
 	namespace Moog {
-		inline float snapToZero(float x) {
-			if (!(x < -1.0e-8 || x > 1.0e-8)) {
-				return 0.f;
-			}
-			return x;
-		}
-
-		inline float crossfade(float amount, float x, float y) {
-			return (1.f - amount) * x + amount * y;
-		}
-
-		inline float moogMin(float a, float b) {
-			a = b - a;
-			a += std::fabs(a);
-			a *= 0.5f;
-			return b - a;
-		}
-
-		inline float saturate(float input) {
-			static float limit = 0.95f;
-			float x1 = std::fabs(input + limit);
-			float x2 = std::fabs(input - limit);
-			return 0.5f * (x1 - x2);
-		}
-
-		inline float computeClippingFactor(float value, float invertedSaturration) {
-			const float factor = value * invertedSaturration;
-			if (factor < -1.f) return -1.f;
-			if (factor > 1.f) return 1.f;
-			return factor;
-		}
-
-		inline float clip(float value, float saturation, float invertedSaturation) {
-			const float factor = computeClippingFactor(value, invertedSaturation);
-			return saturation * (factor - (factor * factor * factor) / 3.f);
-		}
-
 		inline float fastTanh(float x) {
 			float x2 = x * x;
 			return x * (27.f + x2) / (27.f + 9.f * x2);
@@ -193,7 +231,7 @@ namespace Filter {
 				return 0.9892 * wc - 0.4342 * std::pow(wc, 2) + 0.1381 * std::pow(wc, 3) - 0.0202 * std::pow(wc, 4);
 			}
 
-			float sampleRate = Constants::sampleRate;
+			float sampleRate;
 			float g;
 			float gRes;
 			float gComp;

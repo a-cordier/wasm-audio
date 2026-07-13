@@ -38,13 +38,13 @@ struct Range {
 };
 
 inline const Range midiRange{ 0.f, 127.f };
-inline const Range amplitudeRange{ -Constants::voiceGain, Constants::voiceGain };
+inline const Range amplitudeRange{ -0.5f, 0.5f };
 inline const Range zeroOneRange{ 0.f, 1.f };
 inline const Range attackRange{ Constants::epsilon, .5f };
 inline const Range decayRange{ .1f, 8.f };
 inline const Range sustainRange{ 0.1f, 1.f };
 inline const Range releaseRange{ 0.1f, .75f };
-inline const Range cutoffRange{ 0.007f, 0.97f };
+inline const Range cutoffRange{ 0.f, 1.f };
 inline const Range resonanceRange{ 0.f, 0.95f };
 inline const Range driveRange{ 0.f, 0.75f };
 inline const Range envelopeAmountRange{ 0.f, 1.f };

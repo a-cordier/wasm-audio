@@ -1,6 +1,7 @@
 ENGINE = src/instruments/poly-ticks/engine
+DSP = src/dsp
 OUT = $(ENGINE)/voice-kernel.wasmmodule.js
-DEPS = $(wildcard $(ENGINE)/*.h) $(wildcard $(ENGINE)/*.cpp) Makefile
+DEPS = $(wildcard $(ENGINE)/*.h) $(wildcard $(ENGINE)/*.cpp) $(wildcard $(DSP)/*.h) Makefile
 
 SHELL := /bin/bash
 EMCC := docker run --rm -v $(CURDIR):/src -u $(shell id -u):$(shell id -g) emscripten/emsdk emcc
@@ -20,6 +21,7 @@ $(OUT): $(DEPS)
 		-sEXPORTED_RUNTIME_METHODS="['HEAPF32','HEAPU32']" \
 		-sENVIRONMENT=worklet \
 		-I $(ENGINE) \
+		-I $(DSP) \
 		$(ENGINE)/voice-kernel.cpp \
 		-o $(OUT)
 
