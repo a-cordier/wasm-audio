@@ -23,6 +23,7 @@ import { MidiEvent, MidiHandler, RouteFilter, Channel, Status, Disposable } from
 interface CompiledRoute {
   channelMask: number;
   statusMask: number;
+  sourceFilter: string | undefined;
   handler: MidiHandler;
 }
 
@@ -57,6 +58,7 @@ export class Dispatcher {
     const route: CompiledRoute = {
       channelMask: compileChannelMask(filter),
       statusMask: compileStatusMask(filter),
+      sourceFilter: filter?.source,
       handler,
     };
     this.routes.push(route);
@@ -78,7 +80,8 @@ export class Dispatcher {
 
     for (let i = 0, len = this.routes.length; i < len; i++) {
       const route = this.routes[i];
-      if ((route.channelMask & channelBit) && (route.statusMask & statusBit)) {
+      if ((route.channelMask & channelBit) && (route.statusMask & statusBit)
+        && (!route.sourceFilter || route.sourceFilter === event.source)) {
         route.handler(event);
       }
     }

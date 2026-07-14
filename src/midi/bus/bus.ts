@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { MidiEvent, MidiHandler, MidiSource, MidiTarget, RouteFilter, Status, Channel, Disposable } from "../types";
+import { MidiEvent, MidiHandler, MidiSource, MidiTarget, RouteFilter, Status, Channel, Disposable, INTERNAL_SOURCE } from "../types";
 import { Dispatcher } from "./dispatch";
 import { MidiRingBuffer } from "../transport/ring-buffer";
 import { noteFrequency } from "../codec/notes";
@@ -46,8 +46,8 @@ export class MidiBus implements MidiTarget {
   /**
    * Programmatically send an event into this bus.
    */
-  send(status: Status, channel: Channel, data1: number, data2: number, timestamp = performance.now()): void {
-    const event: MidiEvent = { status, channel, data1, data2, timestamp };
+  send(status: Status, channel: Channel, data1: number, data2: number, timestamp = performance.now(), source: string = INTERNAL_SOURCE): void {
+    const event: MidiEvent = { status, channel, data1, data2, timestamp, source };
     this.receive(event);
   }
 

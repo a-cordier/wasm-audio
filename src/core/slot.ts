@@ -22,7 +22,7 @@ export interface SlotConfig {
   mode: "leaf" | "branch";
 
   pluginId?: string;
-  inputDevice?: string | "all";
+  inputDevice?: string | "all" | "internal";
   midiChannel?: Channel | "omni";
   outputChannel?: Channel;
 
@@ -40,7 +40,7 @@ export function createLeafSlot(
     name,
     mode: "leaf",
     pluginId,
-    inputDevice: options.inputDevice ?? "all",
+    inputDevice: options.inputDevice ?? "internal",
     midiChannel: options.midiChannel ?? "omni",
     outputChannel: options.outputChannel ?? (0 as Channel),
     ...options,

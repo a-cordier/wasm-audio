@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { MidiEvent, MidiSource, MidiTarget, RouteFilter, Status, Channel, Disposable } from "./types";
+import { MidiEvent, MidiSource, MidiTarget, RouteFilter, Status, Channel, Disposable, INTERNAL_SOURCE } from "./types";
 
 export interface KbTarget {
   channel: Channel;
@@ -67,6 +67,7 @@ export class KeyboardController implements MidiSource {
     data1: 0,
     data2: DEFAULT_VELOCITY,
     timestamp: 0,
+    source: INTERNAL_SOURCE,
   };
 
   constructor() {
@@ -75,6 +76,26 @@ export class KeyboardController implements MidiSource {
   }
 
   setTargets(targets: KbTarget[]): void {
+    const newChannels = new Set(targets.map(t => t.channel));
+    const removed = this.targets.filter(t => !newChannels.has(t.channel));
+
+    if (removed.length > 0 && this.pressedKeys.size > 0) {
+      this.event.status = Status.NOTE_OFF;
+      this.event.data2 = 0;
+      this.event.timestamp = performance.now();
+
+      for (const t of removed) {
+        this.event.channel = t.channel;
+        for (const key of this.pressedKeys) {
+          const baseMidi = KEY_TO_MIDI.get(key);
+          if (baseMidi !== undefined) {
+            this.event.data1 = Math.max(0, Math.min(127, baseMidi + t.octaveShift));
+            this.emit();
+          }
+        }
+      }
+    }
+
     this.targets = targets;
   }
 

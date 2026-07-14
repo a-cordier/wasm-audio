@@ -34,6 +34,7 @@ export class MidiInputPort implements MidiSource {
     data1: 0,
     data2: 0,
     timestamp: 0,
+    source: "",
   };
 
   constructor(port: MIDIInput) {
@@ -41,6 +42,7 @@ export class MidiInputPort implements MidiSource {
     this.id = port.id;
     this.name = port.name ?? "Unknown";
     this.manufacturer = port.manufacturer ?? "";
+    this.decodeBuffer.source = this.name;
     this.port.onmidimessage = this.onMessage;
   }
 

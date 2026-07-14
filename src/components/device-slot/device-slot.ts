@@ -24,7 +24,7 @@ import { pluginRegistry } from "../../core/plugin-registry";
 import { SlotConfig } from "../../core/slot";
 import { MidiBus } from "../../midi/bus/bus";
 import { Midi } from "../../midi/api";
-import { Channel, Disposable, MidiEvent, RouteFilter } from "../../midi/types";
+import { Channel, Disposable, INTERNAL_SOURCE, MidiEvent, RouteFilter } from "../../midi/types";
 import { getBindingManager } from "../../control/binding-manager";
 import { MidiControlAdapter } from "../../control/adapters/midi-adapter";
 
@@ -133,13 +133,19 @@ export class DeviceSlot extends LitElement {
 
     if (this.config?.mode === "leaf" && this.plugin) {
       if (isInstrumentPlugin(this.plugin)) {
-        const filter: RouteFilter | undefined = this.midiChannel !== "omni"
-          ? { channel: this.midiChannel as Channel }
-          : undefined;
+        const filter: RouteFilter = {};
+        if (this.midiChannel !== "omni") {
+          filter.channel = this.midiChannel as Channel;
+        }
+        if (this.inputDevice === "internal") {
+          filter.source = INTERNAL_SOURCE;
+        } else if (this.inputDevice !== "all") {
+          filter.source = this.inputDevice;
+        }
 
         this.busSubscription = this.bus.subscribe(
           (event: MidiEvent) => (this.plugin as InstrumentPlugin).receive(event),
-          filter
+          Object.keys(filter).length > 0 ? filter : undefined
         );
       } else if (isMidiSourcePlugin(this.plugin)) {
         (this.plugin as MidiSourcePlugin).connectMidiOutput(this.bus);
@@ -281,7 +287,7 @@ export class DeviceSlot extends LitElement {
 
   private onDeviceChange(e: Event) {
     const select = e.target as HTMLSelectElement;
-    this.inputDevice = select.value === "all" ? "all" : select.value;
+    this.inputDevice = select.value;
     this.wireRouting();
   }
 
@@ -431,6 +437,7 @@ export class DeviceSlot extends LitElement {
       <div class="control-group">
         <label class="control-label">DEVICE</label>
         <select class="device-select" @change=${this.onDeviceChange}>
+          <option value="internal" ?selected=${this.inputDevice === "internal"}>INT.</option>
           <option value="all" ?selected=${this.inputDevice === "all"}>ALL</option>
           ${this.availableInputs.map(
             (name) => html`<option value=${name} ?selected=${this.inputDevice === name}>${name}</option>`

@@ -44,12 +44,15 @@ export type Channel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 
 export const OMNI_CHANNEL = 16 as const;
 export type OmniChannel = typeof OMNI_CHANNEL;
 
+export const INTERNAL_SOURCE = "internal";
+
 export interface MidiEvent {
   status: Status;
   channel: Channel;
   data1: number;
   data2: number;
   timestamp: number;
+  source: string;
 }
 
 export interface NoteData {
@@ -87,6 +90,7 @@ export type MidiHandler = (event: MidiEvent) => void;
 export interface RouteFilter {
   channel?: Channel | Channel[];
   status?: Status | Status[];
+  source?: string;
 }
 
 export interface Disposable {
