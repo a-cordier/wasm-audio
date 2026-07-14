@@ -954,7 +954,7 @@ export const PresetOptions = new SelectOptions([
     },
   },
   {
-    name: "MONO LEAD",
+    name: "RAZOR LEAD",
     value: {
       osc1: {
         mode: { value: 1 },
@@ -1001,14 +1001,14 @@ export const PresetOptions = new SelectOptions([
         modAmount: { value: 0 },
       },
       voiceConfig: {
-        voiceMode: { value: VoiceMode.MONO },
-        glideTime: { value: 0.05 },
-        retrigger: { value: 0 },
+        voiceMode: { value: VoiceMode.POLY },
+        glideTime: { value: 0 },
+        retrigger: { value: 1 },
       },
     },
   },
   {
-    name: "MONO BASS",
+    name: "GROWL BASS",
     value: {
       osc1: {
         mode: { value: 1 },
@@ -1055,14 +1055,14 @@ export const PresetOptions = new SelectOptions([
         modAmount: { value: 0 },
       },
       voiceConfig: {
-        voiceMode: { value: VoiceMode.MONO },
+        voiceMode: { value: VoiceMode.POLY },
         glideTime: { value: 0 },
         retrigger: { value: 1 },
       },
     },
   },
   {
-    name: "GLIDE LEAD",
+    name: "DRIFT LEAD",
     value: {
       osc1: {
         mode: { value: 1 },
@@ -1109,9 +1109,9 @@ export const PresetOptions = new SelectOptions([
         modAmount: { value: 8 },
       },
       voiceConfig: {
-        voiceMode: { value: VoiceMode.MONO },
-        glideTime: { value: 0.25 },
-        retrigger: { value: 0 },
+        voiceMode: { value: VoiceMode.POLY },
+        glideTime: { value: 0 },
+        retrigger: { value: 1 },
       },
     },
   },

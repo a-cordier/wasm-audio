@@ -514,8 +514,8 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
     this.sendParam(ParamId.LFO2_DESTINATION, s.lfo2.destination.value as number);
     this.sendParam(ParamId.LFO2_FREQUENCY, s.lfo2.frequency.value as number);
     this.sendParam(ParamId.LFO2_MOD_AMOUNT, s.lfo2.modAmount.value as number);
-    this.sendParam(ParamId.VOICE_MODE, s.voiceConfig.voiceMode.value as number);
-    this.sendParam(ParamId.GLIDE_TIME, s.voiceConfig.glideTime.value as number);
-    this.sendParam(ParamId.RETRIGGER, s.voiceConfig.retrigger.value as number);
+    this.sendParam(ParamId.VOICE_MODE, VoiceMode.POLY);
+    this.sendParam(ParamId.GLIDE_TIME, 0);
+    this.sendParam(ParamId.RETRIGGER, 1);
   }
 }
