@@ -24,9 +24,11 @@ import { pluginRegistry } from "../../core/plugin-registry";
 import { SlotConfig } from "../../core/slot";
 import { MidiBus } from "../../midi/bus/bus";
 import { Midi } from "../../midi/api";
-import { Channel, Disposable, INTERNAL_SOURCE, MidiEvent, RouteFilter } from "../../midi/types";
+import { Channel, Disposable, INTERNAL_SOURCE, MidiEvent, RouteFilter, Status } from "../../midi/types";
+import { isNoteOn, isNoteOff } from "../../midi/codec/decode";
 import { getBindingManager } from "../../control/binding-manager";
 import { MidiControlAdapter } from "../../control/adapters/midi-adapter";
+import { MixerEngine } from "../../mixer";
 
 @customElement("device-slot")
 export class DeviceSlot extends LitElement {
@@ -55,6 +57,9 @@ export class DeviceSlot extends LitElement {
   parentOutput?: AudioNode;
 
   @property({ attribute: false })
+  mixerEngine?: MixerEngine;
+
+  @property({ attribute: false })
   selectedSlotIds: Set<string> = new Set();
 
   @state()
@@ -80,6 +85,7 @@ export class DeviceSlot extends LitElement {
 
   private mixNode: GainNode | null = null;
   private busSubscription: Disposable | null = null;
+  private activeNotes = new Set<number>();
   private portChangeCleanup: (() => void) | null = null;
   private midiAdapterRegistered = false;
   private controlChangeListener: EventListener | null = null;
@@ -94,7 +100,7 @@ export class DeviceSlot extends LitElement {
   }
 
   updated(changed: Map<string, unknown>) {
-    if (changed.has("config") || changed.has("plugin") || changed.has("bus") || changed.has("audioContext") || changed.has("parentOutput")) {
+    if (changed.has("config") || changed.has("plugin") || changed.has("bus") || changed.has("audioContext") || changed.has("parentOutput") || changed.has("mixerEngine")) {
       this.wireAudio();
       this.wireRouting();
       this.setupCoreFeatures();
@@ -112,22 +118,30 @@ export class DeviceSlot extends LitElement {
   private wireAudio() {
     if (!this.audioContext) return;
 
-    if (!this.mixNode) {
-      this.mixNode = new GainNode(this.audioContext);
+    if (this.config?.mode === "leaf" && this.plugin && isInstrumentPlugin(this.plugin)) {
+      if (this.mixerEngine != null) {
+        return;
+      }
+
+      (this.plugin as InstrumentPlugin).disconnectAudio();
+      if (!this.mixNode) this.mixNode = new GainNode(this.audioContext);
+      this.mixNode.disconnect();
+      this.mixNode.connect(this.parentOutput ?? this.audioContext.destination);
+      (this.plugin as InstrumentPlugin).connectAudio(this.mixNode);
+      return;
     }
 
-    this.mixNode.disconnect();
-    const dest = this.parentOutput ?? this.audioContext.destination;
-    this.mixNode.connect(dest);
-
-    if (this.config?.mode === "leaf" && this.plugin && isInstrumentPlugin(this.plugin)) {
-      (this.plugin as InstrumentPlugin).connectAudio(this.mixNode);
+    if (this.config?.mode === "branch") {
+      if (!this.mixNode) this.mixNode = new GainNode(this.audioContext);
+      this.mixNode.disconnect();
+      this.mixNode.connect(this.parentOutput ?? this.audioContext.destination);
     }
   }
 
   private wireRouting() {
     this.busSubscription?.dispose();
     this.busSubscription = null;
+    this.activeNotes.clear();
 
     if (!this.bus) return;
 
@@ -144,7 +158,11 @@ export class DeviceSlot extends LitElement {
         }
 
         this.busSubscription = this.bus.subscribe(
-          (event: MidiEvent) => (this.plugin as InstrumentPlugin).receive(event),
+          (event: MidiEvent) => {
+            if (isNoteOn(event)) this.activeNotes.add(event.data1);
+            else if (isNoteOff(event)) this.activeNotes.delete(event.data1);
+            (this.plugin as InstrumentPlugin).receive(event);
+          },
           Object.keys(filter).length > 0 ? filter : undefined
         );
       } else if (isMidiSourcePlugin(this.plugin)) {
@@ -169,6 +187,7 @@ export class DeviceSlot extends LitElement {
   private teardown() {
     this.busSubscription?.dispose();
     this.busSubscription = null;
+    this.activeNotes.clear();
     this.portChangeCleanup?.();
     this.portChangeCleanup = null;
     this.mixNode?.disconnect();
@@ -252,6 +271,14 @@ export class DeviceSlot extends LitElement {
     }
   }
 
+  private flushNotesOff(plugin: InstrumentPlugin) {
+    const now = performance.now();
+    for (const note of this.activeNotes) {
+      plugin.receive({ status: Status.NOTE_OFF, channel: 0 as Channel, data1: note, data2: 0, timestamp: now, source: INTERNAL_SOURCE });
+    }
+    this.activeNotes.clear();
+  }
+
   private onChannelChange(delta: number) {
     if (this.config?.mode !== "leaf") return;
 
@@ -268,6 +295,8 @@ export class DeviceSlot extends LitElement {
           this.midiChannel = next as Channel;
         }
       }
+
+      this.flushNotesOff(this.plugin as InstrumentPlugin);
       this.wireRouting();
 
       if (this.kbActive) {
@@ -349,6 +378,7 @@ export class DeviceSlot extends LitElement {
               .bus=${this.bus}
               .midi=${this.midi}
               .audioContext=${this.audioContext}
+              .mixerEngine=${this.mixerEngine}
               .parentOutput=${this.mixNode}
               .selectedSlotIds=${this.selectedSlotIds}
             ></device-slot>

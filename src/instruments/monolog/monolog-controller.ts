@@ -49,6 +49,10 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     this.output.disconnect();
   }
 
+  getOutputNode(): AudioNode {
+    return this.output;
+  }
+
   loadState(state: unknown): void {
     if (state) this.setState(state);
   }

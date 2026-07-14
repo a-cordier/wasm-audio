@@ -23,9 +23,13 @@ import { Channel } from "../midi/types";
 
 import { SlotConfig, createBranchSlot, createLeafSlot } from "../core/slot";
 import { pluginRegistry } from "../core/plugin-registry";
-import type { Plugin } from "../core/types";
+import type { Plugin, InstrumentPlugin } from "../core/types";
+import { isInstrumentPlugin } from "../core/types";
+
+import { MixerEngine } from "../mixer";
 
 import "./device-slot/device-slot";
+import "./mixer/mixer-element";
 import "../instruments/poly-ticks/register";
 import "../instruments/monolog/register";
 import "../instruments/sequels/register";
@@ -36,6 +40,7 @@ export class Root extends LitElement {
   private midi: Midi;
   private midiBus: MidiBus;
   private keyboard: KeyboardController;
+  private mixerEngine: MixerEngine;
 
   private plugins = new Map<string, Plugin>();
   private slotTree: SlotConfig;
@@ -75,6 +80,8 @@ export class Root extends LitElement {
       this.plugins.set(reg.descriptor.id, plugin);
     }
 
+    this.mixerEngine = new MixerEngine(this.audioContext);
+
     this.slotTree = createBranchSlot("root", "DAW", [
       createLeafSlot("slot-synth", "POLY TICKS", "poly-ticks", {
         midiChannel: 0 as Channel,
@@ -86,6 +93,19 @@ export class Root extends LitElement {
         outputChannel: 0 as Channel,
       }),
     ]);
+
+    this.mixerEngine.setLabel(0, "POLY TICKS");
+    this.mixerEngine.setLabel(1, "MONOLOG");
+    this.mixerEngine.setLabel(2, "SEQUELS");
+
+    const polyTicks = this.plugins.get("poly-ticks");
+    if (polyTicks && isInstrumentPlugin(polyTicks)) {
+      this.mixerEngine.setRouting("slot-synth", (polyTicks as InstrumentPlugin).getOutputNode(), [0]);
+    }
+    const monolog = this.plugins.get("monolog");
+    if (monolog && isInstrumentPlugin(monolog)) {
+      this.mixerEngine.setRouting("slot-monolog", (monolog as InstrumentPlugin).getOutputNode(), [1]);
+    }
 
     const defaultReg = pluginRegistry.get("poly-ticks");
     this.kbSlotConfigs.set("slot-synth", {
@@ -132,10 +152,14 @@ export class Root extends LitElement {
         .bus=${this.midiBus}
         .midi=${this.midi}
         .audioContext=${this.audioContext}
+        .mixerEngine=${this.mixerEngine}
         .selectedSlotIds=${this.selectedSlotIds}
         @slot-selected=${this.onSlotSelected}
         @slot-deselected=${this.onSlotDeselected}
       ></device-slot>
+      <mixer-element
+        .engine=${this.mixerEngine}
+      ></mixer-element>
     `;
   }
 

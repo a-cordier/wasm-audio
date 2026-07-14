@@ -70,12 +70,12 @@ export class MidiBus implements MidiTarget {
    * The ring buffer will receive packed MIDI events matching the filter.
    */
   subscribeRing(ring: MidiRingBuffer, filter?: RouteFilter): Disposable {
-    const channelMask = filter?.channel
+    const channelMask = filter?.channel != null
       ? (Array.isArray(filter.channel)
         ? filter.channel.reduce((m, ch) => m | (1 << ch), 0)
         : 1 << filter.channel)
       : 0xffff;
-    const statusMask = filter?.status
+    const statusMask = filter?.status != null
       ? (Array.isArray(filter.status)
         ? filter.status.reduce((m, s) => m | (1 << (s - 0x08)), 0)
         : 1 << (filter.status - 0x08))

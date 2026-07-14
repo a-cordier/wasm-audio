@@ -28,7 +28,7 @@ interface CompiledRoute {
 }
 
 function compileChannelMask(filter?: RouteFilter): number {
-  if (!filter?.channel) return 0xffff; // all channels
+  if (filter?.channel == null) return 0xffff;
   const channels = Array.isArray(filter.channel) ? filter.channel : [filter.channel];
   let mask = 0;
   for (const ch of channels) {
@@ -38,7 +38,7 @@ function compileChannelMask(filter?: RouteFilter): number {
 }
 
 function compileStatusMask(filter?: RouteFilter): number {
-  if (!filter?.status) return 0x7f; // all channel message statuses (bits 0-6)
+  if (filter?.status == null) return 0x7f;
   const statuses = Array.isArray(filter.status) ? filter.status : [filter.status];
   let mask = 0;
   for (const s of statuses) {

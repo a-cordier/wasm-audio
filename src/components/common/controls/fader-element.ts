@@ -92,7 +92,7 @@ export class Fader extends LitElement {
       .fader-svg {
         width: var(--fader-width, 50px);
         height: var(--fader-height, 140px);
-        cursor: pointer;
+        cursor: ns-resize;
         outline: 1px solid var(--learn-outline-color, transparent);
         outline-offset: 2px;
         border-radius: 4px;

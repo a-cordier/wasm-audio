@@ -68,6 +68,10 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
     this.output.disconnect();
   }
 
+  getOutputNode(): AudioNode {
+    return this.output;
+  }
+
   loadState(state: unknown): void {
     if (state) this.setState(state);
   }

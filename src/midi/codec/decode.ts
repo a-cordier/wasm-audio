@@ -26,6 +26,7 @@ const DECODE_BUFFER: MidiEvent = {
   data1: 0,
   data2: 0,
   timestamp: 0,
+  source: "",
 };
 
 /**

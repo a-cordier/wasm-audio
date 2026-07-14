@@ -39,6 +39,7 @@ export interface MidiConsumer {
 export interface AudioProducer {
   connectAudio(destination: AudioNode): void;
   disconnectAudio(): void;
+  getOutputNode(): AudioNode;
 }
 
 export interface MidiProducer {

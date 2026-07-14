@@ -145,7 +145,7 @@ export class Knob extends LitElement {
       .knob-svg {
         height: var(--knob-size, 100px);
         width: var(--knob-size, 100px);
-        cursor: pointer;
+        cursor: ns-resize;
         outline: 1px solid var(--learn-outline-color, transparent);
         outline-offset: 2px;
         border-radius: 50%;
