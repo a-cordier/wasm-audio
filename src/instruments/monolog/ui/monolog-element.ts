@@ -17,6 +17,8 @@ import "../../../components/common/controls/control-learn-wrapper";
 import "../../../components/common/panel-wrapper-element";
 import "../../../components/common/row-element";
 import "../../poly-ticks/ui/panels/oscillator/wave-selector-element";
+import { OscillatorMode } from "../../poly-ticks/types/oscillator-mode";
+import "./filter-model-selector-element";
 
 @customElement("monolog-element")
 export class MonologElement extends LitElement {
@@ -133,10 +135,14 @@ export class MonologElement extends LitElement {
     return html`
       <panel-wrapper-element label="OSC" style="--panel-wrapper-background-color: var(--monolog-osc-panel-color)">
         <div class="knob-row">
-          <wave-selector-element
-            .value=${this.oscState.mode.value}
-            @change=${(e: CustomEvent) => this.controller.setOscMode(e.detail.value)}
-          ></wave-selector-element>
+          <div class="toggle-group">
+            <wave-selector-element
+              .value=${this.oscState.mode.value}
+              .modes=${[OscillatorMode.SAWTOOTH, OscillatorMode.SQUARE, OscillatorMode.TRIANGLE]}
+              @change=${(e: CustomEvent) => this.controller.setOscMode(e.detail.value)}
+            ></wave-selector-element>
+            <span class="toggle-label">WAVEFORM</span>
+          </div>
           <control-learn-wrapper .controlID=${ControlID.ML_SUB_LEVEL}>
             <knob-element .value=${this.oscState.subLevel.value} .label=${"SUB"}
               @change=${(e: CustomEvent) => this.controller.setSubLevel(e.detail.value)}></knob-element>
@@ -151,6 +157,13 @@ export class MonologElement extends LitElement {
     return html`
       <panel-wrapper-element label="FILTER" style="--panel-wrapper-background-color: var(--monolog-filter-panel-color)">
         <div class="knob-row">
+          <div class="toggle-group">
+            <filter-model-selector-element
+              .value=${this.filterState.model.value}
+              @change=${(e: CustomEvent) => this.controller.setFilterModel(e.detail.value)}
+            ></filter-model-selector-element>
+            <span class="toggle-label">TYPE</span>
+          </div>
           <control-learn-wrapper .controlID=${ControlID.ML_CUTOFF}>
             <knob-element .value=${this.filterState.cutoff.value} .label=${"CUTOFF"}
               @change=${(e: CustomEvent) => this.controller.setCutoff(e.detail.value)}></knob-element>
@@ -222,13 +235,16 @@ export class MonologElement extends LitElement {
     return html`
       <panel-wrapper-element label="LFO" style="--panel-wrapper-background-color: var(--monolog-lfo-panel-color)">
         <div class="knob-row">
-          <div class="dest-group">
-            <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.PITCH })}
-              @click=${() => this.controller.setLfoDestination(MonologLfoDestination.PITCH)}>PIT</button>
-            <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.CUTOFF })}
-              @click=${() => this.controller.setLfoDestination(MonologLfoDestination.CUTOFF)}>CUT</button>
-            <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.PULSE_WIDTH })}
-              @click=${() => this.controller.setLfoDestination(MonologLfoDestination.PULSE_WIDTH)}>PW</button>
+          <div class="toggle-group">
+            <div class="dest-group">
+              <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.PITCH })}
+                @click=${() => this.controller.setLfoDestination(MonologLfoDestination.PITCH)}>PIT</button>
+              <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.CUTOFF })}
+                @click=${() => this.controller.setLfoDestination(MonologLfoDestination.CUTOFF)}>CUT</button>
+              <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.PULSE_WIDTH })}
+                @click=${() => this.controller.setLfoDestination(MonologLfoDestination.PULSE_WIDTH)}>PW</button>
+            </div>
+            <span class="toggle-label">DEST</span>
           </div>
           <control-learn-wrapper .controlID=${ControlID.ML_LFO_RATE}>
             <knob-element .value=${this.lfoState.rate.value} .label=${"RATE"}
@@ -253,12 +269,12 @@ export class MonologElement extends LitElement {
             <knob-element .value=${this.perfState.glide.value} .label=${"GLIDE"}
               @change=${(e: CustomEvent) => this.controller.setGlide(e.detail.value)}></knob-element>
           </control-learn-wrapper>
-          <div class="legato-toggle">
-            <label class="toggle-label">LEGATO</label>
+          <div class="toggle-group">
             <button
               class=${classMap({ "toggle-btn": true, active: legatoActive })}
               @click=${() => this.controller.setLegato(legatoActive ? 0 : 127)}
-            >${legatoActive ? "ON" : "OFF"}</button>
+            >LEG</button>
+            <span class="toggle-label">LEGATO</span>
           </div>
         </div>
       </panel-wrapper-element>
@@ -291,7 +307,7 @@ export class MonologElement extends LitElement {
       }
 
       .panels-row.sound {
-        grid-template-columns: 4fr 5fr 4fr;
+        grid-template-columns: 3fr 6fr 3fr;
       }
 
       .panels-row.mod {
@@ -300,22 +316,51 @@ export class MonologElement extends LitElement {
 
       .knob-row {
         display: flex;
-        align-items: center;
+        align-items: flex-end;
         justify-content: space-evenly;
         gap: 0.5em;
         width: 100%;
       }
 
+      .toggle-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4em;
+      }
+
+      .toggle-label {
+        font-size: var(--control-label-font-size, 0.8em);
+        color: #939597;
+      }
+
+      wave-selector-element,
+      filter-model-selector-element {
+        --button-border-radius: 2px;
+        --button-width: auto;
+        --button-height: 18px;
+        --button-font-size: 0.55em;
+        --button-padding: 0 8px;
+        --icon-size: 10px;
+        --button-disposed-background-color: #4a4a4a;
+        --button-disposed-label-color: #939597;
+        --button-border-color: #5a5a5a;
+        --button-active-background-color: #2a2a2a;
+        --button-active-label-color: var(--monolog-accent, #F5DF4D);
+        --button-active-border-color: var(--monolog-accent, #F5DF4D);
+        width: auto;
+      }
+
       .dest-group {
         display: flex;
         gap: 2px;
-        margin-bottom: 0.8em;
       }
 
       .dest-btn {
+        height: 18px;
         font-size: 0.55em;
         font-weight: 700;
-        padding: 2px 8px;
+        padding: 0 8px;
         background: #4a4a4a;
         color: #939597;
         border: 1px solid #5a5a5a;
@@ -323,6 +368,9 @@ export class MonologElement extends LitElement {
         text-transform: uppercase;
         letter-spacing: 0.05em;
         transition: background 0.15s, color 0.15s;
+        display: inline-flex;
+        align-items: center;
+        box-sizing: border-box;
       }
 
       .dest-btn.active {
@@ -331,22 +379,11 @@ export class MonologElement extends LitElement {
         border-color: var(--monolog-accent, #F5DF4D);
       }
 
-      .legato-toggle {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.3em;
-      }
-
-      .toggle-label {
-        font-size: var(--control-label-font-size, 0.8em);
-        color: #939597;
-      }
-
       .toggle-btn {
-        font-size: 0.6em;
+        height: 18px;
+        font-size: 0.55em;
         font-weight: 700;
-        padding: 4px 12px;
+        padding: 0 8px;
         background: #4a4a4a;
         color: #939597;
         border: 1px solid #5a5a5a;
@@ -354,6 +391,9 @@ export class MonologElement extends LitElement {
         text-transform: uppercase;
         letter-spacing: 0.05em;
         transition: background 0.15s, color 0.15s;
+        display: inline-flex;
+        align-items: center;
+        box-sizing: border-box;
       }
 
       .toggle-btn.active {

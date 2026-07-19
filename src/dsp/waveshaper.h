@@ -27,13 +27,20 @@ namespace Waveshaper {
 		return (1.0f + k) * sample / (1.0f + k * std::fabs(sample));
 	}
 
-	// Tanh-based saturation. Warmer character, smoother clipping.
+	// Tanh-based saturation (polynomial approximation, NOT bounded for large input).
 	// drive: multiplier applied before tanh (1 = subtle, 5+ = heavy).
 	inline float tanhDrive(float sample, float drive) {
 		if (drive <= 0.0f) return sample;
 		float x2 = (sample * drive) * (sample * drive);
 		float x = sample * drive;
 		return x * (27.0f + x2) / (27.0f + 9.0f * x2);
+	}
+
+	// True tanh saturation. Guaranteed bounded to [-1, 1].
+	// Use as output limiter when the signal can exceed safe levels.
+	inline float tanhLimit(float sample, float drive) {
+		if (drive <= 0.0f) return sample;
+		return std::tanh(sample * drive);
 	}
 
 	// Wavefolding distortion. Folds the signal back when it exceeds threshold.

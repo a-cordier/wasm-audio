@@ -141,6 +141,12 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     this.dispatch(MonologEvent.OSC, { ...this.state.osc });
   }
 
+  setFilterModel(value: number) {
+    this.state.filter.model.value = value;
+    this.sendParam(MonologParamId.FILTER_MODEL, value);
+    this.dispatch(MonologEvent.FILTER, { ...this.state.filter });
+  }
+
   setCutoff(value: number) {
     this.state.filter.cutoff.value = value;
     this.sendParam(MonologParamId.CUTOFF, value);
@@ -275,6 +281,7 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     this.sendParam(MonologParamId.PULSE_WIDTH, s.osc.pulseWidth.value);
     this.sendParam(MonologParamId.SUB_LEVEL, s.osc.subLevel.value);
     this.sendParam(MonologParamId.NOISE_LEVEL, s.osc.noiseLevel.value);
+    this.sendParam(MonologParamId.FILTER_MODEL, s.filter.model.value);
     this.sendParam(MonologParamId.CUTOFF, s.filter.cutoff.value);
     this.sendParam(MonologParamId.RESONANCE, s.filter.resonance.value);
     this.sendParam(MonologParamId.DRIVE, s.filter.drive.value);

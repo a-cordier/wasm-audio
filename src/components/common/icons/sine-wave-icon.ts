@@ -45,7 +45,8 @@ export class SineWaveIcon extends LitElement {
   static get styles() {
     return css`
       svg {
-        width: 12px;
+        width: var(--icon-size, 12px);
+        height: var(--icon-size, 12px);
         stroke: var(--stroke-color, #000);
       }
     `;

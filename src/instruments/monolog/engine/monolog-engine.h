@@ -46,6 +46,7 @@ namespace Monolog {
 		GLIDE_TIME,
 		LEGATO,
 		PULSE_WIDTH,
+		FILTER_MODEL,
 		PARAM_COUNT,
 	};
 
@@ -163,6 +164,7 @@ namespace Monolog {
 			voice.setResonance(resonanceRange.map(params[pi(ParamId::RESONANCE)], midiRange));
 			voice.setDrive(driveRange.map(params[pi(ParamId::DRIVE)], midiRange));
 			voice.setPulseWidth(zeroOneRange.map(params[pi(ParamId::PULSE_WIDTH)], midiRange));
+			voice.setFilterModel(static_cast<FilterModel>(static_cast<uint32_t>(params[pi(ParamId::FILTER_MODEL)])));
 
 			voice.setAmpAttack(params[pi(ParamId::AMP_ATTACK)]);
 			voice.setAmpDecay(params[pi(ParamId::AMP_DECAY)]);

@@ -30,6 +30,13 @@
 namespace wasm_audio {
 namespace Monolog {
 
+	enum class FilterModel {
+		MOOG = 0,
+		ACID = 1,
+		SCREAM = 2,
+		KORG = 3,
+	};
+
 	enum class LfoDestination {
 		PITCH = 0,
 		CUTOFF = 1,
@@ -50,7 +57,10 @@ namespace Monolog {
 			osc(sampleRate),
 			subOsc(sampleRate),
 			noise(),
-			filter(sampleRate),
+			moogFilter(sampleRate),
+			diodeFilter(sampleRate),
+			screamerFilter(sampleRate),
+			korgFilter(sampleRate),
 			lfo(sampleRate),
 			dcBlocker(sampleRate),
 			ampEnv(sampleRate, 1.f, 0.f, 0.01f, 0.3f, 0.5f),
@@ -60,6 +70,10 @@ namespace Monolog {
 			subOsc.setAmplitude(1.0f);
 			subOsc.setMode(Oscillator::Mode::SQUARE);
 			subOsc.setSemiShift(-12.f);
+			moogFilter.setMode(Filter::Mode::LOWPASS_PLUS);
+			diodeFilter.setMode(Filter::Mode::LOWPASS_PLUS);
+			screamerFilter.setMode(Filter::Mode::LOWPASS_PLUS);
+			korgFilter.setMode(Filter::Mode::LOWPASS_PLUS);
 		}
 
 		float processSample(float frequency, float velocity) {
@@ -77,8 +91,24 @@ namespace Monolog {
 			float velMod = velocity * filterEnvVelocity;
 			float modulatedCutoff = cutoffRange.clamp(cutoff + filterEnvMod + velMod);
 
-			float filtered = filter.nextSample(mix, modulatedCutoff, resonance);
-			float shaped = Waveshaper::tanhDrive(filtered, 1.0f + drive * 4.0f);
+			float filtered;
+			switch (filterModel) {
+				case FilterModel::ACID:
+					filtered = diodeFilter.nextSample(mix, modulatedCutoff, resonance);
+					break;
+				case FilterModel::SCREAM:
+					filtered = screamerFilter.nextSample(mix, modulatedCutoff, resonance);
+					break;
+				case FilterModel::KORG:
+					filtered = korgFilter.nextSample(mix, modulatedCutoff, resonance);
+					break;
+				case FilterModel::MOOG:
+				default:
+					filtered = moogFilter.nextSample(mix, modulatedCutoff, resonance);
+					break;
+			}
+
+			float shaped = Waveshaper::tanhLimit(filtered, 1.0f + drive * 1.5f);
 			float clean = dcBlocker.process(shaped);
 			float ampLevel = ampEnv.nextLevel();
 
@@ -105,7 +135,10 @@ namespace Monolog {
 		void reset() {
 			osc.reset();
 			subOsc.reset();
-			filter.reset();
+			moogFilter.reset();
+			diodeFilter.reset();
+			screamerFilter.reset();
+			korgFilter.reset();
 			lfo.reset();
 			dcBlocker.reset();
 			ampEnv.reset();
@@ -118,9 +151,17 @@ namespace Monolog {
 		void setSubLevel(float level) { subLevel = level; }
 		void setNoiseLevel(float level) { noiseLevel = level; }
 
+		void setFilterModel(FilterModel model) { filterModel = model; }
 		void setCutoff(float c) { cutoff = c; }
 		void setResonance(float r) { resonance = r; }
-		void setDrive(float d) { drive = d; }
+		void setDrive(float d) {
+			drive = d;
+			float filterDrive = 1.0f + d * 2.5f;
+			moogFilter.setDrive(filterDrive);
+			diodeFilter.setDrive(filterDrive);
+			screamerFilter.setDrive(filterDrive);
+			korgFilter.setDrive(filterDrive);
+		}
 
 		void setAmpAttack(float v) { ampEnv.setAttackTime(attackRange.map(v, midiRange)); }
 		void setAmpDecay(float v) { ampEnv.setDecayTime(decayRange.map(v, midiRange)); }
@@ -173,7 +214,10 @@ namespace Monolog {
 		Oscillator::Kernel subOsc;
 		Oscillator::NoiseKernel noise;
 
-		Filter::Moog::KrajeskiKernel filter;
+		Filter::Moog::LadderKernel moogFilter;
+		Filter::Diode::LadderKernel diodeFilter;
+		Filter::Screamer::ScreamerKernel screamerFilter;
+		Filter::Korg::Korg35Kernel korgFilter;
 		LFOKernel lfo;
 		DCBlocker dcBlocker;
 
@@ -181,6 +225,7 @@ namespace Monolog {
 		Envelope::Kernel filterEnv;
 
 		VoiceState state;
+		FilterModel filterModel = FilterModel::MOOG;
 
 		float cutoff = 0.5f;
 		float resonance = 0.0f;

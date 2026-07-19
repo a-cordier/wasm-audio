@@ -21,5 +21,14 @@ export const MonologParamId = Object.freeze({
   GLIDE_TIME: 18,
   LEGATO: 19,
   PULSE_WIDTH: 20,
-  PARAM_COUNT: 21,
+  FILTER_MODEL: 21,
+  PARAM_COUNT: 22,
+});
+
+// Must match wasm_audio::Monolog::FilterModel
+export const MonologFilterModel = Object.freeze({
+  MOOG: 0,
+  ACID: 1,
+  SCREAM: 2,
+  KORG: 3,
 });

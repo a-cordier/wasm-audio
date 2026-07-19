@@ -6,6 +6,7 @@ export interface MonologState {
     noiseLevel: { value: number };
   };
   filter: {
+    model: { value: number };
     cutoff: { value: number };
     resonance: { value: number };
     drive: { value: number };
@@ -43,6 +44,7 @@ export function createMonologState(partial?: Partial<any>): MonologState {
       noiseLevel: { value: 0 },
     },
     filter: {
+      model: { value: 0 },
       cutoff: { value: 45 },
       resonance: { value: 30 },
       drive: { value: 35 },
