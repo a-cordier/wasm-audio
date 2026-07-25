@@ -423,19 +423,20 @@ namespace Filter {
 			void setDrive(float d) { drive = d; }
 
 			float nextSample(float sample, float cutoff, float resonance) override {
-				float cutoffHz = 20.0f * std::pow(800.0f, cutoff);
+				float cutoffHz = 100.0f * std::pow(200.0f, cutoff);
 				cutoffHz = std::min(cutoffHz, sampleRate * 0.45f);
 
 				float g = std::tan(Constants::pi * cutoffHz / sampleRate);
 				float G = g / (1.0f + g);
 
-				float K = resonance * 5.0f;
-				float stageDrive = 1.5f + drive * 0.5f;
+				float K = resonance * 1.5f;
+				float stageDrive = 1.2f + drive * 0.3f;
 
 				float G2 = G * G;
 				float G3 = G2 * G;
 				float G4 = G3 * G;
 				float S = G3 * state[0] + G2 * state[1] + G * state[2] + state[3];
+				S = fastTanh(S * 1.5f);
 
 				float u = (sample - K * S) / (1.0f + K * G4);
 				u = std::tanh(drive * u);
