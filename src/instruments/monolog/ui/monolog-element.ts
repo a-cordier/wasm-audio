@@ -206,7 +206,7 @@ export class MonologElement extends LitElement {
   private renderFilterEnvPanel() {
     if (!this.filterEnvState) return nothing;
     return html`
-      <panel-wrapper-element label="FILTER ENV" style="--panel-wrapper-background-color: var(--monolog-env-panel-color)">
+      <panel-wrapper-element label="MOD" style="--panel-wrapper-background-color: var(--monolog-env-panel-color)">
         <div class="knob-row">
           <control-learn-wrapper .controlID=${ControlID.ML_FLT_ATTACK}>
             <knob-element .value=${this.filterEnvState.attack.value} .label=${"A"}
@@ -263,7 +263,7 @@ export class MonologElement extends LitElement {
     if (!this.perfState) return nothing;
     const legatoActive = (this.perfState.legato.value ?? 0) >= 64;
     return html`
-      <panel-wrapper-element label="PERF" style="--panel-wrapper-background-color: var(--monolog-perf-panel-color)">
+      <panel-wrapper-element label="EXP" style="--panel-wrapper-background-color: var(--monolog-perf-panel-color)">
         <div class="knob-row">
           <control-learn-wrapper .controlID=${ControlID.ML_GLIDE}>
             <knob-element .value=${this.perfState.glide.value} .label=${"GLIDE"}
