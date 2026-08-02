@@ -20,6 +20,7 @@
 #include "envelope.h"
 #include "filter.h"
 #include "oscillator.h"
+#include "oversampling.h"
 #include "range.h"
 #include "sample-parameters.h"
 #include "sub-oscillator.h"
@@ -47,6 +48,39 @@ namespace Voice {
 		OSC1_CYCLE = 4,
 		OSC2_CYCLE = 5,
 	};
+
+	// How osc2 is derived from osc1. The mix knob keeps one meaning in every
+	// routing — "how much of the second signal" — so a mix of 0 is always
+	// plain osc1 and the LFO mix destination stays useful throughout.
+	// MIX is 0 so a zero-initialised parameter block reproduces the original
+	// crossfade behaviour.
+	enum class OscRouting {
+		MIX = 0,
+		RING = 1,
+		SYNC = 2,
+		FM = 3,
+	};
+
+	struct StereoSample {
+		float left = 0.f;
+		float right = 0.f;
+	};
+
+	// Constant-power pan, normalised so that a centred signal passes through at
+	// unit gain on both channels (rather than the usual -3dB), which keeps
+	// pan 0 / width 0 identical to the original mono path.
+	struct PanGains {
+		float left = 1.f;
+		float right = 1.f;
+	};
+
+	inline PanGains computePanGains(float position) {
+		float theta = (position + 1.f) * Constants::quarterPi;
+		return PanGains{
+			Constants::sqrtTwo * std::cos(theta),
+			Constants::sqrtTwo * std::sin(theta),
+		};
+	}
 
 	struct ParameterBlock {
 		float velocity;
@@ -81,38 +115,63 @@ namespace Voice {
 		uintptr_t lfo1ModAmountPtr;
 		uintptr_t lfo2FrequencyPtr;
 		uintptr_t lfo2ModAmountPtr;
+		uint32_t oscRouting;
+		float fmIndex;
+		float subLevel;
+		float stereoWidth;
+		float pan;
 	};
 
 	class Kernel {
 		public:
+		// Initialiser order follows the member declaration order below.
 		Kernel(float sampleRate, float renderFrames) :
-			sampleRate(sampleRate),
-			renderFrames(renderFrames),
 			osc1(Oscillator::Kernel{ sampleRate }),
 			osc2(Oscillator::Kernel{ sampleRate }),
+			subOsc(sampleRate),
 			lfo1(Oscillator::Kernel{ sampleRate }),
 			lfo2(Oscillator::Kernel{ sampleRate }),
-			filter(std::make_unique<Filter::SVFKernel>(sampleRate)),
-			subOsc(sampleRate),
-			dcBlocker(sampleRate),
 			amplitudeEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.5f, 0.5f, 0.9f }),
+			filter(sampleRate),
+			dcBlockerLeft(sampleRate),
+			dcBlockerRight(sampleRate),
 			cutoffEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.01f, 2.f, 0.f }),
-			state(State::DISPOSED) {
+			state(State::DISPOSED),
+			sampleRate(sampleRate),
+			renderFrames(renderFrames) {
 		}
 
+		// Writes planar channels: channel n starts at outputPtr + n * renderFrames,
+		// matching the layout the worklet reads back out of the WASM heap.
 		void process(uintptr_t outputPtr, unsigned channelCount) {
 			float *outputBuffer = reinterpret_cast<float *>(outputPtr);
-			float *firstChannel = outputBuffer;
+
+			if (channelCount < 2) {
+				for (unsigned sample = 0; sample < renderFrames; ++sample) {
+					startIfNecessary();
+					assignParameters(sample);
+					StereoSample out = computeSample();
+					outputBuffer[sample] = out.left + out.right;
+					stopIfNecessary();
+				}
+				return;
+			}
+
+			float *leftChannel = outputBuffer;
+			float *rightChannel = outputBuffer + renderFrames;
 
 			for (unsigned sample = 0; sample < renderFrames; ++sample) {
 				startIfNecessary();
 				assignParameters(sample);
-				firstChannel[sample] = computeSample();
+				StereoSample out = computeSample();
+				leftChannel[sample] = out.left;
+				rightChannel[sample] = out.right;
 				stopIfNecessary();
 			}
-			for (unsigned channel = 1; channel < channelCount; ++channel) {
+			for (unsigned channel = 2; channel < channelCount; ++channel) {
+				float *source = (channel & 1u) ? rightChannel : leftChannel;
 				float *channelBuffer = outputBuffer + channel * renderFrames;
-				std::copy(firstChannel, firstChannel + renderFrames, channelBuffer);
+				std::copy(source, source + renderFrames, channelBuffer);
 			}
 		}
 
@@ -129,7 +188,8 @@ namespace Voice {
 			subOsc.setOsc1Mode(static_cast<Oscillator::Mode>(block->osc1Mode));
 			osc2.setMode(static_cast<Oscillator::Mode>(block->osc2Mode));
 			subOsc.setOsc2Mode(static_cast<Oscillator::Mode>(block->osc2Mode));
-			filter->setMode(static_cast<Filter::Mode>(block->filterMode));
+			filter.setMode(static_cast<Filter::Mode>(block->filterMode));
+			setRouting(static_cast<OscRouting>(block->oscRouting));
 			lfo1.setMode(static_cast<Oscillator::Mode>(block->lfo1Mode));
 			lfo1Destination = static_cast<LfoDestination>(block->lfo1Destination);
 			lfo2.setMode(static_cast<Oscillator::Mode>(block->lfo2Mode));
@@ -162,6 +222,16 @@ namespace Voice {
 			sampleParameters.cutoffEnvelopeVelocity = zeroOneRange.map(block->cutoffEnvelopeVelocity, midiRange);
 			sampleParameters.cutoffEnvelopeAttack = attackRange.map(block->cutoffEnvelopeAttack, midiRange);
 			sampleParameters.cutoffEnvelopeDecay = decayRange.map(block->cutoffEnvelopeDecay, midiRange);
+
+			fmIndex = fmIndexRange.map(block->fmIndex, midiRange);
+			subLevel = zeroOneRange.map(block->subLevel, midiRange);
+
+			// Pan positions only change per block, so the trigonometry stays out
+			// of the per-sample path.
+			float width = zeroOneRange.map(block->stereoWidth, midiRange);
+			osc1Pan = computePanGains(-width);
+			osc2Pan = computePanGains(width);
+			voicePan = computePanGains(std::max(-1.f, std::min(1.f, block->pan)));
 		}
 
 		void setOsc1Mode(Oscillator::Mode newMode) {
@@ -230,7 +300,7 @@ namespace Voice {
 		}
 
 		void setFilterMode(Filter::Mode newFilterMode) {
-			filter->setMode(newFilterMode);
+			filter.setMode(newFilterMode);
 		}
 
 		void setCutoff(uintptr_t newCutoffValuesPtr) {
@@ -298,18 +368,43 @@ namespace Voice {
 		}
 
 		void reset() {
-			osc1.reset();
-			osc2.reset();
-			lfo1.reset();
-			lfo2.reset();
-			filter->reset();
-			dcBlocker.reset();
+			reset(0.f);
+		}
+
+		// drift scales how far every phase is randomised on note-on.
+		// At 0 each note starts from an identical state, which keeps transients
+		// repeatable and percussive; at 1 the voices of a chord no longer start
+		// phase-locked, which is what stops held chords sounding static.
+		void reset(float drift) {
+			osc1.reset(drift * osc1.randomPhase());
+			osc2.reset(drift * osc2.randomPhase());
+			lfo1.reset(drift * lfo1.randomPhase());
+			lfo2.reset(drift * lfo2.randomPhase());
+			subOsc.reset(drift);
+			noise.reset();
+			filter.reset();
+			decimatorLeft.reset();
+			decimatorRight.reset();
+			dcBlockerLeft.reset();
+			dcBlockerRight.reset();
 			amplitudeEnvelope.reset();
 			cutoffEnvelope.reset();
 			state = State::DISPOSED;
 		}
 
 		private:
+		void setRouting(OscRouting newRouting) {
+			if (newRouting == routing) return;
+			routing = newRouting;
+			// Oversampled routings synthesise at 2x; the sub oscillator is left
+			// at the base rate since it is already band-limited.
+			float oscSampleRate = (routing == OscRouting::MIX) ? sampleRate : sampleRate * 2.f;
+			osc1.setSampleRate(oscSampleRate);
+			osc2.setSampleRate(oscSampleRate);
+			decimatorLeft.reset();
+			decimatorRight.reset();
+		}
+
 		void assignParameters(unsigned int sampleCursor) {
 			sampleParameters.fetchValues(sampleCursor);
 			applyModulations();
@@ -333,21 +428,105 @@ namespace Voice {
 			cutoffEnvelope.setDecayTime(sampleParameters.cutoffEnvelopeDecay);
 		}
 
-		float computeSample() {
-			float sample = computeRawSample();
-			float filtered = filter->nextSample(sample, sampleParameters.cutoff, sampleParameters.resonance);
-			float shaped = Waveshaper::softClip(filtered, sampleParameters.overdrive);
-			float clean = dcBlocker.process(shaped);
-			return clean * velocity * amplitudeEnvelope.nextLevel();
+		StereoSample computeSample() {
+			StereoSample raw = computeRawSample();
+
+			float filteredLeft = 0.f;
+			float filteredRight = 0.f;
+			filter.nextSample(raw.left, raw.right,
+			                  sampleParameters.cutoff, sampleParameters.resonance,
+			                  filteredLeft, filteredRight);
+
+			float shapedLeft = Waveshaper::softClip(filteredLeft, sampleParameters.overdrive);
+			float shapedRight = Waveshaper::softClip(filteredRight, sampleParameters.overdrive);
+
+			float cleanLeft = dcBlockerLeft.process(shapedLeft);
+			float cleanRight = dcBlockerRight.process(shapedRight);
+
+			float gain = velocity * amplitudeEnvelope.nextLevel();
+			return StereoSample{
+				cleanLeft * gain * voicePan.left,
+				cleanRight * gain * voicePan.right,
+			};
 		}
 
-		float computeRawSample() {
-			float osc1Sample = osc1.nextSample(sampleParameters.frequency) * sampleParameters.osc1Amplitude;
-			float osc2Sample = osc2.nextSample(sampleParameters.frequency) * sampleParameters.osc2Amplitude;
+		StereoSample computeRawSample() {
+			StereoSample pair = (routing == OscRouting::MIX)
+				? computeOscPair()
+				: computeOversampledOscPair();
+
+			// Sub and noise stay centred: a mono low end is what makes the
+			// stereo field read as wide rather than smeared.
 			float noiseSample = noise.nextSample() * sampleParameters.noiseLevel;
 			subOsc.setOsc2Amplitude(sampleParameters.osc2Amplitude);
-			float subOscSample = subOsc.nextSample(sampleParameters.frequency) * PolyTicksConstants::subOscPresence;
-			return (1 - PolyTicksConstants::subOscPresence) * (osc1Sample + osc2Sample) + subOscSample + noiseSample;
+			float subOscSample = subOsc.nextSample(sampleParameters.frequency) * subLevel;
+			float centre = subOscSample + noiseSample;
+
+			float headroom = 1.f - subLevel;
+			return StereoSample{
+				headroom * pair.left + centre,
+				headroom * pair.right + centre,
+			};
+		}
+
+		// Ring modulation, hard sync and phase modulation all generate content
+		// well above Nyquist, so in those routings the oscillators run at twice
+		// the sample rate and each channel is decimated back down.
+		StereoSample computeOversampledOscPair() {
+			StereoSample first = computeOscPair();
+			StereoSample second = computeOscPair();
+			return StereoSample{
+				decimatorLeft.decimate(first.left, second.left),
+				decimatorRight.decimate(first.right, second.right),
+			};
+		}
+
+		StereoSample computeOscPair() {
+			float frequency = sampleParameters.frequency;
+			float osc1Sample = osc1.nextSample(frequency);
+			float osc2Sample = 0.f;
+
+			switch (routing) {
+				case OscRouting::MIX:
+					osc2Sample = osc2.nextSample(frequency);
+					break;
+				case OscRouting::RING:
+					// x2 compensates for the product of two half-scale oscillators.
+					osc2Sample = 2.f * osc1Sample * osc2.nextSample(frequency);
+					break;
+				case OscRouting::SYNC:
+					osc2Sample = osc2.nextSample(frequency);
+					if (osc1.didWrap()) {
+						osc2.syncPhase(osc1.wrapFraction());
+					}
+					break;
+				case OscRouting::FM:
+					osc2Sample = osc2.nextSample(frequency, osc1Sample * fmIndex);
+					break;
+			}
+
+			// mix 0 is always the routing's primary output. For MIX, RING and
+			// SYNC that is osc1. For FM it is the carrier: the raw modulator is
+			// not a useful sound on its own, so the roles swap and mix blends
+			// the modulator back in rather than out.
+			float primary = osc1Sample;
+			float secondary = osc2Sample;
+			if (routing == OscRouting::FM) {
+				primary = osc2Sample;
+				secondary = osc1Sample;
+			}
+
+			float a = primary * sampleParameters.osc1Amplitude;
+			float b = secondary * sampleParameters.osc2Amplitude;
+
+			// Opposing pan positions on the two oscillators: combined with the
+			// osc2 cent detune this buys real stereo width without a second
+			// oscillator pair. At width 0 both gains are 1 and this collapses
+			// back to the original mono sum.
+			return StereoSample{
+				a * osc1Pan.left + b * osc2Pan.left,
+				a * osc1Pan.right + b * osc2Pan.right,
+			};
 		}
 
 		void applyModulations() {
@@ -410,14 +589,25 @@ namespace Voice {
 
 		Envelope::Kernel amplitudeEnvelope;
 
-		std::unique_ptr<Filter::Kernel> filter;
-		DCBlocker dcBlocker;
+		Filter::SVFStereoKernel filter;
+		DCBlocker dcBlockerLeft;
+		DCBlocker dcBlockerRight;
+
+		HalfBandDecimator decimatorLeft;
+		HalfBandDecimator decimatorRight;
 
 		Envelope::Kernel cutoffEnvelope;
 
 		State state;
 
 		SampleParameters sampleParameters;
+
+		OscRouting routing = OscRouting::MIX;
+		float fmIndex = 0.f;
+		float subLevel = PolyTicksConstants::subOscPresence;
+		PanGains osc1Pan;
+		PanGains osc2Pan;
+		PanGains voicePan;
 
 		float sampleRate;
 		unsigned renderFrames;

@@ -18,6 +18,7 @@ import { VoiceState, createVoiceState } from "./types/voice";
 import { OscillatorMode } from "./types/oscillator-mode";
 import { FilterMode } from "./types/filter-mode";
 import { LfoDestination } from "./types/lfo-destination";
+import { OscRouting } from "./types/osc-routing";
 import { VoiceMode } from "./types/voice-mode";
 import { MidiEvent, MidiTarget } from "../../midi/types";
 import { noteFrequency } from "../../midi/codec/notes";
@@ -165,6 +166,8 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
     this.dispatch(VoiceEvent.LFO2, { ...s.lfo2 });
     this.dispatch(VoiceEvent.CUTOFF_MOD, { ...s.cutoffMod });
     this.dispatch(VoiceEvent.VOICE_CONFIG, { ...s.voiceConfig });
+    this.dispatch(VoiceEvent.ROUTING, { ...s.routing });
+    this.dispatch(VoiceEvent.SPACE, { ...s.space });
   }
 
   getLearnableParams(): LearnableParam[] {
@@ -178,6 +181,8 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
       ControlID.LFO2_FREQ, ControlID.LFO2_MOD,
       ControlID.CUT_MOD, ControlID.CUT_VEL, ControlID.CUT_ATTACK, ControlID.CUT_DECAY,
       ControlID.GLIDE_TIME,
+      ControlID.FM_INDEX, ControlID.SUB_LEVEL,
+      ControlID.STEREO_SPREAD, ControlID.STEREO_WIDTH, ControlID.PHASE_DRIFT,
     ].map((id) => ({ id, name: ControlID[id].replace(/_/g, " ") }));
   }
 
@@ -303,6 +308,49 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
   setDrive(newDrive: number) {
     this.state.filter.drive.value = newDrive;
     this.sendParam(ParamId.DRIVE, newDrive);
+    return this;
+  }
+
+  // --- Oscillator routing ---
+
+  setOscRouting(newRouting: OscRouting) {
+    this.state.routing.routing.value = newRouting;
+    this.sendParam(ParamId.OSC_ROUTING, newRouting);
+    // Unlike the knob setters, this one drives derived UI state (the fm knob is
+    // only enabled under FM), so the panel has to be told to re-render.
+    this.dispatch(VoiceEvent.ROUTING, { ...this.state.routing });
+    return this;
+  }
+
+  setFmIndex(newIndex: number) {
+    this.state.routing.fmIndex.value = newIndex;
+    this.sendParam(ParamId.FM_INDEX, newIndex);
+    return this;
+  }
+
+  setSubLevel(newLevel: number) {
+    this.state.routing.subLevel.value = newLevel;
+    this.sendParam(ParamId.SUB_LEVEL, newLevel);
+    return this;
+  }
+
+  // --- Stereo field ---
+
+  setStereoSpread(newSpread: number) {
+    this.state.space.spread.value = newSpread;
+    this.sendParam(ParamId.STEREO_SPREAD, newSpread);
+    return this;
+  }
+
+  setStereoWidth(newWidth: number) {
+    this.state.space.width.value = newWidth;
+    this.sendParam(ParamId.STEREO_WIDTH, newWidth);
+    return this;
+  }
+
+  setPhaseDrift(newDrift: number) {
+    this.state.space.drift.value = newDrift;
+    this.sendParam(ParamId.PHASE_DRIFT, newDrift);
     return this;
   }
 
@@ -479,6 +527,18 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
 
     reg(ControlID.GLIDE_TIME, ParamId.GLIDE_TIME, VoiceEvent.VOICE_CONFIG,
       (v) => { this.state.voiceConfig.glideTime.value = v; }, () => this.state.voiceConfig);
+
+    reg(ControlID.FM_INDEX, ParamId.FM_INDEX, VoiceEvent.ROUTING,
+      (v) => { this.state.routing.fmIndex.value = v; }, () => this.state.routing);
+    reg(ControlID.SUB_LEVEL, ParamId.SUB_LEVEL, VoiceEvent.ROUTING,
+      (v) => { this.state.routing.subLevel.value = v; }, () => this.state.routing);
+
+    reg(ControlID.STEREO_SPREAD, ParamId.STEREO_SPREAD, VoiceEvent.SPACE,
+      (v) => { this.state.space.spread.value = v; }, () => this.state.space);
+    reg(ControlID.STEREO_WIDTH, ParamId.STEREO_WIDTH, VoiceEvent.SPACE,
+      (v) => { this.state.space.width.value = v; }, () => this.state.space);
+    reg(ControlID.PHASE_DRIFT, ParamId.PHASE_DRIFT, VoiceEvent.SPACE,
+      (v) => { this.state.space.drift.value = v; }, () => this.state.space);
   }
 
   private sendParam(id: number, value: number) {
@@ -521,5 +581,11 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
     this.sendParam(ParamId.VOICE_MODE, VoiceMode.POLY);
     this.sendParam(ParamId.GLIDE_TIME, 0);
     this.sendParam(ParamId.RETRIGGER, 1);
+    this.sendParam(ParamId.OSC_ROUTING, s.routing.routing.value as number);
+    this.sendParam(ParamId.FM_INDEX, s.routing.fmIndex.value as number);
+    this.sendParam(ParamId.SUB_LEVEL, s.routing.subLevel.value as number);
+    this.sendParam(ParamId.STEREO_SPREAD, s.space.spread.value as number);
+    this.sendParam(ParamId.STEREO_WIDTH, s.space.width.value as number);
+    this.sendParam(ParamId.PHASE_DRIFT, s.space.drift.value as number);
   }
 }

@@ -21,12 +21,15 @@ export const darkTheme = `
     --medium: #2b3844;
     --light-secondary: #cbe2f3;
     --lighter: #ffffff;
+    /* Off-white for labels: luminous but never a hard white, with a faint cool
+       cast picked up from --light-secondary. */
+    --moonbeam: #e8eef2;
 
     --control-hander-color-focused: var(--medium);
     --control-handle-color: var(--dark-secondary);
     --control-cursor-color: var(--lighter);
     --control-top-color: var(--light-secondary);
-    --control-label-color: var(--darker);
+    --control-label-color: var(--moonbeam);
     --control-label-font-size: 0.8em;
 
     --button-disposed-background-color: var(--light-secondary);
@@ -58,6 +61,7 @@ export const darkTheme = `
     --filter-mod-panel-color: var(--filter-panel-color);
     --lfo-panel-color: #9a1a40;
     --voice-config-panel-color: #4a2d7a;
+    --space-panel-color: #3f434a;
     --sequencer-panel-color: #3a3d42;
 
     --monolog-panel-color: #1a1a1a;
@@ -68,7 +72,7 @@ export const darkTheme = `
     --monolog-perf-panel-color: #333333;
     --monolog-accent: #F5DF4D;
 
-    --panel-wrapper-label-color: var(--darker);
+    --panel-wrapper-label-color: var(--moonbeam);
 
     --control-size-lg: 50px;
     --control-size-md: 40px;
@@ -107,12 +111,14 @@ export const retroTheme = `
     --medium: #5a3a28;
     --light-secondary: #f5e6d3;
     --lighter: #fffaf5;
+    /* Warm counterpart: the same softness, tinted to the retro palette. */
+    --moonbeam: #f4ece1;
 
     --control-hander-color-focused: var(--medium);
     --control-handle-color: var(--dark-secondary);
     --control-cursor-color: var(--lighter);
     --control-top-color: var(--light-secondary);
-    --control-label-color: var(--darker);
+    --control-label-color: var(--moonbeam);
     --control-label-font-size: 0.8em;
 
     --button-disposed-background-color: var(--light-secondary);
@@ -144,6 +150,7 @@ export const retroTheme = `
     --filter-mod-panel-color: var(--filter-panel-color);
     --lfo-panel-color: #800020;
     --voice-config-panel-color: #4a2a5e;
+    --space-panel-color: #4a443d;
     --sequencer-panel-color: #4a4540;
 
     --monolog-panel-color: #1a1a1a;
@@ -154,7 +161,7 @@ export const retroTheme = `
     --monolog-perf-panel-color: #333333;
     --monolog-accent: #F5DF4D;
 
-    --panel-wrapper-label-color: var(--darker);
+    --panel-wrapper-label-color: var(--moonbeam);
 
     --control-size-lg: 50px;
     --control-size-md: 40px;

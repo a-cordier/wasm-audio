@@ -68,8 +68,14 @@ class SubOsc {
 	}
 
 	void reset() {
-		osc1.reset();
-		osc2.reset();
+		reset(0.f);
+	}
+
+	// drift scales how far each oscillator's start phase is randomised:
+	// 0 restarts both at zero, 1 spreads them over the full cycle.
+	void reset(float drift) {
+		osc1.reset(drift * osc1.randomPhase());
+		osc2.reset(drift * osc2.randomPhase());
 	}
 
 	private:

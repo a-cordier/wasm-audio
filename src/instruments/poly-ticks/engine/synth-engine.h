@@ -57,6 +57,12 @@ enum class ParamId : int {
 	VOICE_MODE,
 	GLIDE_TIME,
 	RETRIGGER,
+	OSC_ROUTING,
+	FM_INDEX,
+	SUB_LEVEL,
+	STEREO_SPREAD,
+	STEREO_WIDTH,
+	PHASE_DRIFT,
 	PARAM_COUNT,
 };
 
@@ -92,7 +98,8 @@ class SynthEngine {
 	float lfo2FrequencyBuf[MAX_FRAMES] = {};
 	float lfo2ModAmountBuf[MAX_FRAMES] = {};
 
-	float voiceOutputBuf[MAX_FRAMES] = {};
+	// Two planar channels, laid out exactly as Voice::Kernel::process writes them.
+	float voiceOutputBuf[2 * MAX_FRAMES] = {};
 
 	unsigned renderFrames;
 	float sampleRate;
@@ -111,7 +118,10 @@ public:
 		: renderFrames(std::min(static_cast<unsigned>(rf), MAX_FRAMES)), sampleRate(sr) {
 		voices.reserve(MAX_VOICES);
 		for (int i = 0; i < MAX_VOICES; ++i) {
-			voices.emplace_back(sr, rf);
+			// Must be the clamped count: the voice writes its stereo pair at a
+			// stride of renderFrames into voiceOutputBuf, which is sized for
+			// MAX_FRAMES per channel.
+			voices.emplace_back(sr, static_cast<float>(renderFrames));
 		}
 	}
 
@@ -145,7 +155,10 @@ public:
 	void process(uintptr_t outputPtr, unsigned channelCount) {
 		float *output = reinterpret_cast<float *>(outputPtr);
 
-		std::fill(output, output + renderFrames, 0.f);
+		// The voice renders a stereo pair; anything beyond that is filled by
+		// copying at the end.
+		unsigned stereoChannels = std::min(channelCount, 2u);
+		std::fill(output, output + renderFrames * stereoChannels, 0.f);
 
 		fillBuf(osc2AmplitudeBuf, params[pi(ParamId::OSC2_AMPLITUDE)]);
 		fillBuf(noiseLevelBuf, params[pi(ParamId::NOISE_LEVEL)]);
@@ -199,12 +212,21 @@ public:
 			block.lfo1ModAmountPtr = reinterpret_cast<uintptr_t>(lfo1ModAmountBuf);
 			block.lfo2FrequencyPtr = reinterpret_cast<uintptr_t>(lfo2FrequencyBuf);
 			block.lfo2ModAmountPtr = reinterpret_cast<uintptr_t>(lfo2ModAmountBuf);
+			block.oscRouting = pui(ParamId::OSC_ROUTING);
+			block.fmIndex = params[pi(ParamId::FM_INDEX)];
+			block.subLevel = params[pi(ParamId::SUB_LEVEL)];
+			block.stereoWidth = params[pi(ParamId::STEREO_WIDTH)];
+			block.pan = voicePan(slot.midiNote);
 
 			slot.kernel.setParameters(reinterpret_cast<uintptr_t>(&block));
-			slot.kernel.process(reinterpret_cast<uintptr_t>(voiceOutputBuf), 1);
+			slot.kernel.process(reinterpret_cast<uintptr_t>(voiceOutputBuf), stereoChannels);
 
-			for (unsigned s = 0; s < renderFrames; ++s) {
-				output[s] += voiceOutputBuf[s];
+			for (unsigned ch = 0; ch < stereoChannels; ++ch) {
+				const float *voiceChannel = voiceOutputBuf + ch * renderFrames;
+				float *outputChannel = output + ch * renderFrames;
+				for (unsigned s = 0; s < renderFrames; ++s) {
+					outputChannel[s] += voiceChannel[s];
+				}
 			}
 
 			if (slot.kernel.isStopped()) {
@@ -214,8 +236,10 @@ public:
 			}
 		}
 
-		for (unsigned ch = 1; ch < channelCount; ++ch) {
-			std::copy(output, output + renderFrames, output + ch * renderFrames);
+		for (unsigned ch = stereoChannels; ch < channelCount; ++ch) {
+			unsigned sourceChannel = (stereoChannels > 1) ? (ch & 1u) : 0u;
+			const float *source = output + sourceChannel * renderFrames;
+			std::copy(source, source + renderFrames, output + ch * renderFrames);
 		}
 	}
 
@@ -225,6 +249,21 @@ private:
 
 	bool isMono() const { return params[pi(ParamId::VOICE_MODE)] >= 0.5f; }
 	bool isRetrigger() const { return params[pi(ParamId::RETRIGGER)] >= 0.5f; }
+
+	float driftAmount() const {
+		return zeroOneRange.map(params[pi(ParamId::PHASE_DRIFT)], midiRange);
+	}
+
+	// Voices are placed by pitch rather than by slot, so a given note always
+	// lands in the same spot regardless of which voice happens to render it —
+	// including after a steal. Two octaves either side of middle C reach the
+	// edges of the field at full spread.
+	float voicePan(int midiNote) const {
+		if (midiNote < 0) return 0.f;
+		float spread = zeroOneRange.map(params[pi(ParamId::STEREO_SPREAD)], midiRange);
+		float offset = (static_cast<float>(midiNote) - 60.f) / 24.f;
+		return std::max(-1.f, std::min(1.f, offset * spread));
+	}
 
 	float glideTimeSec() const {
 		float t = params[pi(ParamId::GLIDE_TIME)];
@@ -259,7 +298,7 @@ private:
 		for (auto &slot : voices) {
 			if (slot.active && slot.midiNote == midi) {
 				if (slot.releasing) {
-					slot.kernel.reset();
+					slot.kernel.reset(driftAmount());
 					slot.releasing = false;
 					slot.frequency = frequency;
 					slot.velocity = velocity;
@@ -273,7 +312,7 @@ private:
 		if (!target) target = stealVoice();
 		if (!target) return;
 
-		target->kernel.reset();
+		target->kernel.reset(driftAmount());
 		target->midiNote = midi;
 		target->active = true;
 		target->releasing = false;
@@ -333,7 +372,7 @@ private:
 		monoSlot().age = ++noteCounter;
 
 		if (!wasActive || isRetrigger()) {
-			monoSlot().kernel.reset();
+			monoSlot().kernel.reset(driftAmount());
 		}
 	}
 
@@ -351,7 +390,7 @@ private:
 			monoSlot().midiNote = prevMidi;
 
 			if (isRetrigger()) {
-				monoSlot().kernel.reset();
+				monoSlot().kernel.reset(driftAmount());
 			}
 		} else {
 			if (monoSlot().active && monoSlot().midiNote == midi && !monoSlot().releasing) {

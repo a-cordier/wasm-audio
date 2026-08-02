@@ -125,6 +125,94 @@ namespace Filter {
 		float ic2eq2 = 0.0f;
 	};
 
+	// Stereo companion to SVFKernel: same trapezoidal topology and identical
+	// output for a given channel, but the coefficient set depends only on
+	// cutoff and resonance, so it is computed once and shared by both channels.
+	// That keeps the expensive tan() at one call per sample rather than two.
+	// Fed the same signal on both channels it is sample-for-sample equivalent
+	// to SVFKernel.
+	class SVFStereoKernel {
+		public:
+		SVFStereoKernel(float sampleRate) :
+			sampleRate(sampleRate) {}
+
+		void setMode(Mode newMode) {
+			mode = newMode;
+		}
+
+		void nextSample(float inLeft, float inRight, float cutoff, float resonance,
+		                float &outLeft, float &outRight) {
+			float cutoffHz = 20.0f * std::pow(1000.0f, cutoff);
+			cutoffHz = std::min(cutoffHz, sampleRate * 0.49f);
+
+			float g = std::tan(Constants::pi * cutoffHz / sampleRate);
+			float k = 2.0f * (1.0f - resonance);
+			k = std::max(k, 0.01f);
+
+			float a1 = 1.0f / (1.0f + g * (g + k));
+			float a2 = g * a1;
+			float a3 = g * a2;
+
+			outLeft = processChannel(inLeft, g, k, a1, a2, a3, left);
+			outRight = processChannel(inRight, g, k, a1, a2, a3, right);
+		}
+
+		void reset() {
+			left = State{};
+			right = State{};
+		}
+
+		private:
+		struct State {
+			float ic1eq = 0.0f;
+			float ic2eq = 0.0f;
+			float ic1eq2 = 0.0f;
+			float ic2eq2 = 0.0f;
+		};
+
+		float processChannel(float sample, float g, float k,
+		                     float a1, float a2, float a3, State &s) {
+			float v3 = sample - s.ic2eq;
+			float v1 = a1 * s.ic1eq + a2 * v3;
+			float v2 = s.ic2eq + a2 * s.ic1eq + a3 * v3;
+			s.ic1eq = 2.0f * v1 - s.ic1eq;
+			s.ic2eq = 2.0f * v2 - s.ic2eq;
+
+			switch (mode) {
+				case Mode::LOWPASS:
+					return v2;
+				case Mode::LOWPASS_PLUS:
+					return processCascade(v2, g, s);
+				case Mode::HIGHPASS:
+					return sample - k * v1 - v2;
+				case Mode::BANDPASS:
+					return v1;
+				default:
+					return 0.0f;
+			}
+		}
+
+		float processCascade(float input, float g, State &s) {
+			float k2 = Constants::sqrtTwo;
+			float a1 = 1.0f / (1.0f + g * (g + k2));
+			float a2 = g * a1;
+			float a3 = g * a2;
+
+			float v3 = input - s.ic2eq2;
+			float v1 = a1 * s.ic1eq2 + a2 * v3;
+			float v2 = s.ic2eq2 + a2 * s.ic1eq2 + a3 * v3;
+			s.ic1eq2 = 2.0f * v1 - s.ic1eq2;
+			s.ic2eq2 = 2.0f * v2 - s.ic2eq2;
+
+			return v2;
+		}
+
+		Mode mode = Mode::LOWPASS;
+		float sampleRate;
+		State left;
+		State right;
+	};
+
 	class NaiveResonantKernel : public Kernel {
 		public:
 		NaiveResonantKernel() :

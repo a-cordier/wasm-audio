@@ -23,6 +23,8 @@ import { FilterEvent } from "../types/filter-event";
 import { FilterEnvelopeEvent } from "../types/filter-envelope-event";
 import { OscillatorEnvelopeEvent } from "../types/oscillator-envelope-event";
 import { LfoEvent } from "../types/lfo-event";
+import { RoutingEvent, SpaceEvent } from "../types/routing-event";
+import { OscRouting } from "../types/osc-routing";
 import { VoiceEvent } from "../types/voice-event";
 import { VoiceState } from "../types/voice";
 import { VoiceConfigEvent } from "../types/voice-config-event";
@@ -123,6 +125,14 @@ export class WasmPoly extends LitElement {
       .subscribe(VoiceEvent.VOICE_CONFIG, (newState) => {
         this.state.voiceConfig = newState;
         this.requestUpdate();
+      })
+      .subscribe(VoiceEvent.ROUTING, (newState) => {
+        this.state.routing = newState;
+        this.requestUpdate();
+      })
+      .subscribe(VoiceEvent.SPACE, (newState) => {
+        this.state.space = newState;
+        this.requestUpdate();
       });
   }
 
@@ -154,14 +164,26 @@ export class WasmPoly extends LitElement {
     }
   }
 
-  onOscMixChange(event: SynthChangeEvent<OscillatorEvent>) {
+  onVoicePanelChange(event: SynthChangeEvent<OscillatorEvent | RoutingEvent>) {
     switch (event.detail.type) {
       case OscillatorEvent.MIX: this.voiceManager.setOsc2Amplitude(event.detail.value as number); break;
       case OscillatorEvent.NOISE: this.voiceManager.setNoiseLevel(event.detail.value as number); break;
+      case RoutingEvent.ROUTING: this.voiceManager.setOscRouting(event.detail.value as OscRouting); break;
+      case RoutingEvent.FM_INDEX: this.voiceManager.setFmIndex(event.detail.value as number); break;
+      case RoutingEvent.SUB_LEVEL: this.voiceManager.setSubLevel(event.detail.value as number); break;
       case OscillatorEvent.WAVE_FORM: break;
       case OscillatorEvent.SEMI_SHIFT: break;
       case OscillatorEvent.CENT_SHIFT: break;
       case OscillatorEvent.CYCLE: break;
+      default: assertNever(event.detail.type);
+    }
+  }
+
+  onSpaceChange(event: SynthChangeEvent<SpaceEvent>) {
+    switch (event.detail.type) {
+      case SpaceEvent.SPREAD: this.voiceManager.setStereoSpread(event.detail.value as number); break;
+      case SpaceEvent.WIDTH: this.voiceManager.setStereoWidth(event.detail.value as number); break;
+      case SpaceEvent.DRIFT: this.voiceManager.setPhaseDrift(event.detail.value as number); break;
       default: assertNever(event.detail.type);
     }
   }
@@ -247,7 +269,8 @@ export class WasmPoly extends LitElement {
               <oscillator-mix-element
                 .mix=${this.state.osc2Amplitude}
                 .noise=${this.state.noiseLevel}
-                @change=${this.onOscMixChange}
+                .routing=${this.state.routing}
+                @change=${this.onVoicePanelChange}
               ></oscillator-mix-element>
               <oscillator-element
                 .semiControlID=${ControlID.OSC2_SEMI}
@@ -283,6 +306,11 @@ export class WasmPoly extends LitElement {
                 .state=${this.state.cutoffMod}
                 @change=${this.onFilterEnvelopeChange}
               ></filter-envelope-element>
+              <space-element
+                label="Space"
+                .state=${this.state.space}
+                @change=${this.onSpaceChange}
+              ></space-element>
             </div>
           </row-element>
           <row-element label="Keyboard" ?collapsed=${true}>
@@ -332,11 +360,11 @@ export class WasmPoly extends LitElement {
       }
 
       .panels-row.upper {
-        grid-template-columns: 8fr 8fr 3fr 8fr;
+        grid-template-columns: 8fr 8fr 5fr 8fr;
       }
 
       .panels-row.lower {
-        grid-template-columns: 6fr 5fr 5fr 5fr;
+        grid-template-columns: 6fr 5fr 5fr 5fr 4fr;
       }
 
       .keyboard {

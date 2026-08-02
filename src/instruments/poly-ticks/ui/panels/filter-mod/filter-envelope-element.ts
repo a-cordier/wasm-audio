@@ -27,7 +27,7 @@ export class FilterEnvelope extends SynthPanel {
 
   render() {
     return html`
-      <panel-wrapper-element label="Filter Mod.">
+      <panel-wrapper-element label="Mod.">
         <div class="envelope-controls">
           <div class="time-controls">
             <control-learn-wrapper controlID=${ControlID.CUT_ATTACK}>

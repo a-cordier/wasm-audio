@@ -4,6 +4,8 @@ import "./ui/poly-ticks-element";
 import "./ui/panels/oscillator/wave-selector-element";
 import "./ui/panels/oscillator/oscillator-element";
 import "./ui/panels/oscillator-mix/oscillator-mix";
+import "./ui/panels/oscillator-mix/osc-routing-selector-element";
+import "./ui/panels/space/space-element";
 import "./ui/panels/filter/filter-element";
 import "./ui/panels/filter/filter-selector-element";
 import "./ui/panels/envelope/envelope-element";

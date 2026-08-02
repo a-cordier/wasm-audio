@@ -55,9 +55,15 @@ export const ParamId = Object.freeze({
   VOICE_MODE: 30,
   GLIDE_TIME: 31,
   RETRIGGER: 32,
+  OSC_ROUTING: 33,
+  FM_INDEX: 34,
+  SUB_LEVEL: 35,
+  STEREO_SPREAD: 36,
+  STEREO_WIDTH: 37,
+  PHASE_DRIFT: 38,
 });
 
-const PARAM_COUNT = 33;
+const PARAM_COUNT = 39;
 const MIDI_QUEUE_CAPACITY = 64;
 
 // C++ Oscillator::Mode values (oscillator.h)
@@ -71,6 +77,7 @@ export const OscModeToCpp = Object.freeze([1, 0, 2, 3]);
 export const FilterModeToCpp = Object.freeze([0, 1, 3, 2]);
 
 // C++ Voice::LfoDestination values match TS LfoDestination (both 0-5, same order)
+// C++ Voice::OscRouting values match TS OscRouting (both 0-3, same order)
 
 export class SynthNode extends WasmProcessorNode implements MidiTarget {
   private params: SharedParamBuffer;

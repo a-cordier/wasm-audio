@@ -50,7 +50,13 @@ export class Knob extends LitElement {
   @property({ attribute: false })
   public skin: KnobSkin = knobDefaultSkin;
 
+  // Marks the knob as having no effect in the current context. It stops
+  // responding to drag and wheel rather than just looking inert.
+  @property({ type: Boolean, reflect: true })
+  public disabled = false;
+
   toggleActive() {
+    if (this.disabled) return;
     const drag = (event: DragEvent) => {
       event.preventDefault();
       this.updateValue(this.computeStep(-event.movementY, event.altKey));
@@ -66,6 +72,7 @@ export class Knob extends LitElement {
   }
 
   onWheel(event: WheelEvent) {
+    if (this.disabled) return;
     event.preventDefault();
     this.updateValue(this.computeStep(event.deltaY, event.altKey));
   }
@@ -119,6 +126,19 @@ export class Knob extends LitElement {
       :host {
         user-select: none;
         outline: none;
+      }
+
+      :host([disabled]) .knob-skin-wrapper {
+        opacity: 0.4;
+        cursor: default;
+      }
+
+      :host([disabled]) .knob-svg {
+        cursor: default;
+      }
+
+      :host([disabled]) .label {
+        opacity: 0.5;
       }
 
       .knob-wrapper {

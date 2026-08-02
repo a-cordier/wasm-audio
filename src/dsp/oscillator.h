@@ -57,11 +57,48 @@ namespace Oscillator {
 			sampleRate(sampleRate) { SineTable::init(); }
 
 		float nextSample(float frequency) {
+			return nextSample(frequency, 0.f);
+		}
+
+		// phaseOffset is in radians and is applied to the waveform lookup only:
+		// it never accumulates into the running phase, which is what makes this
+		// phase modulation rather than frequency modulation.
+		float nextSample(float frequency, float phaseOffset) {
 			frequency = shiftFrequency(frequency);
 			phaseIncrement = computePhaseIncrement(frequency);
-			float sample = amplitude * computeSample();
-			updatePhase(frequency);
+			float readPhase = (phaseOffset == 0.f) ? phase : wrapPhase(phase + phaseOffset);
+			float sample = amplitude * computeSample(readPhase);
+			updatePhase();
 			return sample;
+		}
+
+		// True for the sample on which the phase last wrapped past 2pi.
+		bool didWrap() const {
+			return wrapped;
+		}
+
+		// How far into the current sample the wrap happened, as a fraction of one
+		// phase increment. Lets a synced slave restart at the sub-sample position
+		// of the master's wrap instead of at the sample boundary.
+		float wrapFraction() const {
+			return wrapFrac;
+		}
+
+		// Hard sync: restart the phase at the master's sub-sample wrap position.
+		void syncPhase(float fractionOfIncrement) {
+			phase = wrapPhase(fractionOfIncrement * phaseIncrement);
+		}
+
+		// A fresh phase in [0, 2pi) drawn from this oscillator's own RNG.
+		float randomPhase() {
+			return computeRandomValue() * Constants::twoPi;
+		}
+
+		// Restart with a start phase scaled by drift: 0 restarts at zero (and
+		// leaves the RNG untouched, so a drift-free patch is fully repeatable),
+		// 1 spreads the start phase over the whole cycle.
+		void resetWithDrift(float drift) {
+			reset(drift > 0.f ? drift * randomPhase() : 0.f);
 		}
 
 		void setMode(Mode newMode) {
@@ -95,46 +132,59 @@ namespace Oscillator {
 		}
 
 		void reset() {
-			phase = 0.f;
+			reset(0.f);
+		}
+
+		void reset(float startPhase) {
+			phase = wrapPhase(startPhase);
 			phaseIncrement = 0.f;
+			wrapped = false;
+			wrapFrac = 0.f;
 		}
 
 		private:
-		float computeSample() {
+		static float wrapPhase(float p) {
+			if (p >= 0.f && p < Constants::twoPi) return p;
+			p = std::fmod(p, Constants::twoPi);
+			return (p < 0.f) ? p + Constants::twoPi : p;
+		}
+
+		float computeSample(float p) {
 			switch (mode) {
 				case Mode::SINE:
-					return computeSine();
+					return computeSine(p);
 				case Mode::SAW:
-					return computeSaw();
+					return computeSaw(p);
 				case Mode::SQUARE:
-					return computeSquare();
+					return computeSquare(p);
 				case Mode::TRIANGLE:
-					return computeTriangle();
+					return computeTriangle(p);
 				case Mode::NOISE:
 					return computeNoise();
 			}
+			return 0.f;
 		}
 
-		float computeSine() {
-			return SineTable::lookup(phase);
+		float computeSine(float p) {
+			return SineTable::lookup(p);
 		}
 
-		float computeSaw() {
-			float value = 1.0 - (2.0 * phase / Constants::twoPi);
-			return value - computePolyBLEP(phase / Constants::twoPi, phaseIncrement / Constants::twoPi);
+		float computeSaw(float p) {
+			float value = 1.0 - (2.0 * p / Constants::twoPi);
+			return value - computePolyBLEP(p / Constants::twoPi, phaseIncrement / Constants::twoPi);
 		}
 
-		float computeSquare() {
-			auto value = phase <= Constants::twoPi * dutyCycle ? 1 : -1;
-			value += computePolyBLEP(phase / Constants::twoPi, phaseIncrement / Constants::twoPi);
-			value -= computePolyBLEP(fmod(phase / Constants::twoPi + 0.5, 1.0), phaseIncrement / Constants::twoPi);
+		float computeSquare(float p) {
+			auto value = p <= Constants::twoPi * dutyCycle ? 1 : -1;
+			value += computePolyBLEP(p / Constants::twoPi, phaseIncrement / Constants::twoPi);
+			value -= computePolyBLEP(fmod(p / Constants::twoPi + 0.5, 1.0), phaseIncrement / Constants::twoPi);
 			return value;
 		}
 
 		// PolyBLAMP triangle: direct computation from phase, amplitude-stable at all frequencies.
 		// Replaces the old leaky-integrator approach which was frequency-dependent.
-		float computeTriangle() {
-			float t = phase / Constants::twoPi;
+		float computeTriangle(float p) {
+			float t = p / Constants::twoPi;
 			float dt = phaseIncrement / Constants::twoPi;
 
 			float naive = (t < 0.5f) ? (4.0f * t - 1.0f) : (3.0f - 4.0f * t);
@@ -188,10 +238,15 @@ namespace Oscillator {
 			return 0.0f;
 		}
 
-		void updatePhase(float frequency) {
+		void updatePhase() {
 			phase += phaseIncrement;
 			if (phase >= Constants::twoPi) {
 				phase -= Constants::twoPi;
+				wrapped = true;
+				wrapFrac = (phaseIncrement > 0.f) ? phase / phaseIncrement : 0.f;
+			} else {
+				wrapped = false;
+				wrapFrac = 0.f;
 			}
 		}
 
@@ -215,6 +270,8 @@ namespace Oscillator {
 
 		float phase = 0.f;
 		float phaseIncrement = 0.f;
+		bool wrapped = false;
+		float wrapFrac = 0.f;
 
 		float semiShift = 0.f;
 		float centShift = 0.f;

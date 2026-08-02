@@ -44,6 +44,11 @@ export enum ControlID {
   CUT_ATTACK,
   CUT_DECAY,
   GLIDE_TIME,
+  FM_INDEX,
+  SUB_LEVEL,
+  STEREO_SPREAD,
+  STEREO_WIDTH,
+  PHASE_DRIFT,
 
   // Sequencer
   SEQ_BPM,

@@ -52,5 +52,7 @@ inline const Range semiShiftRange{ -24.f, 24.f };
 inline const Range centShiftRange{ -50.f, 50.f };
 inline const Range lfoFrequencyRange{ 0.f, 25.f };
 inline const Range oscCycleRange{ 0.25f, 0.75f };
+// Phase modulation depth, in radians of carrier phase deviation.
+inline const Range fmIndexRange{ 0.f, 8.f };
 
 } // namespace wasm_audio

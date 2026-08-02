@@ -50,6 +50,18 @@ export interface VoiceConfigState {
   retrigger: Control;
 }
 
+export interface RoutingState {
+  routing: Control;
+  fmIndex: Control;
+  subLevel: Control;
+}
+
+export interface SpaceState {
+  spread: Control;
+  width: Control;
+  drift: Control;
+}
+
 export interface VoiceState {
   osc1: OscillatorState;
   osc2: OscillatorState;
@@ -61,6 +73,8 @@ export interface VoiceState {
   lfo1: LFOState;
   lfo2: LFOState;
   voiceConfig: VoiceConfigState;
+  routing: RoutingState;
+  space: SpaceState;
 }
 
 function cloneControl(c: Control): Control {
@@ -82,8 +96,26 @@ const defaultVoiceConfig: VoiceConfigState = {
   retrigger: { value: 1 },
 };
 
+// Presets written before these controls existed omit them entirely, so the
+// defaults have to reproduce the previous fixed behaviour: plain osc1/osc2
+// crossfade, no stereo placement, phase-locked note starts, and a sub level of
+// 31.75/127, which is exactly the 0.25 that used to be hardcoded in the voice.
+const defaultRouting: RoutingState = {
+  routing: { value: 0 },
+  fmIndex: { value: 0 },
+  subLevel: { value: 31.75 },
+};
+
+const defaultSpace: SpaceState = {
+  spread: { value: 0 },
+  width: { value: 0 },
+  drift: { value: 0 },
+};
+
 export function createVoiceState(src: Partial<VoiceState>): VoiceState {
   const vc = src.voiceConfig ?? defaultVoiceConfig;
+  const routing = src.routing ?? defaultRouting;
+  const space = src.space ?? defaultSpace;
   return {
     osc1: cloneOscillator(src.osc1),
     osc2: cloneOscillator(src.osc2),
@@ -123,6 +155,16 @@ export function createVoiceState(src: Partial<VoiceState>): VoiceState {
       voiceMode: cloneControl(vc.voiceMode),
       glideTime: cloneControl(vc.glideTime),
       retrigger: cloneControl(vc.retrigger),
+    },
+    routing: {
+      routing: cloneControl(routing.routing),
+      fmIndex: cloneControl(routing.fmIndex),
+      subLevel: cloneControl(routing.subLevel),
+    },
+    space: {
+      spread: cloneControl(space.spread),
+      width: cloneControl(space.width),
+      drift: cloneControl(space.drift),
     },
   };
 }
