@@ -75,12 +75,27 @@ export function createMonologState(partial?: Partial<any>): MonologState {
 
   if (!partial) return defaults;
 
+  // Clone down to the individual { value } objects. A shallow spread copies
+  // those objects by reference straight out of the preset literal, so every
+  // knob move would rewrite the factory preset for the rest of the session.
+  const mergeSection = <T extends Record<string, { value: number }>>(
+    defaultSection: T,
+    partialSection: Partial<T> | undefined,
+  ): T => {
+    const merged = {} as T;
+    for (const key of Object.keys(defaultSection) as (keyof T)[]) {
+      const source = partialSection?.[key] ?? defaultSection[key];
+      merged[key] = { value: source.value } as T[keyof T];
+    }
+    return merged;
+  };
+
   return {
-    osc: { ...defaults.osc, ...partial.osc },
-    filter: { ...defaults.filter, ...partial.filter },
-    ampEnv: { ...defaults.ampEnv, ...partial.ampEnv },
-    filterEnv: { ...defaults.filterEnv, ...partial.filterEnv },
-    lfo: { ...defaults.lfo, ...partial.lfo },
-    performance: { ...defaults.performance, ...partial.performance },
+    osc: mergeSection(defaults.osc, partial.osc),
+    filter: mergeSection(defaults.filter, partial.filter),
+    ampEnv: mergeSection(defaults.ampEnv, partial.ampEnv),
+    filterEnv: mergeSection(defaults.filterEnv, partial.filterEnv),
+    lfo: mergeSection(defaults.lfo, partial.lfo),
+    performance: mergeSection(defaults.performance, partial.performance),
   };
 }

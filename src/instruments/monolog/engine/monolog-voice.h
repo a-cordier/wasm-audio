@@ -85,6 +85,9 @@ namespace Monolog {
 			float oscOut = osc.nextSample(frequency);
 			float subOut = subOsc.nextSample(frequency) * subLevel;
 			float noiseOut = noise.nextSample() * noiseLevel;
+			// Deliberately unnormalised. The sum can exceed unity and push the
+			// filter models into their own input saturators, and that overload
+			// is where a lot of monolog's loudness and grit comes from.
 			float mix = oscOut + subOut + noiseOut;
 
 			float filterEnvMod = filterEnvAmount * filterEnv.nextLevel();
@@ -108,6 +111,9 @@ namespace Monolog {
 					break;
 			}
 
+			// The saturator sits ahead of the VCA on purpose: it compresses the
+			// filter output on every note, and that compression is a good part
+			// of the density and perceived loudness of the instrument.
 			float shaped = Waveshaper::tanhLimit(filtered, 1.0f + drive * 1.5f);
 			float clean = dcBlocker.process(shaped);
 			float ampLevel = ampEnv.nextLevel();
@@ -152,7 +158,7 @@ namespace Monolog {
 		void setNoiseLevel(float level) { noiseLevel = level; }
 
 		void setFilterModel(FilterModel model) { filterModel = model; }
-		void setCutoff(float c) { cutoff = c; }
+		void setCutoff(float c) { cutoffBase = c; cutoff = c; }
 		void setResonance(float r) { resonance = r; }
 		void setDrive(float d) {
 			drive = d;
@@ -193,14 +199,18 @@ namespace Monolog {
 			}
 		}
 
+		// Every destination re-derives from its base each sample. Writing back
+		// into a member that is only re-seeded once per block would make the
+		// modulation integrate instead of offset, and rail within a few samples.
 		void applyLfo(float mod, float &frequency) {
 			pulseWidth = pulseWidthBase;
+			cutoff = cutoffBase;
 			switch (lfoDest) {
 				case LfoDestination::PITCH:
 					frequency += mod * frequency;
 					break;
 				case LfoDestination::CUTOFF:
-					cutoff = cutoffRange.clamp(cutoff + mod);
+					cutoff = cutoffRange.clamp(cutoffBase + mod);
 					break;
 				case LfoDestination::PULSE_WIDTH:
 					pulseWidth = oscCycleRange.clamp(pulseWidthBase + mod);
@@ -228,6 +238,7 @@ namespace Monolog {
 		FilterModel filterModel = FilterModel::MOOG;
 
 		float cutoff = 0.5f;
+		float cutoffBase = 0.5f;
 		float resonance = 0.0f;
 		float drive = 0.0f;
 		float subLevel = 0.0f;

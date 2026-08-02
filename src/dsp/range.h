@@ -16,6 +16,7 @@
 #pragma once
 
 #include "constants.h"
+#include <cmath>
 
 namespace wasm_audio {
 
@@ -54,5 +55,10 @@ inline const Range lfoFrequencyRange{ 0.f, 25.f };
 inline const Range oscCycleRange{ 0.25f, 0.75f };
 // Phase modulation depth, in radians of carrier phase deviation.
 inline const Range fmIndexRange{ 0.f, 8.f };
+
+// A duty cycle of exactly 0 or 1 makes the square constant, which the DC
+// blocker then removes entirely. Keeps it off the rails without narrowing the
+// musically useful span.
+inline const Range pulseWidthSafeRange{ 0.02f, 0.98f };
 
 } // namespace wasm_audio

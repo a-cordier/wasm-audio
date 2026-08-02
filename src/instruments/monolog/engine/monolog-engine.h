@@ -62,27 +62,40 @@ namespace Monolog {
 			  voice(sampleRate) {}
 
 		void noteOn(int midi, float frequency, float velocity) {
-			bool wasActive = voice.isActive();
+			// Legato means "a key was already held", not "the voice is still
+			// making sound". Testing isActive() also matched the release tail,
+			// so a note played into a fading release was silently swallowed:
+			// neither reset nor noteOn ran and the envelope stayed in RELEASE.
+			bool wasHeld = noteStackTop >= 0;
+			bool wasSounding = voice.isActive();
 
 			noteStackPush(midi, frequency);
 
-			glideFrom = wasActive ? currentGlideFreq() : frequency;
+			glideFrom = wasSounding ? currentGlideFreq() : frequency;
 			glideTo = frequency;
-			glidePhase = (wasActive && glideTimeSec() > 0.f) ? 0.f : 1.f;
+			glidePhase = (wasSounding && glideTimeSec() > 0.f) ? 0.f : 1.f;
 
 			currentMidi = midi;
 			currentVelocity = zeroOneRange.map(velocity, midiRange);
 
-			if (!wasActive || !isLegato()) {
+			if (!wasHeld || !isLegato()) {
 				voice.reset();
 				voice.noteOn();
 			}
 		}
 
 		void noteOff(int midi) {
+			// Only the sounding note falling away hands control back to the one
+			// underneath it. Releasing a key that was not sounding used to
+			// retrigger the envelope and reset the filter state, so letting go
+			// of a held lower note clicked the note above it.
+			bool wasSounding = (currentMidi == midi);
+
 			noteStackRemove(midi);
 
 			if (noteStackTop >= 0) {
+				if (!wasSounding) return;
+
 				int prevMidi = noteStack[noteStackTop];
 				float prevFreq = noteStackFreq[noteStackTop];
 
@@ -163,7 +176,11 @@ namespace Monolog {
 			voice.setCutoff(cutoffRange.map(params[pi(ParamId::CUTOFF)], midiRange));
 			voice.setResonance(resonanceRange.map(params[pi(ParamId::RESONANCE)], midiRange));
 			voice.setDrive(driveRange.map(params[pi(ParamId::DRIVE)], midiRange));
-			voice.setPulseWidth(zeroOneRange.map(params[pi(ParamId::PULSE_WIDTH)], midiRange));
+			// Kept on the original 0..1 mapping so preset pulse widths are
+			// unchanged, but nudged off the rails: at exactly 0 or 1 the square
+			// is constant and the DC blocker mutes the oscillator outright.
+			voice.setPulseWidth(pulseWidthSafeRange.clamp(
+				zeroOneRange.map(params[pi(ParamId::PULSE_WIDTH)], midiRange)));
 			voice.setFilterModel(static_cast<FilterModel>(static_cast<uint32_t>(params[pi(ParamId::FILTER_MODEL)])));
 
 			voice.setAmpAttack(params[pi(ParamId::AMP_ATTACK)]);

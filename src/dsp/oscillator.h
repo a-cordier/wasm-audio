@@ -174,10 +174,24 @@ namespace Oscillator {
 			return value - computePolyBLEP(p / Constants::twoPi, phaseIncrement / Constants::twoPi);
 		}
 
+		// Two discontinuities per cycle: the rising edge at phase 0 and the
+		// falling edge at the duty-cycle point. Each gets its own PolyBLEP.
 		float computeSquare(float p) {
-			auto value = p <= Constants::twoPi * dutyCycle ? 1 : -1;
-			value += computePolyBLEP(p / Constants::twoPi, phaseIncrement / Constants::twoPi);
-			value -= computePolyBLEP(fmod(p / Constants::twoPi + 0.5, 1.0), phaseIncrement / Constants::twoPi);
+			float t = p / Constants::twoPi;
+			float dt = phaseIncrement / Constants::twoPi;
+
+			// Must be float: an int here silently truncates both corrections
+			// away and leaves a naive, aliasing three-level wave.
+			float value = (t <= dutyCycle) ? 1.f : -1.f;
+
+			value += computePolyBLEP(t, dt);
+
+			// The falling edge sits at dutyCycle, not at a fixed half cycle,
+			// otherwise the correction is misplaced for any duty other than 50%.
+			float fallingEdge = t - dutyCycle;
+			if (fallingEdge < 0.f) fallingEdge += 1.f;
+			value -= computePolyBLEP(fallingEdge, dt);
+
 			return value;
 		}
 

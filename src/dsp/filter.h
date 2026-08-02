@@ -257,9 +257,19 @@ namespace Filter {
 		float buf3 = 0.f;
 	};
 
+	// Rational tanh approximation. This exact curve is what the ladder models
+	// are voiced against, so it is left alone; it runs slightly harder than a
+	// true tanh through the mid range and that is part of their character.
+	//
+	// It does turn back upwards towards x/9 for large |x| instead of
+	// saturating, which lets a feedback loop run away. The bound below sits far
+	// outside anything the filters reach in normal use (the curve is only at
+	// 1.06 by |x| = 5.75, the worst case at full drive), so it costs nothing
+	// tonally and just stops the runaway.
 	inline float fastTanh(float x) {
 		float x2 = x * x;
-		return x * (27.f + x2) / (27.f + 9.f * x2);
+		float y = x * (27.f + x2) / (27.f + 9.f * x2);
+		return std::max(-1.5f, std::min(1.5f, y));
 	}
 
 	namespace Moog {
@@ -445,8 +455,20 @@ namespace Filter {
 
 				// Delay-free feedback resolution (Pirkle/Zavalishin TPT Sallen-Key)
 				float S = (1.0f - G) * (G * s1 + s2);
-				float denom = 1.0f - K * G * G;
-				if (denom < 0.001f) denom = 0.001f;
+
+				// The delay-free solution is only valid while K*G^2 < 1. Above
+				// that the denominator inverts: at 44.1kHz and full cutoff,
+				// K*G^2 reaches 1.13, so clamping the denominator afterwards
+				// left a x1000 gain step at the top of the sweep. Back the
+				// resonance off instead, which keeps the response continuous.
+				float G2 = G * G;
+				float denom = 1.0f - K * G2;
+				constexpr float minDenom = 0.05f;
+				if (denom < minDenom) {
+					K = (1.0f - minDenom) / std::max(G2, 1e-6f);
+					denom = minDenom;
+				}
+
 				float u = (sample + K * S) / denom;
 
 				// Forward-path saturation (MS-20 Rev1 diodes in signal path)
@@ -498,8 +520,10 @@ namespace Filter {
 		// Purpose-built 4-pole (24dB/oct) dirty ladder for dense, aggressive
 		// harmonic content. Per-stage tanh saturation creates cumulative distortion
 		// that intensifies with resonance. Designed for "Rollin' & Scratchin'" territory.
-		// Cutoff: 0..1 mapped exponentially to 20..16000 Hz.
-		// Resonance: 0..1 mapped to K=0..5.0 (aggressive self-oscillation).
+		// Cutoff: 0..1 mapped exponentially to 100..20000 Hz.
+		// Resonance: 0..1 mapped to K=0..1.5. Intentionally well below the ~4
+		// a 4-pole ladder needs to self-oscillate -- the aggression here comes
+		// from the per-stage saturation below, not from resonance.
 		class ScreamerKernel : public Kernel {
 			public:
 			ScreamerKernel(float sampleRate) :
@@ -517,6 +541,11 @@ namespace Filter {
 				float g = std::tan(Constants::pi * cutoffHz / sampleRate);
 				float G = g / (1.0f + g);
 
+				// Deliberately low. This filter screams through cumulative
+				// per-stage saturation, not through a resonant peak: pushed to
+				// the ~4 a clean ladder needs to self-oscillate it turns into a
+				// whistling sweep, which is the opposite of the dense, dirty
+				// character it exists for.
 				float K = resonance * 1.5f;
 				float stageDrive = 1.2f + drive * 0.3f;
 

@@ -36,13 +36,21 @@ export const MonologPresetOptions = new SelectOptions([
     } as MonologState,
   },
   {
+    // The whistle was resonance 64 sitting underneath a filter decay of 127 --
+    // eight seconds of a resonant peak crawling down from 16kHz to 470Hz. Decay
+    // 45 brings the sweep to ~2.9s, and dropping the resonance stops the peak
+    // singing on its way down.
+    //
+    // Two other things were dead here: the LFO pointed at PULSE_WIDTH, which
+    // only affects a square wave and this is a saw, and noiseLevel 5 is about
+    // -28dB against the oscillator. The LFO now moves the cutoff instead.
     name: "REESE BASS",
     value: {
-      osc: { mode: { value: 1 }, pulseWidth: { value: 63.5 }, subLevel: { value: 60 }, noiseLevel: { value: 5 } },
-      filter: { model: { value: 0 }, cutoff: { value: 60 }, resonance: { value: 64 }, drive: { value: 40 } },
+      osc: { mode: { value: 1 }, pulseWidth: { value: 63.5 }, subLevel: { value: 60 }, noiseLevel: { value: 0 } },
+      filter: { model: { value: 0 }, cutoff: { value: 60 }, resonance: { value: 34 }, drive: { value: 40 } },
       ampEnv: { attack: { value: 10 }, decay: { value: 50 }, sustain: { value: 90 }, release: { value: 40 } },
-      filterEnv: { attack: { value: 5 }, decay: { value: 127 }, amount: { value: 47 }, velocity: { value: 20 } },
-      lfo: { mode: { value: 0 }, rate: { value: 5 }, amount: { value: 15 }, destination: { value: 2 } },
+      filterEnv: { attack: { value: 5 }, decay: { value: 45 }, amount: { value: 47 }, velocity: { value: 20 } },
+      lfo: { mode: { value: 0 }, rate: { value: 5 }, amount: { value: 15 }, destination: { value: 1 } },
       performance: { glide: { value: 40 }, legato: { value: 127 } },
     } as MonologState,
   },
