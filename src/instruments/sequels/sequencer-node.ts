@@ -19,6 +19,7 @@ import { SequencerConfigBuffer } from "./config-buffer";
 import { PatternBuffer } from "./pattern-buffer";
 
 export type PositionCallback = (step: number) => void;
+export type StoppedCallback = () => void;
 
 /**
  * AudioWorkletNode wrapper for the sequencer processor.
@@ -30,6 +31,7 @@ export class SequencerNode extends AudioWorkletNode {
   readonly outputRing: MidiRingBuffer;
 
   private positionCallback: PositionCallback | null = null;
+  private stoppedCallback: StoppedCallback | null = null;
 
   constructor(context: AudioContext) {
     super(context, "seq", {
@@ -55,6 +57,8 @@ export class SequencerNode extends AudioWorkletNode {
   private onMessage(msg: { type: string; step?: number }): void {
     if (msg.type === "__position" && this.positionCallback) {
       this.positionCallback(msg.step ?? -1);
+    } else if (msg.type === "__stopped" && this.stoppedCallback) {
+      this.stoppedCallback();
     }
   }
 
@@ -62,11 +66,25 @@ export class SequencerNode extends AudioWorkletNode {
     this.positionCallback = callback;
   }
 
-  start(): void {
-    this.port.postMessage({ type: "__start" });
+  /** Fired when the worklet ends a non-looping sequence on its own. */
+  onStopped(callback: StoppedCallback): void {
+    this.stoppedCallback = callback;
+  }
+
+  /** `countInSteps` > 0 runs a click-only pre-roll before the clock starts. */
+  start(countInSteps = 0): void {
+    this.port.postMessage({ type: "__start", countInSteps });
   }
 
   stop(): void {
     this.port.postMessage({ type: "__stop" });
+  }
+
+  pause(): void {
+    this.port.postMessage({ type: "__pause" });
+  }
+
+  resume(): void {
+    this.port.postMessage({ type: "__resume" });
   }
 }

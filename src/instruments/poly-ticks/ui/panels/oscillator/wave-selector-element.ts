@@ -47,12 +47,22 @@ export class WaveSelector extends LitElement {
     );
   }
 
+  /**
+   * Mode to highlight. Falls back to the first option when `value` is not one
+   * of them — a host may offer a subset (monolog omits SINE), and a
+   * single-choice selector must never render zero choices.
+   */
+  private get selected(): OscillatorMode {
+    return this.modes.includes(this.value) ? this.value : this.modes[0];
+  }
+
   render() {
+    const selected = this.selected;
     return html`
       <div class="wave-selector">
         ${this.modes.map(mode => html`
           <button
-            class=${classMap({ active: mode === this.value })}
+            class=${classMap({ active: mode === selected })}
             @click=${() => this.select(mode)}
           >${WAVE_ICONS[mode]()}</button>
         `)}

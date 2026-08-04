@@ -19,7 +19,7 @@ import { html as staticHtml, unsafeStatic } from "lit/static-html.js";
 import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 
-import { Plugin, InstrumentPlugin, MidiSourcePlugin, isInstrumentPlugin, isMidiSourcePlugin, isLearnable, hasPresets, PresetEntry } from "../../core/types";
+import { Plugin, InstrumentPlugin, MidiSourcePlugin, MidiConsumer, isInstrumentPlugin, isMidiSourcePlugin, isMidiConsumer, isLearnable, hasPresets, PresetEntry } from "../../core/types";
 import { pluginRegistry } from "../../core/plugin-registry";
 import { SlotConfig } from "../../core/slot";
 import { MidiBus } from "../../midi/bus/bus";
@@ -29,6 +29,21 @@ import { isNoteOn, isNoteOff } from "../../midi/codec/decode";
 import { getBindingManager } from "../../control/binding-manager";
 import { MidiControlAdapter } from "../../control/adapters/midi-adapter";
 import { MixerEngine } from "../../mixer";
+
+/** Label for the synthetic slot holding the user's own working state. */
+const USER_PRESET = "USER";
+
+/**
+ * Plugins return a shallow copy of a nested state object, so hold a real
+ * value copy rather than something later edits could reach into.
+ */
+function snapshot(state: unknown): unknown {
+  try {
+    return structuredClone(state);
+  } catch {
+    return JSON.parse(JSON.stringify(state));
+  }
+}
 
 @customElement("device-slot")
 export class DeviceSlot extends LitElement {
@@ -80,8 +95,13 @@ export class DeviceSlot extends LitElement {
   @state()
   private presets: PresetEntry[] = [];
 
+  // Index 0 is the synthetic USER slot; 1..n are this.presets[0..n-1].
   @state()
   private presetIndex = 0;
+
+  // The working state, captured on the way out of USER so browsing the
+  // factory presets can never destroy it.
+  private userSnapshot: unknown | null = null;
 
   private mixNode: GainNode | null = null;
   private busSubscription: Disposable | null = null;
@@ -144,31 +164,35 @@ export class DeviceSlot extends LitElement {
     this.activeNotes.clear();
 
     if (!this.bus) return;
+    if (this.config?.mode !== "leaf" || !this.plugin) return;
 
-    if (this.config?.mode === "leaf" && this.plugin) {
-      if (isInstrumentPlugin(this.plugin)) {
-        const filter: RouteFilter = {};
-        if (this.midiChannel !== "omni") {
-          filter.channel = this.midiChannel as Channel;
-        }
-        if (this.inputDevice === "internal") {
-          filter.source = INTERNAL_SOURCE;
-        } else if (this.inputDevice !== "all") {
-          filter.source = this.inputDevice;
-        }
+    // A plugin can be both: the sequencer emits MIDI *and* records what it is
+    // fed, so these are two independent capabilities rather than a choice.
+    if (isMidiSourcePlugin(this.plugin)) {
+      (this.plugin as MidiSourcePlugin).connectMidiOutput(this.bus);
+      (this.plugin as MidiSourcePlugin).setOutputChannel(this.outputChannel);
+    }
 
-        this.busSubscription = this.bus.subscribe(
-          (event: MidiEvent) => {
-            if (isNoteOn(event)) this.activeNotes.add(event.data1);
-            else if (isNoteOff(event)) this.activeNotes.delete(event.data1);
-            (this.plugin as InstrumentPlugin).receive(event);
-          },
-          Object.keys(filter).length > 0 ? filter : undefined
-        );
-      } else if (isMidiSourcePlugin(this.plugin)) {
-        (this.plugin as MidiSourcePlugin).connectMidiOutput(this.bus);
-        (this.plugin as MidiSourcePlugin).setOutputChannel(this.outputChannel);
+    if (isMidiConsumer(this.plugin)) {
+      const filter: RouteFilter = {};
+      if (this.midiChannel !== "omni") {
+        filter.channel = this.midiChannel as Channel;
       }
+      if (this.inputDevice === "internal") {
+        filter.source = INTERNAL_SOURCE;
+      } else if (this.inputDevice !== "all") {
+        filter.source = this.inputDevice;
+      }
+
+      const consumer = this.plugin as Plugin & MidiConsumer;
+      this.busSubscription = this.bus.subscribe(
+        (event: MidiEvent) => {
+          if (isNoteOn(event)) this.activeNotes.add(event.data1);
+          else if (isNoteOff(event)) this.activeNotes.delete(event.data1);
+          consumer.receive(event);
+        },
+        Object.keys(filter).length > 0 ? filter : undefined
+      );
     }
   }
 
@@ -252,26 +276,57 @@ export class DeviceSlot extends LitElement {
   }
 
   private onPresetPrev() {
-    if (this.presets.length === 0) return;
-    this.presetIndex = (this.presetIndex - 1 + this.presets.length) % this.presets.length;
-    this.applyPreset();
+    this.stepPreset(-1);
   }
 
   private onPresetNext() {
-    if (this.presets.length === 0) return;
-    this.presetIndex = (this.presetIndex + 1) % this.presets.length;
+    this.stepPreset(1);
+  }
+
+  /** USER + every factory preset. */
+  private get presetCount(): number {
+    return this.presets.length + 1;
+  }
+
+  private get presetName(): string {
+    if (this.presetIndex === 0) return USER_PRESET;
+    return this.presets[this.presetIndex - 1]?.name ?? "";
+  }
+
+  private stepPreset(delta: number) {
+    if (this.presets.length === 0 || !this.plugin) return;
+
+    const next = (this.presetIndex + delta + this.presetCount) % this.presetCount;
+    if (next === this.presetIndex) return;
+
+    // Leaving USER: snapshot first. Loading a preset replaces the plugin's
+    // whole state — for the sequencer it clears all 40 patterns — so without
+    // this there is no way back to your own work.
+    if (this.presetIndex === 0) {
+      this.userSnapshot = snapshot(this.plugin.getState());
+    }
+
+    this.presetIndex = next;
     this.applyPreset();
   }
 
   private applyPreset() {
-    if (!this.plugin || !hasPresets(this.plugin)) return;
-    const preset = this.presets[this.presetIndex];
+    if (!this.plugin) return;
+
+    if (this.presetIndex === 0) {
+      // Nothing to restore until USER has actually been left once.
+      if (this.userSnapshot !== null) this.plugin.loadState(this.userSnapshot);
+      return;
+    }
+
+    if (!hasPresets(this.plugin)) return;
+    const preset = this.presets[this.presetIndex - 1];
     if (preset) {
       this.plugin.loadState(preset.state);
     }
   }
 
-  private flushNotesOff(plugin: InstrumentPlugin) {
+  private flushNotesOff(plugin: MidiConsumer) {
     const now = performance.now();
     for (const note of this.activeNotes) {
       plugin.receive({ status: Status.NOTE_OFF, channel: 0 as Channel, data1: note, data2: 0, timestamp: now, source: INTERNAL_SOURCE });
@@ -279,39 +334,37 @@ export class DeviceSlot extends LitElement {
     this.activeNotes.clear();
   }
 
-  private onChannelChange(delta: number) {
-    if (this.config?.mode !== "leaf") return;
+  private onInChannelChange(delta: number) {
+    if (this.config?.mode !== "leaf" || !this.plugin) return;
 
-    if (isInstrumentPlugin(this.plugin!)) {
-      if (this.midiChannel === "omni") {
-        this.midiChannel = delta > 0 ? (0 as Channel) : (15 as Channel);
-      } else {
-        const next = this.midiChannel + delta;
-        if (next < 0) {
-          this.midiChannel = "omni";
-        } else if (next > 15) {
-          this.midiChannel = "omni";
-        } else {
-          this.midiChannel = next as Channel;
-        }
-      }
-
-      this.flushNotesOff(this.plugin as InstrumentPlugin);
-      this.wireRouting();
-
-      if (this.kbActive) {
-        const channel = this.midiChannel === "omni" ? (0 as Channel) : this.midiChannel;
-        this.dispatchEvent(new CustomEvent("slot-selected", {
-          detail: { slotId: this.config.id, pluginId: this.config.pluginId, channel, isInstrument: true },
-          bubbles: true,
-          composed: true,
-        }));
-      }
-    } else if (isMidiSourcePlugin(this.plugin!)) {
-      const next = Math.max(0, Math.min(15, this.outputChannel + delta));
-      this.outputChannel = next as Channel;
-      (this.plugin as MidiSourcePlugin).setOutputChannel(this.outputChannel);
+    if (this.midiChannel === "omni") {
+      this.midiChannel = delta > 0 ? (0 as Channel) : (15 as Channel);
+    } else {
+      const next = this.midiChannel + delta;
+      this.midiChannel = next < 0 || next > 15 ? "omni" : (next as Channel);
     }
+
+    if (isMidiConsumer(this.plugin)) {
+      this.flushNotesOff(this.plugin as Plugin & MidiConsumer);
+    }
+    this.wireRouting();
+
+    if (this.kbActive) {
+      const channel = this.midiChannel === "omni" ? (0 as Channel) : this.midiChannel;
+      this.dispatchEvent(new CustomEvent("slot-selected", {
+        detail: { slotId: this.config.id, pluginId: this.config.pluginId, channel, isInstrument: true },
+        bubbles: true,
+        composed: true,
+      }));
+    }
+  }
+
+  private onOutChannelChange(delta: number) {
+    if (this.config?.mode !== "leaf" || !this.plugin) return;
+    if (!isMidiSourcePlugin(this.plugin)) return;
+
+    this.outputChannel = Math.max(0, Math.min(15, this.outputChannel + delta)) as Channel;
+    (this.plugin as MidiSourcePlugin).setOutputChannel(this.outputChannel);
   }
 
   private onDeviceChange(e: Event) {
@@ -320,18 +373,12 @@ export class DeviceSlot extends LitElement {
     this.wireRouting();
   }
 
-  private get channelDisplay(): string {
-    if (isInstrumentPlugin(this.plugin!)) {
-      return this.midiChannel === "omni" ? "OMNI" : `CH ${this.midiChannel + 1}`;
-    }
-    return `CH ${this.outputChannel + 1}`;
+  private get inChannelDisplay(): string {
+    return this.midiChannel === "omni" ? "OMNI" : `CH ${this.midiChannel + 1}`;
   }
 
-  private get channelLabel(): string {
-    if (this.plugin && isMidiSourcePlugin(this.plugin)) {
-      return "OUT";
-    }
-    return "IN";
+  private get outChannelDisplay(): string {
+    return `CH ${this.outputChannel + 1}`;
   }
 
   private get kbActive(): boolean {
@@ -426,7 +473,7 @@ export class DeviceSlot extends LitElement {
   }
 
   private renderKbButton() {
-    if (!this.plugin || !isInstrumentPlugin(this.plugin)) return nothing;
+    if (!this.plugin || !isMidiConsumer(this.plugin)) return nothing;
 
     return html`
       <button
@@ -450,7 +497,7 @@ export class DeviceSlot extends LitElement {
   private renderPresetBrowser() {
     if (!this.plugin || !hasPresets(this.plugin) || this.presets.length === 0) return nothing;
 
-    const name = this.presets[this.presetIndex]?.name ?? "";
+    const name = this.presetName;
     return html`
       <div class="control-group preset-browser">
         <button class="ch-btn" @click=${this.onPresetPrev}>-</button>
@@ -461,11 +508,11 @@ export class DeviceSlot extends LitElement {
   }
 
   private renderDeviceSelector() {
-    if (!this.plugin || isMidiSourcePlugin(this.plugin)) return nothing;
+    if (!this.plugin || !isMidiConsumer(this.plugin)) return nothing;
 
     return html`
       <div class="control-group">
-        <label class="control-label">DEVICE</label>
+        <label class="control-label">CTRL</label>
         <select class="device-select" @change=${this.onDeviceChange}>
           <option value="internal" ?selected=${this.inputDevice === "internal"}>INT.</option>
           <option value="all" ?selected=${this.inputDevice === "all"}>ALL</option>
@@ -481,14 +528,30 @@ export class DeviceSlot extends LitElement {
     if (!this.plugin) return nothing;
 
     return html`
-      <div class="control-group">
-        <label class="control-label">${this.channelLabel}</label>
-        <div class="channel-control">
-          <button class="ch-btn" @click=${() => this.onChannelChange(-1)}>-</button>
-          <lcd-element .text=${this.channelDisplay}></lcd-element>
-          <button class="ch-btn" @click=${() => this.onChannelChange(1)}>+</button>
-        </div>
-      </div>
+      ${isMidiConsumer(this.plugin)
+        ? html`
+            <div class="control-group">
+              <label class="control-label">IN</label>
+              <div class="channel-control">
+                <button class="ch-btn" @click=${() => this.onInChannelChange(-1)}>-</button>
+                <lcd-element .text=${this.inChannelDisplay}></lcd-element>
+                <button class="ch-btn" @click=${() => this.onInChannelChange(1)}>+</button>
+              </div>
+            </div>
+          `
+        : nothing}
+      ${isMidiSourcePlugin(this.plugin)
+        ? html`
+            <div class="control-group">
+              <label class="control-label">OUT</label>
+              <div class="channel-control">
+                <button class="ch-btn" @click=${() => this.onOutChannelChange(-1)}>-</button>
+                <lcd-element .text=${this.outChannelDisplay}></lcd-element>
+                <button class="ch-btn" @click=${() => this.onOutChannelChange(1)}>+</button>
+              </div>
+            </div>
+          `
+        : nothing}
     `;
   }
 
@@ -535,7 +598,13 @@ export class DeviceSlot extends LitElement {
     .slot-controls {
       display: flex;
       align-items: center;
-      gap: 12px;
+      /* 8px not 12px: with six control groups the gaps alone were 60px, which
+         was most of what pushed the SEQUELS header onto a second row. */
+      gap: 8px;
+      /* Wraps instead of overflowing: SEQUELS carries IN + OUT + DEVICE + KB,
+         and MONOLOG's header already exceeded the slot at narrow widths. */
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .control-group {
@@ -556,7 +625,8 @@ export class DeviceSlot extends LitElement {
       display: flex;
       align-items: stretch;
       height: 24px;
-      --lcd-screen-width: 55px;
+      /* Widest content is "OMNI" / "CH 16" — ~30px at 9px monospace. */
+      --lcd-screen-width: 40px;
       --lcd-font-size: 9px;
     }
 
@@ -620,7 +690,8 @@ export class DeviceSlot extends LitElement {
     }
 
     .preset-browser {
-      --lcd-screen-width: 90px;
+      /* Longest factory name is "MS-20 RIPPER" — ~65px at 9px monospace. */
+      --lcd-screen-width: 84px;
       --lcd-font-size: 9px;
     }
 

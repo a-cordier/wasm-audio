@@ -96,7 +96,16 @@ export class KeyboardController implements MidiSource {
       }
     }
 
-    this.targets = targets;
+    // Dedupe: onKeyDown emits once per target, so two slots sharing a channel
+    // (e.g. SEQUELS recording what POLY TICKS plays) would otherwise double
+    // every note — the synth retriggers and the recorder writes it twice.
+    const seen = new Set<string>();
+    this.targets = targets.filter((t) => {
+      const key = `${t.channel}:${t.octaveShift}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   connect(target: MidiTarget, filter?: RouteFilter): Disposable {
@@ -121,6 +130,8 @@ export class KeyboardController implements MidiSource {
 
   private onKeyDown = (e: KeyboardEvent): void => {
     if (this.targets.length === 0) return;
+    // Accelerators are shortcuts, not notes: Ctrl+C must not play an E3.
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
 
     const baseMidi = KEY_TO_MIDI.get(e.key);
     if (baseMidi === undefined || this.pressedKeys.has(e.key)) return;

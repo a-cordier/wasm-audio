@@ -83,6 +83,16 @@ export function isLearnable(plugin: Plugin): plugin is Plugin & Learnable {
   return "getLearnableParams" in plugin && "handleControlChange" in plugin;
 }
 
+/**
+ * Capability check, deliberately duck-typed rather than keyed on
+ * descriptor.type: a plugin can be a MIDI source AND a destination (the
+ * sequencer records what it is fed), which the two-value type union cannot
+ * express.
+ */
+export function isMidiConsumer(plugin: Plugin): plugin is Plugin & MidiConsumer {
+  return "receive" in plugin;
+}
+
 export function hasPresets(plugin: Plugin): plugin is Plugin & HasPresets {
   return "getFactoryPresets" in plugin;
 }

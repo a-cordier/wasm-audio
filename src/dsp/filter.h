@@ -301,7 +301,16 @@ namespace Filter {
 				float G4 = G3 * G;
 				float S = G3 * state[0] + G2 * state[1] + G * state[2] + state[3];
 
-				float u = (sample - k * S) / (1.0f + k * G4);
+				// The nonlinearity has to sit INSIDE the feedback path. This
+				// previously resolved the loop completely linearly and only
+				// shaped the result afterwards, so nothing limited the
+				// resonance: the peak grew unchecked until, above ~85%, it
+				// overtook the note's own fundamental and sang a pure tone.
+				// Saturating the feedback caps the peak and spreads the energy
+				// into harmonics, which is what a real ladder does. At low
+				// resonance k*S is small and tanh is ~linear, so the voicing
+				// everyone is used to is untouched.
+				float u = (sample - fastTanh(k * S)) / (1.0f + k * G4);
 				u = fastTanh(drive * u);
 
 				float y = u;
@@ -338,7 +347,6 @@ namespace Filter {
 			private:
 			float sampleRate;
 			float drive = 1.0f;
-			float gComp = 0.5f;
 			std::array<float, 4> state;
 		};
 	} // namespace Moog
@@ -364,7 +372,9 @@ namespace Filter {
 				float g = std::tan(Constants::pi * cutoffHz / sampleRate);
 				float G = g / (1.0f + g);
 
-				float k = resonance * 17.0f;
+				// 17 -> 20: a touch more bite. Verified stable — even at max
+				// resonance and drive the filter does not ring after note-off.
+				float k = resonance * 20.0f;
 
 				float gp = 1.0f - G;
 				float s1 = s[0] * gp;
@@ -405,13 +415,13 @@ namespace Filter {
 				float acidMix = 0.2f + resonance * 0.3f;
 				switch (mode) {
 					case Mode::LOWPASS_PLUS:
-						return y4 + acidMix * bp;
+						return makeup * (y4 + acidMix * bp);
 					case Mode::LOWPASS:
-						return y2 + acidMix * bp;
+						return makeup * (y2 + acidMix * bp);
 					case Mode::BANDPASS:
-						return bp;
+						return makeup * bp;
 					case Mode::HIGHPASS:
-						return input - y1;
+						return makeup * (input - y1);
 					default:
 						return 0.0f;
 				}
@@ -422,6 +432,17 @@ namespace Filter {
 			}
 
 			private:
+			// The diode topology is intrinsically ~11 dB quieter than the Moog
+			// ladder: k reaches 17 (vs Moog's 3.8) feeding the 1/(1 + k*g04)
+			// divisor, and gh halves the stage coupling, which costs level even
+			// at zero resonance. Nothing downstream compensated, so acid was
+			// close to inaudible next to the other three models. Measured mean
+			// ratio to Moog across resonance 0..0.95, then trimmed against
+			// in-browser measurement of the real kernel: 3.7 overshot by ~2dB
+			// at mid resonance, 3.0 centres acid within +-3dB of Moog across
+			// the whole range.
+			static constexpr float makeup = 3.0f;
+
 			float sampleRate;
 			float drive = 1.0f;
 			float s[4] = {0.0f, 0.0f, 0.0f, 0.0f};

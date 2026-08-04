@@ -90,7 +90,8 @@ export class Root extends LitElement {
         midiChannel: 1 as Channel,
       }),
       createLeafSlot("slot-seq", "SEQUELS", "sequels", {
-        outputChannel: 0 as Channel,
+        // CH 2 == MONOLOG's input channel, so the sequencer drives it on load.
+        outputChannel: 1 as Channel,
       }),
     ]);
 
@@ -118,16 +119,16 @@ export class Root extends LitElement {
     this.ready = true;
   }
 
-  private onSlotSelected(e: CustomEvent<{ slotId: string; pluginId?: string; channel: Channel; isInstrument: boolean }>) {
-    const { slotId, pluginId, channel, isInstrument } = e.detail;
-    if (isInstrument) {
-      const reg = pluginId ? pluginRegistry.get(pluginId) : undefined;
-      this.kbSlotConfigs.set(slotId, {
-        channel,
-        octaveShift: reg?.keyboardOctaveShift ?? 0,
-      });
-      this.selectedSlotIds = new Set([...this.selectedSlotIds, slotId]);
-    }
+  private onSlotSelected(e: CustomEvent<{ slotId: string; pluginId?: string; channel: Channel }>) {
+    const { slotId, pluginId, channel } = e.detail;
+    // The KB button only renders for slots that consume MIDI, so reaching here
+    // already means "this slot wants the keyboard" — no type check needed.
+    const reg = pluginId ? pluginRegistry.get(pluginId) : undefined;
+    this.kbSlotConfigs.set(slotId, {
+      channel,
+      octaveShift: reg?.keyboardOctaveShift ?? 0,
+    });
+    this.selectedSlotIds = new Set([...this.selectedSlotIds, slotId]);
     this.syncKeyboardTargets();
   }
 

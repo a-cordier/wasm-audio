@@ -45,6 +45,10 @@ export class StepGridPanel extends SynthPanel {
   @property({ type: Number })
   selectedVelocity = 100;
 
+  /** Step-record write position; -1 hides the cursor. */
+  @property({ type: Number })
+  editCursor = -1;
+
   render() {
     return html`
       <div class="grid-container">
@@ -82,6 +86,7 @@ export class StepGridPanel extends SynthPanel {
     const active = step.note > 0;
     const isPlayhead = index === this.currentStep;
     const isBeat = index % 4 === 0;
+    const isCursor = index === this.editCursor;
 
     return html`
       <button
@@ -89,6 +94,7 @@ export class StepGridPanel extends SynthPanel {
           step: true,
           active,
           playhead: isPlayhead,
+          cursor: isCursor,
           beat: isBeat,
         })}
         @click=${() => this.onStepClick(index)}
@@ -167,6 +173,9 @@ export class StepGridPanel extends SynthPanel {
         padding: 0.25em;
       }
 
+      /* Always 16 columns so a step keeps the same size whatever the pattern
+         length: a short pattern fills fewer cells, a long one wraps onto
+         further rows of 16. */
       .step-grid {
         display: grid;
         grid-template-columns: repeat(16, 1fr);
@@ -205,6 +214,13 @@ export class StepGridPanel extends SynthPanel {
 
       .step.playhead:not(.active) {
         background: rgba(180, 212, 85, 0.3);
+      }
+
+      /* Step-record write position — deliberately distinct from the playhead. */
+      .step.cursor {
+        border-color: var(--lighter);
+        border-style: dashed;
+        border-width: 2px;
       }
 
       .step-note {

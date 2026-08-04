@@ -58,7 +58,7 @@ export const MonologPresetOptions = new SelectOptions([
     name: "PLUCK BASS",
     value: {
       osc: { mode: { value: 2 }, pulseWidth: { value: 50 }, subLevel: { value: 30 }, noiseLevel: { value: 0 } },
-      filter: { model: { value: 0 }, cutoff: { value: 50 }, resonance: { value: 40 }, drive: { value: 30 } },
+      filter: { model: { value: 0 }, cutoff: { value: 50 }, resonance: { value: 0 }, drive: { value: 30 } },
       ampEnv: { attack: { value: 0 }, decay: { value: 50 }, sustain: { value: 0 }, release: { value: 15 } },
       filterEnv: { attack: { value: 0 }, decay: { value: 40 }, amount: { value: 80 }, velocity: { value: 60 } },
       lfo: { mode: { value: 0 }, rate: { value: 10 }, amount: { value: 0 }, destination: { value: 1 } },
@@ -79,7 +79,11 @@ export const MonologPresetOptions = new SelectOptions([
   {
     name: "ICE SCREAM",
     value: {
-      osc: { mode: { value: 0 }, pulseWidth: { value: 63.5 }, subLevel: { value: 30 }, noiseLevel: { value: 0 } },
+      // mode 3 = TRIANGLE. This was 0, which is SINE in the TS enum and a
+      // waveform monolog's selector does not offer, so loading this preset
+      // left every waveform button unlit. Triangle is the closest of the
+      // three offered to the sine it used to play.
+      osc: { mode: { value: 3 }, pulseWidth: { value: 63.5 }, subLevel: { value: 30 }, noiseLevel: { value: 0 } },
       filter: { model: { value: 2 }, cutoff: { value: 20 }, resonance: { value: 75 }, drive: { value: 50 } },
       ampEnv: { attack: { value: 0 }, decay: { value: 80 }, sustain: { value: 0 }, release: { value: 15 } },
       filterEnv: { attack: { value: 0 }, decay: { value: 90 }, amount: { value: 90 }, velocity: { value: 60 } },

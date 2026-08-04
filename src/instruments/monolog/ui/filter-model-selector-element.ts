@@ -13,7 +13,7 @@ const FILTER_OPTIONS = [
 @customElement("filter-model-selector-element")
 export class FilterModelSelector extends LitElement {
   @property({ type: Number })
-  public value = MonologFilterModel.MOOG;
+  public value: number = MonologFilterModel.MOOG;
 
   private select(model: number) {
     this.value = model;
