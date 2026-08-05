@@ -67,8 +67,8 @@ export function serializePatterns(patterns: PatternBuffer): SerializedPattern[] 
     const steps = [];
 
     for (let i = 0; i < MAX_STEPS; i++) {
-      const { note, velocity } = patterns.getStep(index, i);
-      if (note > 0) steps.push({ index: i, note, velocity });
+      const { note, velocity, slide } = patterns.getStep(index, i);
+      if (note > 0) steps.push(slide ? { index: i, note, velocity, slide } : { index: i, note, velocity });
     }
 
     if (steps.length === 0 && length === DEFAULT_PATTERN_STEPS) continue;
@@ -121,7 +121,7 @@ export function applyState(
       const i = num(step?.index, -1);
       const note = num(step?.note, 0);
       if (i < 0 || i >= MAX_STEPS || note <= 0) continue;
-      patterns.setStep(index, i, note, num(step.velocity, 100));
+      patterns.setStep(index, i, note, num(step.velocity, 100), step.slide === true);
     }
   }
 

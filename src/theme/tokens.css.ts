@@ -67,7 +67,15 @@ export const darkTheme = `
     --lfo-panel-color: #342b2f;
     --voice-config-panel-color: #2f2c37;
     --space-panel-color: #2e3133;
-    --sequencer-panel-color: #3a3d42;
+    /* Neutral charcoal base, matching monolog/poly-ticks panels rather than the
+       blue-cast base neutrals; the green LCD stays as sequels' accent. The
+       per-zone tokens below are a faint camaïeu over this base — same tonal
+       weight, each nudged toward the hue that fits its function. */
+    --sequencer-panel-color: #2f2f31;
+    --seq-transport-panel-color: #33302a; /* warm  — transport / clock */
+    --seq-pattern-panel-color: #2b2f34;   /* steel — pattern banks & slots */
+    --seq-generate-panel-color: #2b322e;  /* teal  — Euclid generator */
+    --seq-steps-panel-color: #2f332c;     /* green — step canvas / pads */
 
     --monolog-panel-color: #1a1a1a;
     --monolog-osc-panel-color: #2e2e2e;
@@ -160,7 +168,12 @@ export const retroTheme = `
     --lfo-panel-color: #30231f;
     --voice-config-panel-color: #2c2427;
     --space-panel-color: #2d2823;
-    --sequencer-panel-color: #4a4540;
+    /* Warm neutral charcoal base + a warm camaïeu across the sequencer zones. */
+    --sequencer-panel-color: #342e27;
+    --seq-transport-panel-color: #3a2f28; /* warm red  — transport / clock */
+    --seq-pattern-panel-color: #302d2c;   /* cool mauve — pattern banks & slots */
+    --seq-generate-panel-color: #332f22;  /* olive     — Euclid generator */
+    --seq-steps-panel-color: #37312a;     /* amber     — step canvas / pads */
 
     --monolog-panel-color: #1a1a1a;
     --monolog-osc-panel-color: #2e2e2e;

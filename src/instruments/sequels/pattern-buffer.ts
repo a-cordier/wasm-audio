@@ -21,6 +21,7 @@ import {
   PATTERN_BUFFER_BYTES,
   PATTERN_BYTES,
   PATTERN_COUNT,
+  SLIDE_BIT,
   STEP_SLOT_SIZE,
 } from "./types";
 
@@ -30,7 +31,7 @@ import {
  * Layout:
  *   [0 .. 5119]     40 patterns x 64 slots x 2 bytes
  *                     slot[n * 128 + i * 2]     = MIDI note (0 = step off, 1-127 = active)
- *                     slot[n * 128 + i * 2 + 1] = velocity (0-127)
+ *                     slot[n * 128 + i * 2 + 1] = velocity (bits 0-6) + slide (bit 7)
  *   [5120 .. 5159]  40 length bytes (1-64 steps per pattern)
  *
  * Main thread writes when the user edits or records; the worklet reads the
@@ -61,10 +62,10 @@ export class PatternBuffer {
     return pattern * PATTERN_BYTES + index * STEP_SLOT_SIZE;
   }
 
-  setStep(pattern: number, index: number, note: number, velocity: number): void {
+  setStep(pattern: number, index: number, note: number, velocity: number, slide = false): void {
     const offset = this.offset(pattern, index);
     this.view[offset] = note & 0x7f;
-    this.view[offset + 1] = velocity & 0x7f;
+    this.view[offset + 1] = (velocity & 0x7f) | (slide ? SLIDE_BIT : 0);
   }
 
   clearStep(pattern: number, index: number): void {
@@ -73,12 +74,24 @@ export class PatternBuffer {
     this.view[offset + 1] = 0;
   }
 
-  getStep(pattern: number, index: number): { note: number; velocity: number } {
+  getStep(pattern: number, index: number): { note: number; velocity: number; slide: boolean } {
     const offset = this.offset(pattern, index);
+    const velByte = this.view[offset + 1];
     return {
       note: this.view[offset],
-      velocity: this.view[offset + 1],
+      velocity: velByte & 0x7f,
+      slide: (velByte & SLIDE_BIT) !== 0,
     };
+  }
+
+  /** Toggles the per-step slide flag without disturbing note or velocity. */
+  setSlide(pattern: number, index: number, slide: boolean): void {
+    const offset = this.offset(pattern, index) + 1;
+    this.view[offset] = (this.view[offset] & 0x7f) | (slide ? SLIDE_BIT : 0);
+  }
+
+  getSlide(pattern: number, index: number): boolean {
+    return (this.view[this.offset(pattern, index) + 1] & SLIDE_BIT) !== 0;
   }
 
   isStepActive(pattern: number, index: number): boolean {

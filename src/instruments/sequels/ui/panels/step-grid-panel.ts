@@ -26,6 +26,7 @@ export const enum StepGridEvent {
 export interface StepData {
   note: number;
   velocity: number;
+  slide: boolean;
 }
 
 @customElement("step-grid-panel")
@@ -49,13 +50,24 @@ export class StepGridPanel extends SynthPanel {
   @property({ type: Number })
   editCursor = -1;
 
+  /** When on, clicking a step paints its slide tie instead of toggling it. */
+  @property({ type: Boolean })
+  slideMode = false;
+
   render() {
     return html`
       <div class="grid-container">
-        <div class="step-grid">
+        <div class=${classMap({ "step-grid": true, "slide-paint": this.slideMode })}>
           ${Array.from({ length: this.steps }, (_, i) => this.renderStep(i))}
         </div>
         <div class="brush-bar">
+          <button
+            class=${classMap({ "note-btn": true, "slide-btn": true, active: this.slideMode })}
+            title="Slide paint: click steps to tie them into the next note (glides on a legato monolog)"
+            @click=${this.toggleSlideMode}
+          >
+            SLIDE
+          </button>
           <div class="brush-group">
             <label class="brush-label">NOTE</label>
             <div class="note-controls">
@@ -82,7 +94,7 @@ export class StepGridPanel extends SynthPanel {
   }
 
   private renderStep(index: number) {
-    const step = this.pattern[index] ?? { note: 0, velocity: 0 };
+    const step = this.pattern[index] ?? { note: 0, velocity: 0, slide: false };
     const active = step.note > 0;
     const isPlayhead = index === this.currentStep;
     const isBeat = index % 4 === 0;
@@ -93,21 +105,46 @@ export class StepGridPanel extends SynthPanel {
         class=${classMap({
           step: true,
           active,
+          slide: active && step.slide,
           playhead: isPlayhead,
           cursor: isCursor,
           beat: isBeat,
         })}
         @click=${() => this.onStepClick(index)}
-        title=${active ? this.noteName(step.note) : ""}
+        title=${active ? `${this.noteName(step.note)}${step.slide ? " (slide)" : ""}` : ""}
       >
         ${active ? html`<span class="step-note">${this.noteName(step.note)}</span>` : nothing}
+        ${active && step.slide ? html`<span class="slide-mark"></span>` : nothing}
       </button>
     `;
   }
 
+  private toggleSlideMode() {
+    this.dispatchEvent(
+      new CustomEvent("slide-mode", {
+        detail: { slideMode: !this.slideMode },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
   private onStepClick(index: number) {
-    const step = this.pattern[index] ?? { note: 0, velocity: 0 };
+    const step = this.pattern[index] ?? { note: 0, velocity: 0, slide: false };
     const active = step.note > 0;
+
+    // Slide paint toggles the tie on active steps and leaves rests untouched.
+    if (this.slideMode) {
+      if (!active) return;
+      this.dispatchEvent(
+        new CustomEvent("step-slide", {
+          detail: { index, slide: !step.slide },
+          bubbles: true,
+          composed: true,
+        })
+      );
+      return;
+    }
 
     if (active && step.note === this.selectedNote) {
       this.dispatchEvent(
@@ -184,6 +221,7 @@ export class StepGridPanel extends SynthPanel {
       }
 
       .step {
+        position: relative;
         aspect-ratio: 1;
         min-width: 20px;
         min-height: 20px;
@@ -196,6 +234,26 @@ export class StepGridPanel extends SynthPanel {
         align-items: center;
         justify-content: center;
         padding: 0;
+      }
+
+      /* Slide paint mode: hint that clicks tie steps rather than toggle them. */
+      .step-grid.slide-paint .step {
+        cursor: crosshair;
+      }
+
+      /* The tie shows as a folded corner in the bottom-right, its diagonal
+         rising toward the next step. Neutral dark shade so it reads on the
+         bright active pad without competing with the accent. */
+      .slide-mark {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 10px;
+        height: 10px;
+        background: var(--darker);
+        clip-path: polygon(100% 0, 100% 100%, 0 100%);
+        border-bottom-right-radius: 3px;
+        pointer-events: none;
       }
 
       .step.beat {
@@ -278,6 +336,18 @@ export class StepGridPanel extends SynthPanel {
 
       .note-btn:hover {
         background: var(--medium);
+      }
+
+      /* Slide paint toggle — reads as armed when active, like the brush it is. */
+      .slide-btn {
+        font-weight: bold;
+        letter-spacing: 0.05em;
+      }
+
+      .slide-btn.active {
+        background: var(--lcd-led-on-color);
+        border-color: var(--lcd-led-on-color);
+        color: var(--darker);
       }
 
       @container (max-width: 320px) {

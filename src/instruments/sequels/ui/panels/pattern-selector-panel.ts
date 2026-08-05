@@ -19,6 +19,7 @@ import { classMap } from "lit/directives/class-map.js";
 import { ChangeDetail } from "../../../../types/events";
 import { BANK_COUNT, BANK_SIZE, SwitchMode } from "../../types";
 import { CONTOUR_NAMES, SCALES } from "../../scales";
+import "../../../../components/common/controls/knob-element";
 
 export const enum PatternEvent {
   SELECT_SLOT = "select-slot",
@@ -29,9 +30,15 @@ export const enum PatternEvent {
   SCALE = "scale",
   CONTOUR = "contour",
   ROTATION = "rotation",
+  VELOCITY_RANDOM = "velocity-random",
 }
 
 const BANK_NAMES = ["A", "B", "C", "D"];
+
+// Display order of the ten slots: 1-9 then 0, matching a keyboard number row.
+// Each button still carries its own slot number (label, index and the number
+// key that selects it), so this only changes on-screen position.
+const SLOT_ORDER = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
 
 @customElement("pattern-selector-panel")
 export class PatternSelectorPanel extends LitElement {
@@ -51,7 +58,7 @@ export class PatternSelectorPanel extends LitElement {
 
   /** Hits to distribute across the pattern when generating. */
   @property({ type: Number })
-  pulses = 4;
+  pulses = 7;
 
   /** Length of the selected pattern — the ceiling for pulses. */
   @property({ type: Number })
@@ -67,6 +74,10 @@ export class PatternSelectorPanel extends LitElement {
   @property({ type: Number })
   rotation = 0;
 
+  /** Velocity humanize amount (0-100%): symmetric jitter added when generating. */
+  @property({ type: Number })
+  velocityRandom = 20;
+
   render() {
     return html`
       <div class="selector">
@@ -75,7 +86,7 @@ export class PatternSelectorPanel extends LitElement {
           ${Array.from({ length: BANK_COUNT }, (_, i) => this.renderBank(i))}
         </div>
         <div class="panel slot-panel">
-          ${Array.from({ length: BANK_SIZE }, (_, i) => this.renderSlot(i))}
+          ${SLOT_ORDER.map((slot) => this.renderSlot(slot))}
         </div>
         <div class="panel mode-panel">
           <button
@@ -108,6 +119,17 @@ export class PatternSelectorPanel extends LitElement {
           <div class="gen-row">
             ${this.stepper("SCALE", SCALES[this.scale].name, PatternEvent.SCALE, this.scale - 1, this.scale + 1)}
             ${this.stepper("SHAPE", CONTOUR_NAMES[this.contour], PatternEvent.CONTOUR, this.contour - 1, this.contour + 1)}
+            <div class="humanize">
+              <knob-element
+                .value=${this.velocityRandom}
+                .range=${{ min: 0, max: 100 }}
+                .step=${1}
+                .label=${"HUMAN"}
+                label-position="left"
+                title="Velocity humanize: spread applied to each hit's velocity when generating"
+                @change=${(e: CustomEvent) => this.emit(PatternEvent.VELOCITY_RANDOM, e.detail.value)}
+              ></knob-element>
+            </div>
           </div>
         </div>
       </div>
@@ -207,6 +229,15 @@ export class PatternSelectorPanel extends LitElement {
       gap: 0.3em;
     }
 
+    /* Humanize is the one continuous amount in this row of discrete selectors,
+       so it gets a knob (like GATE/SWING) rather than a stepper. */
+    .humanize {
+      display: flex;
+      align-items: center;
+      --knob-size: 26px;
+      --control-label-font-size: 0.65em;
+    }
+
     .gen-btn {
       min-width: 2.6em;
     }
@@ -255,8 +286,14 @@ export class PatternSelectorPanel extends LitElement {
       justify-content: center;
       gap: 0.3em;
       padding: 0.5em 0.6em;
-      background: var(--sequencer-panel-color);
+      background: var(--seq-pattern-panel-color, var(--sequencer-panel-color));
       border-radius: 0.4rem;
+    }
+
+    /* The generator is its own function, so it carries the teal zone tint;
+       compound selector so it wins over .panel whatever the rule order. */
+    .panel.euclid-panel {
+      background: var(--seq-generate-panel-color, var(--sequencer-panel-color));
     }
 
     .slot-panel {

@@ -338,8 +338,14 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     this.dispatchEvent(new CustomEvent("pattern-change", { detail: { index } }));
   }
 
-  setStep(index: number, note: number, velocity: number): void {
-    this.node?.pattern.setStep(this.selectedPattern, index, note, velocity);
+  setStep(index: number, note: number, velocity: number, slide = false): void {
+    this.node?.pattern.setStep(this.selectedPattern, index, note, velocity, slide);
+    this.scheduleAutosave();
+  }
+
+  /** Toggles the 303-style slide tie on a step, keeping its note and velocity. */
+  setSlide(index: number, slide: boolean): void {
+    this.node?.pattern.setSlide(this.selectedPattern, index, slide);
     this.scheduleAutosave();
   }
 
@@ -361,15 +367,15 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     return true;
   }
 
-  getStep(index: number): { note: number; velocity: number } {
-    return this.node?.pattern.getStep(this.selectedPattern, index) ?? { note: 0, velocity: 0 };
+  getStep(index: number): { note: number; velocity: number; slide: boolean } {
+    return this.node?.pattern.getStep(this.selectedPattern, index) ?? { note: 0, velocity: 0, slide: false };
   }
 
   /** Snapshot of a whole pattern, for the UI to mirror. */
-  readPattern(index = this.selectedPattern): { note: number; velocity: number }[] {
+  readPattern(index = this.selectedPattern): { note: number; velocity: number; slide: boolean }[] {
     const out = [];
     for (let i = 0; i < MAX_STEPS; i++) {
-      out.push(this.node?.pattern.getStep(index, i) ?? { note: 0, velocity: 0 });
+      out.push(this.node?.pattern.getStep(index, i) ?? { note: 0, velocity: 0, slide: false });
     }
     return out;
   }
@@ -412,6 +418,7 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     root: number,
     velocity: number,
     rotation = 0,
+    velocityRandom = 0,
     index = this.selectedPattern
   ): void {
     if (!this.node) return;
@@ -423,12 +430,19 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
 
     this.node.pattern.clear(index);
 
+    // Velocity humanize: symmetric jitter of up to ±63 at 100%, around the
+    // brush velocity, so some steps land harder (triggering monolog's accent).
+    const spread = (Math.max(0, Math.min(100, velocityRandom)) / 100) * 63;
+
     let hit = 0;
     for (let i = 0; i < length; i++) {
       if (!hits[i]) continue;
       const degree = contourDegree(this._contour, hit, total, scale.intervals.length);
       const note = foldIntoRange(degreeToNote(root, scale, degree));
-      this.node.pattern.setStep(index, i, note, velocity);
+      const v = spread > 0
+        ? Math.max(1, Math.min(127, Math.round(velocity + (Math.random() * 2 - 1) * spread)))
+        : velocity;
+      this.node.pattern.setStep(index, i, note, v);
       hit++;
     }
 

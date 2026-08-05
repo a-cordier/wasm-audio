@@ -110,14 +110,24 @@ export class SequencerElement extends LitElement {
   @state()
   private editCursor = -1;
 
+  /** Slide-paint arm state for the step grid. */
+  @state()
+  private slideMode = false;
+
   @state()
   private transpose = DEFAULT_CONFIG.transpose;
 
+  // 7/16 by default: a dense Euclidean ratio that yields a musical pattern the
+  // moment you hit GEN, rather than a sparse four-on-the-floor.
   @state()
-  private pulses = 4;
+  private pulses = 7;
 
   @state()
   private rotation = 0;
+
+  // A touch of velocity humanize on by default so generated lines breathe.
+  @state()
+  private velocityRandom = 20;
 
   @state()
   private metronome = DEFAULT_CONFIG.metronome;
@@ -164,7 +174,7 @@ export class SequencerElement extends LitElement {
   private onRecorded = (e: Event) => {
     const { index, note, velocity } = (e as CustomEvent).detail;
     const next = [...this.pattern];
-    next[index] = { note, velocity };
+    next[index] = { note, velocity, slide: false };
     this.pattern = next;
     // Mirror what was captured into the brush so the next manual step matches.
     this.selectedNote = note;
@@ -355,6 +365,7 @@ export class SequencerElement extends LitElement {
             .scale=${this.scale}
             .contour=${this.contour}
             .rotation=${this.rotation}
+            .velocityRandom=${this.velocityRandom}
             @change=${this.onPatternSelectorChange}
           ></pattern-selector-panel>
         </row-element>
@@ -399,7 +410,10 @@ export class SequencerElement extends LitElement {
             .selectedNote=${this.selectedNote}
             .selectedVelocity=${this.selectedVelocity}
             .editCursor=${this.editCursor}
+            .slideMode=${this.slideMode}
             @step-toggle=${this.onStepToggle}
+            @step-slide=${this.onStepSlide}
+            @slide-mode=${this.onSlideMode}
             @note-select=${this.onNoteSelect}
             @velocity-select=${this.onVelocitySelect}
           ></step-grid-panel>
@@ -474,7 +488,7 @@ export class SequencerElement extends LitElement {
         this.pulses = Math.max(0, Math.min(this.steps, value as number));
         break;
       case PatternEvent.GENERATE:
-        this.sequencer.generateEuclidean(this.pulses, this.selectedNote, this.selectedVelocity, this.rotation);
+        this.sequencer.generateEuclidean(this.pulses, this.selectedNote, this.selectedVelocity, this.rotation, this.velocityRandom);
         this.syncPattern();
         break;
       case PatternEvent.SCALE:
@@ -487,6 +501,9 @@ export class SequencerElement extends LitElement {
         break;
       case PatternEvent.ROTATION:
         this.rotation = value as number;
+        break;
+      case PatternEvent.VELOCITY_RANDOM:
+        this.velocityRandom = Math.max(0, Math.min(100, value as number));
         break;
     }
   }
@@ -511,13 +528,26 @@ export class SequencerElement extends LitElement {
     const newPattern = [...this.pattern];
     if (action === "off") {
       this.sequencer.clearStep(index);
-      newPattern[index] = { note: 0, velocity: 0 };
+      newPattern[index] = { note: 0, velocity: 0, slide: false };
     } else {
       this.sequencer.setStep(index, note, velocity);
-      newPattern[index] = { note, velocity };
+      newPattern[index] = { note, velocity, slide: false };
     }
     this.pattern = newPattern;
     this.refreshFilled();
+  }
+
+  private onStepSlide(e: CustomEvent) {
+    const { index, slide } = e.detail;
+    this.sequencer.setSlide(index, slide);
+    const newPattern = [...this.pattern];
+    const step = newPattern[index];
+    if (step) newPattern[index] = { ...step, slide };
+    this.pattern = newPattern;
+  }
+
+  private onSlideMode(e: CustomEvent) {
+    this.slideMode = e.detail.slideMode === true;
   }
 
   private onNoteSelect(e: CustomEvent) {
@@ -552,7 +582,7 @@ export class SequencerElement extends LitElement {
         display: flex;
         flex-direction: column;
         gap: 0.5em;
-        background: var(--sequencer-panel-color);
+        background: var(--seq-steps-panel-color, var(--sequencer-panel-color));
         border-radius: 0.4rem;
         padding: 0.8em 1em;
       }
@@ -610,5 +640,5 @@ export class SequencerElement extends LitElement {
 }
 
 function emptyPattern(): StepData[] {
-  return Array.from({ length: MAX_STEPS }, () => ({ note: 0, velocity: 0 }));
+  return Array.from({ length: MAX_STEPS }, () => ({ note: 0, velocity: 0, slide: false }));
 }

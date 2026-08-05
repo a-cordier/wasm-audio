@@ -284,7 +284,7 @@ export class SequencerToolbar extends LitElement {
       justify-content: center;
       gap: 0.35em;
       padding: 0.5em 0.45em;
-      background: var(--sequencer-panel-color);
+      background: var(--seq-transport-panel-color, var(--sequencer-panel-color));
       border-radius: 0.4rem;
     }
 

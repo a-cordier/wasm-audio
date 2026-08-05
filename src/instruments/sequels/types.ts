@@ -80,7 +80,12 @@ export interface SequencerConfig {
 }
 
 export const MAX_STEPS = 64;
-export const STEP_SLOT_SIZE = 2; // note + velocity
+// Two bytes per step: note, then velocity. Velocity only needs 7 bits (0-127),
+// so the free high bit (0x80) of the velocity byte carries the per-step slide
+// flag — a 303-style tie that glides into the next note without resizing the
+// buffer or breaking older saved patterns (their slide bit is simply 0).
+export const STEP_SLOT_SIZE = 2;
+export const SLIDE_BIT = 0x80;
 
 export const BANK_COUNT = 4;
 export const BANK_SIZE = 10; // one per digit key
@@ -117,6 +122,8 @@ export interface SerializedStep {
   index: number;
   note: number;
   velocity: number;
+  /** 303-style tie: this step glides into the next active note. */
+  slide?: boolean;
 }
 
 export interface SerializedPattern {

@@ -61,6 +61,7 @@ const NOTE_OFF = 0x08;
 // Pattern buffer layout (mirrors types.ts)
 const MAX_STEPS = 64;
 const STEP_SLOT_SIZE = 2;
+const SLIDE_BIT = 0x80; // high bit of the velocity byte = 303-style slide tie
 const PATTERN_COUNT = 40;
 const PATTERN_BYTES = MAX_STEPS * STEP_SLOT_SIZE; // 128
 const LENGTHS_OFFSET = PATTERN_COUNT * PATTERN_BYTES; // 5120
@@ -111,6 +112,11 @@ class SeqProcessor extends AudioWorkletProcessor {
     // Pending note-offs: array of { note, offSample }
     this._pendingOffs = [];
 
+    // The note a slide step is holding open, deferred past the next note-on so
+    // the two overlap and a legato monolog glides instead of retriggering.
+    // -1 when no slide is tied through.
+    this._slideNote = -1;
+
     // SAB views (set via __init_sab)
     this._configView = null;
     this._patternView = null;
@@ -146,6 +152,7 @@ class SeqProcessor extends AudioWorkletProcessor {
         this._lastReportedStep = -1;
         this._pingPongForward = true;
         this._pendingOffs = [];
+        this._slideNote = -1;
         this._stepOrigin = 0;
         this._lastRawStep = -1;
         this._pendingPattern = -1;
@@ -277,20 +284,38 @@ class SeqProcessor extends AudioWorkletProcessor {
 
         this._currentStep = logicalStep;
 
-        // Read the active pattern at this step
+        // Read the active pattern at this step. The velocity byte packs the
+        // slide flag in its high bit.
         const offset = this._activePattern * PATTERN_BYTES + logicalStep * STEP_SLOT_SIZE;
         const note = this._patternView[offset];
-        const velocity = this._patternView[offset + 1];
+        const velByte = this._patternView[offset + 1];
+        const velocity = velByte & 0x7f;
+        const slide = (velByte & SLIDE_BIT) !== 0;
 
         // Transpose is applied on the way out; the pattern itself is untouched,
         // and pendingOffs tracks the note actually sent so changing transpose
         // mid-gate can never strand a note-off.
         const played = note + transpose;
+        const heldSlide = this._slideNote;
 
         if (note > 0 && velocity > 0 && played > 0 && played < 128) {
+          // Fire the new note ON first. If the previous step slid, its note is
+          // still held, so this overlap makes a legato monolog glide across.
           this._enqueueNoteOn(played, velocity, channel);
-          const gateLength = Math.round(samplesPerStep * gate);
-          this._pendingOffs.push({ note: played, offSample: absoluteSample + gateLength });
+          if (heldSlide >= 0) this._enqueueNoteOff(heldSlide, channel);
+
+          if (slide) {
+            // Tie: hold this note open (no gated off) until the next note-on.
+            this._slideNote = played;
+          } else {
+            this._slideNote = -1;
+            const gateLength = Math.round(samplesPerStep * gate);
+            this._pendingOffs.push({ note: played, offSample: absoluteSample + gateLength });
+          }
+        } else if (heldSlide >= 0) {
+          // Sliding into a rest just releases the held note at the step edge.
+          this._enqueueNoteOff(heldSlide, channel);
+          this._slideNote = -1;
         }
 
         // Report position to main thread
@@ -418,6 +443,12 @@ class SeqProcessor extends AudioWorkletProcessor {
       this._enqueueNoteOff(pending.note, channel);
     }
     this._pendingOffs = [];
+    // A slide note is held outside pendingOffs, so release it explicitly or it
+    // stays stuck when the transport stops mid-tie.
+    if (this._slideNote >= 0) {
+      this._enqueueNoteOff(this._slideNote, channel);
+      this._slideNote = -1;
+    }
   }
 }
 
