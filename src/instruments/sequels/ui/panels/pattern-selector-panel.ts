@@ -31,6 +31,7 @@ export const enum PatternEvent {
   CONTOUR = "contour",
   ROTATION = "rotation",
   VELOCITY_RANDOM = "velocity-random",
+  SLIDE_RANDOM = "slide-random",
 }
 
 const BANK_NAMES = ["A", "B", "C", "D"];
@@ -78,6 +79,10 @@ export class PatternSelectorPanel extends LitElement {
   @property({ type: Number })
   velocityRandom = 20;
 
+  /** Slide randomizer (0-100%): chance each generated hit gets a 303 tie. */
+  @property({ type: Number })
+  slideRandom = 0;
+
   render() {
     return html`
       <div class="selector">
@@ -119,7 +124,9 @@ export class PatternSelectorPanel extends LitElement {
           <div class="gen-row">
             ${this.stepper("SCALE", SCALES[this.scale].name, PatternEvent.SCALE, this.scale - 1, this.scale + 1)}
             ${this.stepper("SHAPE", CONTOUR_NAMES[this.contour], PatternEvent.CONTOUR, this.contour - 1, this.contour + 1)}
-            <div class="humanize">
+          </div>
+          <div class="gen-row">
+            <div class="gen-knob">
               <knob-element
                 .value=${this.velocityRandom}
                 .range=${{ min: 0, max: 100 }}
@@ -128,6 +135,17 @@ export class PatternSelectorPanel extends LitElement {
                 label-position="left"
                 title="Velocity humanize: spread applied to each hit's velocity when generating"
                 @change=${(e: CustomEvent) => this.emit(PatternEvent.VELOCITY_RANDOM, e.detail.value)}
+              ></knob-element>
+            </div>
+            <div class="gen-knob">
+              <knob-element
+                .value=${this.slideRandom}
+                .range=${{ min: 0, max: 100 }}
+                .step=${1}
+                .label=${"SLIDE"}
+                label-position="left"
+                title="Slide randomizer: chance each generated hit gets a 303-style tie (glides on a legato monolog)"
+                @change=${(e: CustomEvent) => this.emit(PatternEvent.SLIDE_RANDOM, e.detail.value)}
               ></knob-element>
             </div>
           </div>
@@ -229,9 +247,10 @@ export class PatternSelectorPanel extends LitElement {
       gap: 0.3em;
     }
 
-    /* Humanize is the one continuous amount in this row of discrete selectors,
-       so it gets a knob (like GATE/SWING) rather than a stepper. */
-    .humanize {
+    /* The generator's two continuous amounts (velocity humanize, slide chance)
+       get knobs like GATE/SWING rather than steppers, grouped on their own row
+       under the discrete SCALE/SHAPE selectors. */
+    .gen-knob {
       display: flex;
       align-items: center;
       --knob-size: 26px;

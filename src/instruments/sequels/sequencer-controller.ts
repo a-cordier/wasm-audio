@@ -419,6 +419,7 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     velocity: number,
     rotation = 0,
     velocityRandom = 0,
+    slideRandom = 0,
     index = this.selectedPattern
   ): void {
     if (!this.node) return;
@@ -433,6 +434,8 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     // Velocity humanize: symmetric jitter of up to ±63 at 100%, around the
     // brush velocity, so some steps land harder (triggering monolog's accent).
     const spread = (Math.max(0, Math.min(100, velocityRandom)) / 100) * 63;
+    // Slide randomizer: each hit gets a 303-style tie with this probability.
+    const slideChance = Math.max(0, Math.min(100, slideRandom));
 
     let hit = 0;
     for (let i = 0; i < length; i++) {
@@ -442,7 +445,8 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
       const v = spread > 0
         ? Math.max(1, Math.min(127, Math.round(velocity + (Math.random() * 2 - 1) * spread)))
         : velocity;
-      this.node.pattern.setStep(index, i, note, v);
+      const slide = slideChance > 0 && Math.random() * 100 < slideChance;
+      this.node.pattern.setStep(index, i, note, v, slide);
       hit++;
     }
 

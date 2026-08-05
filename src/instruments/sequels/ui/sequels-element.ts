@@ -129,6 +129,11 @@ export class SequencerElement extends LitElement {
   @state()
   private velocityRandom = 20;
 
+  // Slide randomizer stays off by default: ties are dramatic and want a
+  // legato monolog to actually glide, so it's opt-in.
+  @state()
+  private slideRandom = 0;
+
   @state()
   private metronome = DEFAULT_CONFIG.metronome;
 
@@ -366,6 +371,7 @@ export class SequencerElement extends LitElement {
             .contour=${this.contour}
             .rotation=${this.rotation}
             .velocityRandom=${this.velocityRandom}
+            .slideRandom=${this.slideRandom}
             @change=${this.onPatternSelectorChange}
           ></pattern-selector-panel>
         </row-element>
@@ -488,7 +494,7 @@ export class SequencerElement extends LitElement {
         this.pulses = Math.max(0, Math.min(this.steps, value as number));
         break;
       case PatternEvent.GENERATE:
-        this.sequencer.generateEuclidean(this.pulses, this.selectedNote, this.selectedVelocity, this.rotation, this.velocityRandom);
+        this.sequencer.generateEuclidean(this.pulses, this.selectedNote, this.selectedVelocity, this.rotation, this.velocityRandom, this.slideRandom);
         this.syncPattern();
         break;
       case PatternEvent.SCALE:
@@ -504,6 +510,9 @@ export class SequencerElement extends LitElement {
         break;
       case PatternEvent.VELOCITY_RANDOM:
         this.velocityRandom = Math.max(0, Math.min(100, value as number));
+        break;
+      case PatternEvent.SLIDE_RANDOM:
+        this.slideRandom = Math.max(0, Math.min(100, value as number));
         break;
     }
   }
@@ -524,14 +533,15 @@ export class SequencerElement extends LitElement {
   }
 
   private onStepToggle(e: CustomEvent) {
-    const { index, note, velocity, action } = e.detail;
+    const { index, note, velocity, action, slide } = e.detail;
+    const withSlide = slide === true;
     const newPattern = [...this.pattern];
     if (action === "off") {
       this.sequencer.clearStep(index);
       newPattern[index] = { note: 0, velocity: 0, slide: false };
     } else {
-      this.sequencer.setStep(index, note, velocity);
-      newPattern[index] = { note, velocity, slide: false };
+      this.sequencer.setStep(index, note, velocity, withSlide);
+      newPattern[index] = { note, velocity, slide: withSlide };
     }
     this.pattern = newPattern;
     this.refreshFilled();

@@ -63,7 +63,7 @@ export class StepGridPanel extends SynthPanel {
         <div class="brush-bar">
           <button
             class=${classMap({ "note-btn": true, "slide-btn": true, active: this.slideMode })}
-            title="Slide paint: click steps to tie them into the next note (glides on a legato monolog)"
+            title="Slide brush: empty steps get a note that slides; existing steps toggle the tie (glides on a legato monolog)"
             @click=${this.toggleSlideMode}
           >
             SLIDE
@@ -133,16 +133,27 @@ export class StepGridPanel extends SynthPanel {
     const step = this.pattern[index] ?? { note: 0, velocity: 0, slide: false };
     const active = step.note > 0;
 
-    // Slide paint toggles the tie on active steps and leaves rests untouched.
+    // Slide is a brush modifier, not a separate mode: on an empty step it lays
+    // a note that already slides (paint a sliding note on the fly); on an
+    // existing step it toggles the tie, leaving the pitch alone.
     if (this.slideMode) {
-      if (!active) return;
-      this.dispatchEvent(
-        new CustomEvent("step-slide", {
-          detail: { index, slide: !step.slide },
-          bubbles: true,
-          composed: true,
-        })
-      );
+      if (active) {
+        this.dispatchEvent(
+          new CustomEvent("step-slide", {
+            detail: { index, slide: !step.slide },
+            bubbles: true,
+            composed: true,
+          })
+        );
+      } else {
+        this.dispatchEvent(
+          new CustomEvent("step-toggle", {
+            detail: { index, note: this.selectedNote, velocity: this.selectedVelocity, action: "on", slide: true },
+            bubbles: true,
+            composed: true,
+          })
+        );
+      }
       return;
     }
 
