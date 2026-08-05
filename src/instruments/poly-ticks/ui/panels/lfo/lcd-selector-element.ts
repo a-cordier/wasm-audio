@@ -93,14 +93,18 @@ export class LCDSelector extends LitElement {
         justify-content: space-between;
         margin: 0.5rem auto 0.5rem auto;
 
-        width: 80%;
+        width: 92%;
       }
 
       button {
+        width: 16px;
+        height: 16px;
+        box-sizing: border-box;
         font-size: var(--button-font-size, 0.5em);
 
         background-color: var(--button-disposed-background-color);
-        border: var(--button-border);
+        border: 1px solid var(--button-border-color, gray);
+        border-radius: 3px;
         box-shadow: var(--box-shadow);
         transition: all 0.1s ease-in-out;
 

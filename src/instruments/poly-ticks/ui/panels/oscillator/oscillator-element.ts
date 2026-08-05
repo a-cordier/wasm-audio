@@ -92,6 +92,11 @@ export class Oscillator extends SynthPanel {
     return css`
       :host {
         --panel-wrapper-background-color: var(--oscillator-panel-color);
+        /* Wave buttons sized per panel width so every rounded-button group
+           lands on ~the same inter-button gap (Filter keeps the 25px baseline;
+           this wide panel grows, the narrow LFO panel shrinks). */
+        --button-width: 30px;
+        --button-height: 30px;
         container-type: inline-size;
       }
 

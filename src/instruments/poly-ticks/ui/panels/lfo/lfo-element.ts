@@ -92,6 +92,10 @@ export class Lfo extends SynthPanel {
     return css`
       :host {
         --panel-wrapper-background-color: var(--lfo-panel-color);
+        /* Narrow panel: shrink the wave buttons so their gap matches the wider
+           panels' rounded-button groups instead of nearly touching. */
+        --button-width: 19px;
+        --button-height: 19px;
         container-type: inline-size;
       }
 
@@ -102,7 +106,9 @@ export class Lfo extends SynthPanel {
       }
 
       .destination-control {
-        margin: 10px auto;
+        /* More gap above the LCD, borrowed from below it (bottom margin +
+           the knob row's top margin) so the cluster height stays put. */
+        margin: 10px auto 2px auto;
         max-width: 100%;
         overflow: hidden;
       }
@@ -111,7 +117,7 @@ export class Lfo extends SynthPanel {
         display: flex;
         justify-content: space-around;
         width: 100%;
-        margin-top: 1em;
+        margin-top: 0.15em;
       }
 
       .modulation-control {
