@@ -46,7 +46,7 @@ export const darkTheme = `
     --lcd-led-off-color: rgba(180, 212, 85, 0.08);
     --lcd-led-border-radius: 20%;
     --lcd-screen-border-color: var(--lighter);
-    --lcd-screen-border-radius: 4px;
+    --lcd-screen-border-radius: 0;
     --lcd-screen-background: var(--dark-secondary);
     --lcd-font-size: 10px;
     --lcd-text-color: #b4d455;
@@ -140,7 +140,7 @@ export const retroTheme = `
     --lcd-led-off-color: rgba(255, 99, 71, 0.08);
     --lcd-led-border-radius: 50%;
     --lcd-screen-border-color: var(--lighter);
-    --lcd-screen-border-radius: 4px;
+    --lcd-screen-border-radius: 0;
     --lcd-screen-background: var(--dark-secondary);
     --lcd-font-size: 10px;
     --lcd-text-color: #ff6347;

@@ -53,9 +53,10 @@ export class LCD extends LitElement {
 
         background-color: var(--lcd-screen-background, darkslategray);
         border-color: var(--lcd-screen-border-color);
-        /* Configurable per gear: override --lcd-screen-border-radius (e.g. set
-           it to 0 for a sharp-cornered screen on a future instrument). */
-        border-radius: var(--lcd-screen-border-radius, 4px);
+        /* Square by default. A device opts into rounded corners by setting
+           --lcd-screen-border-radius at its own root (poly-ticks sets 4px);
+           the device-slot chrome and other instruments stay square. */
+        border-radius: var(--lcd-screen-border-radius, 0);
 
         padding: 4px 6px;
       }

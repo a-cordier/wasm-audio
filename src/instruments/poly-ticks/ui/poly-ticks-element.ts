@@ -358,6 +358,7 @@ export class WasmPoly extends LitElement {
         --lcd-led-on-color: var(--poly-accent);
         --lcd-led-off-color: color-mix(in srgb, var(--poly-accent) 10%, transparent);
         --lcd-screen-border-color: #55575b;
+        --lcd-screen-border-radius: 4px;
 
         --button-active-label-color: var(--poly-accent);
         --button-active-border-color: var(--poly-accent);
