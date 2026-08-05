@@ -80,7 +80,10 @@ namespace Monolog {
 
 		float processSample(float frequency, float velocity) {
 
-			float lfoMod = lfoAmount * lfo.nextSample(lfoRate);
+			// LFO with per-note fade-in (delay): lfoFade ramps 0 -> 1 over the
+			// delay time so the modulation blooms in after the note starts.
+			lfoFade = std::min(lfoFade + lfoFadeInc, 1.0f);
+			float lfoMod = lfoAmount * lfoFade * lfo.nextSample(lfoRate);
 			applyLfo(lfoMod, frequency);
 
 			osc.setDutyCycle(pulseWidth);
@@ -146,6 +149,7 @@ namespace Monolog {
 		void noteOn() {
 			ampEnv.enterAttackStage();
 			filterEnv.enterAttackStage();
+			lfoFade = 0.0f;
 			state = VoiceState::STARTED;
 		}
 
@@ -166,7 +170,8 @@ namespace Monolog {
 			diodeFilter.reset();
 			screamerFilter.reset();
 			korgFilter.reset();
-			lfo.reset();
+			// Key sync on = LFO phase retriggers with the note; off = free-running.
+			if (lfoKeySync) lfo.reset();
 			dcBlocker.reset();
 			ampEnv.reset();
 			filterEnv.reset();
@@ -210,12 +215,16 @@ namespace Monolog {
 		void setLfoRate(float v) { lfoRate = lfoFrequencyRange.map(v, midiRange); }
 		void setLfoAmount(float v) { lfoAmount = zeroOneRange.map(v, midiRange); }
 		void setLfoDestination(LfoDestination dest) { lfoDest = dest; }
+		// Delay/fade-in time in seconds; 0 = instant. Sets the per-sample ramp.
+		void setLfoDelay(float sec) { lfoFadeInc = (sec > 0.0001f) ? 1.0f / (sec * sampleRate) : 1.0f; }
+		void setLfoKeySync(bool on) { lfoKeySync = on; }
 
 	private:
 		void startIfNecessary() {
 			if (state == VoiceState::DISPOSED) {
 				ampEnv.enterAttackStage();
 				filterEnv.enterAttackStage();
+				lfoFade = 0.0f;
 				state = VoiceState::STARTED;
 			}
 		}
@@ -286,6 +295,9 @@ namespace Monolog {
 		LfoDestination lfoDest = LfoDestination::CUTOFF;
 		float lfoRate = 1.0f;
 		float lfoAmount = 0.0f;
+		float lfoFade = 1.0f;      // current per-note fade-in level (0..1)
+		float lfoFadeInc = 1.0f;   // fade-in increment per sample (from LFO delay)
+		bool lfoKeySync = true;    // retrigger LFO phase on note-on vs free-run
 	};
 
 } // namespace Monolog

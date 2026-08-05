@@ -27,7 +27,9 @@ export const MonologParamId = Object.freeze({
   DETUNE: 24,
   ACCENT: 25,
   DIRT: 26,
-  PARAM_COUNT: 27,
+  LFO_DELAY: 27,
+  LFO_KEY_SYNC: 28,
+  PARAM_COUNT: 29,
 });
 
 // Must match wasm_audio::Monolog::FilterModel

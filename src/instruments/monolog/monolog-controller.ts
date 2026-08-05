@@ -103,7 +103,7 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
       ControlID.ML_SUB_LEVEL, ControlID.ML_NOISE_LEVEL, ControlID.ML_PW,
       ControlID.ML_AMP_ATTACK, ControlID.ML_AMP_DECAY, ControlID.ML_AMP_SUSTAIN, ControlID.ML_AMP_RELEASE,
       ControlID.ML_FLT_ATTACK, ControlID.ML_FLT_DECAY, ControlID.ML_FLT_AMOUNT, ControlID.ML_FLT_VELOCITY,
-      ControlID.ML_LFO_RATE, ControlID.ML_LFO_AMOUNT,
+      ControlID.ML_LFO_RATE, ControlID.ML_LFO_AMOUNT, ControlID.ML_LFO_DELAY,
       ControlID.ML_GLIDE,
       ControlID.ML_DETUNE, ControlID.ML_ACCENT, ControlID.ML_DIRT,
     ].map((id) => ({ id, name: ControlID[id].replace(/^ML_/, "").replace(/_/g, " ") }));
@@ -256,6 +256,18 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     this.dispatch(MonologEvent.LFO, { ...this.state.lfo });
   }
 
+  setLfoDelay(value: number) {
+    this.state.lfo.delay.value = value;
+    this.sendParam(MonologParamId.LFO_DELAY, value);
+    this.dispatch(MonologEvent.LFO, { ...this.state.lfo });
+  }
+
+  setLfoKeySync(value: number) {
+    this.state.lfo.keySync.value = value;
+    this.sendParam(MonologParamId.LFO_KEY_SYNC, value);
+    this.dispatch(MonologEvent.LFO, { ...this.state.lfo });
+  }
+
   setGlide(value: number) {
     this.state.performance.glide.value = value;
     this.sendParam(MonologParamId.GLIDE_TIME, value);
@@ -328,6 +340,8 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     this.sendParam(MonologParamId.LFO_RATE, s.lfo.rate.value);
     this.sendParam(MonologParamId.LFO_AMOUNT, s.lfo.amount.value);
     this.sendParam(MonologParamId.LFO_DESTINATION, s.lfo.destination.value);
+    this.sendParam(MonologParamId.LFO_DELAY, s.lfo.delay.value);
+    this.sendParam(MonologParamId.LFO_KEY_SYNC, s.lfo.keySync.value);
     this.sendParam(MonologParamId.GLIDE_TIME, s.performance.glide.value);
     this.sendParam(MonologParamId.LEGATO, s.performance.legato.value);
     this.sendParam(MonologParamId.SUB_OCTAVE, s.osc.subOctave.value);
@@ -383,6 +397,8 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
       (v) => { this.state.lfo.rate.value = v; }, () => this.state.lfo);
     reg(ControlID.ML_LFO_AMOUNT, MonologParamId.LFO_AMOUNT, MonologEvent.LFO,
       (v) => { this.state.lfo.amount.value = v; }, () => this.state.lfo);
+    reg(ControlID.ML_LFO_DELAY, MonologParamId.LFO_DELAY, MonologEvent.LFO,
+      (v) => { this.state.lfo.delay.value = v; }, () => this.state.lfo);
 
     reg(ControlID.ML_GLIDE, MonologParamId.GLIDE_TIME, MonologEvent.PERFORMANCE,
       (v) => { this.state.performance.glide.value = v; }, () => this.state.performance);

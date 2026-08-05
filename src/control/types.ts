@@ -72,6 +72,7 @@ export enum ControlID {
   ML_FLT_VELOCITY,
   ML_LFO_RATE,
   ML_LFO_AMOUNT,
+  ML_LFO_DELAY,
   ML_GLIDE,
   ML_SUB_OCTAVE,
   ML_SUB_WAVE,

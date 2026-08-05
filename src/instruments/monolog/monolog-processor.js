@@ -2,7 +2,7 @@ import { createWasmProcessor } from "./wasm-worklet-processor.js";
 import { createMidiDrain } from "./worklet-drain.js";
 import createModule from "./monolog-kernel.wasmmodule.js";
 
-const PARAM_COUNT = 27;
+const PARAM_COUNT = 29;
 
 let paramView = null;
 let midi = null;

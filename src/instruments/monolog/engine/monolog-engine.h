@@ -52,6 +52,8 @@ namespace Monolog {
 		DETUNE,
 		ACCENT,
 		DIRT,
+		LFO_DELAY,
+		LFO_KEY_SYNC,
 		PARAM_COUNT,
 	};
 
@@ -214,6 +216,9 @@ namespace Monolog {
 			voice.setLfoRate(params[pi(ParamId::LFO_RATE)]);
 			voice.setLfoAmount(params[pi(ParamId::LFO_AMOUNT)]);
 			voice.setLfoDestination(static_cast<LfoDestination>(static_cast<uint32_t>(params[pi(ParamId::LFO_DESTINATION)])));
+			// LFO delay 0..2s (per-note fade-in) and key-sync (retrigger vs free-run).
+			voice.setLfoDelay(zeroOneRange.map(params[pi(ParamId::LFO_DELAY)], midiRange) * 2.0f);
+			voice.setLfoKeySync(params[pi(ParamId::LFO_KEY_SYNC)] >= 0.5f);
 		}
 
 		// --- Note stack (last-note priority) ---

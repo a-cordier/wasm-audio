@@ -194,19 +194,34 @@ export class MonologElement extends LitElement {
             .value=${this.filterState.model.value}
             @change=${(e: CustomEvent) => this.controller.setFilterModel(e.detail.value)}
           ></filter-model-selector-element>
-          <div class="knob-row filter-knobs">
-            <control-learn-wrapper class="filter-cutoff" .controlID=${ControlID.ML_CUTOFF}>
-              <knob-element .value=${this.filterState.cutoff.value} .label=${"CUTOFF"}
-                @change=${(e: CustomEvent) => this.controller.setCutoff(e.detail.value)}></knob-element>
-            </control-learn-wrapper>
-            <control-learn-wrapper class="filter-res" .controlID=${ControlID.ML_RESONANCE}>
-              <knob-element .value=${this.filterState.resonance.value} .label=${"RES"}
-                @change=${(e: CustomEvent) => this.controller.setResonance(e.detail.value)}></knob-element>
-            </control-learn-wrapper>
-            <control-learn-wrapper class="filter-drive" .controlID=${ControlID.ML_DRIVE}>
-              <knob-element .value=${this.filterState.drive.value} .label=${"DRIVE"}
-                @change=${(e: CustomEvent) => this.controller.setDrive(e.detail.value)}></knob-element>
-            </control-learn-wrapper>
+          <div class="filter-knobs">
+            <div class="fk">
+              <div class="fk-knob filter-cutoff">
+                <control-learn-wrapper .controlID=${ControlID.ML_CUTOFF}>
+                  <knob-element .value=${this.filterState.cutoff.value}
+                    @change=${(e: CustomEvent) => this.controller.setCutoff(e.detail.value)}></knob-element>
+                </control-learn-wrapper>
+              </div>
+              <label>CUTOFF</label>
+            </div>
+            <div class="fk">
+              <div class="fk-knob filter-res">
+                <control-learn-wrapper .controlID=${ControlID.ML_RESONANCE}>
+                  <knob-element .value=${this.filterState.resonance.value}
+                    @change=${(e: CustomEvent) => this.controller.setResonance(e.detail.value)}></knob-element>
+                </control-learn-wrapper>
+              </div>
+              <label>RES</label>
+            </div>
+            <div class="fk">
+              <div class="fk-knob filter-drive">
+                <control-learn-wrapper .controlID=${ControlID.ML_DRIVE}>
+                  <knob-element .value=${this.filterState.drive.value}
+                    @change=${(e: CustomEvent) => this.controller.setDrive(e.detail.value)}></knob-element>
+                </control-learn-wrapper>
+              </div>
+              <label>DRIVE</label>
+            </div>
           </div>
         </div>
       </panel-wrapper-element>
@@ -243,22 +258,22 @@ export class MonologElement extends LitElement {
     if (!this.filterEnvState) return nothing;
     return html`
       <panel-wrapper-element label="MOD" style="--panel-wrapper-background-color: var(--monolog-env-panel-color)">
-        <div class="knob-row">
+        <div class="fader-row">
           <control-learn-wrapper .controlID=${ControlID.ML_FLT_ATTACK}>
-            <knob-element .value=${this.filterEnvState.attack.value} .label=${"A"}
-              @change=${(e: CustomEvent) => this.controller.setFilterAttack(e.detail.value)}></knob-element>
+            <fader-element .value=${this.filterEnvState.attack.value} .label=${"A"}
+              @change=${(e: CustomEvent) => this.controller.setFilterAttack(e.detail.value)}></fader-element>
           </control-learn-wrapper>
           <control-learn-wrapper .controlID=${ControlID.ML_FLT_DECAY}>
-            <knob-element .value=${this.filterEnvState.decay.value} .label=${"D"}
-              @change=${(e: CustomEvent) => this.controller.setFilterDecay(e.detail.value)}></knob-element>
+            <fader-element .value=${this.filterEnvState.decay.value} .label=${"D"}
+              @change=${(e: CustomEvent) => this.controller.setFilterDecay(e.detail.value)}></fader-element>
           </control-learn-wrapper>
           <control-learn-wrapper .controlID=${ControlID.ML_FLT_AMOUNT}>
-            <knob-element .value=${this.filterEnvState.amount.value} .label=${"AMT"}
-              @change=${(e: CustomEvent) => this.controller.setFilterAmount(e.detail.value)}></knob-element>
+            <fader-element .value=${this.filterEnvState.amount.value} .label=${"AMT"}
+              @change=${(e: CustomEvent) => this.controller.setFilterAmount(e.detail.value)}></fader-element>
           </control-learn-wrapper>
           <control-learn-wrapper .controlID=${ControlID.ML_FLT_VELOCITY}>
-            <knob-element .value=${this.filterEnvState.velocity.value} .label=${"VEL"}
-              @change=${(e: CustomEvent) => this.controller.setFilterVelocity(e.detail.value)}></knob-element>
+            <fader-element .value=${this.filterEnvState.velocity.value} .label=${"VEL"}
+              @change=${(e: CustomEvent) => this.controller.setFilterVelocity(e.detail.value)}></fader-element>
           </control-learn-wrapper>
         </div>
       </panel-wrapper-element>
@@ -268,28 +283,38 @@ export class MonologElement extends LitElement {
   private renderLfoPanel() {
     if (!this.lfoState) return nothing;
     const dest = this.lfoState.destination.value;
+    const keySyncOn = (this.lfoState.keySync.value ?? 127) >= 64;
     return html`
       <panel-wrapper-element label="LFO" style="--panel-wrapper-background-color: var(--monolog-lfo-panel-color)">
-        <div class="knob-row">
-          <div class="toggle-group">
+        <div class="panel-stack lfo-stack">
+          <div class="knob-row">
             <div class="dest-group">
               <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.PITCH })}
-                @click=${() => this.controller.setLfoDestination(MonologLfoDestination.PITCH)}>PIT</button>
+                @click=${() => this.controller.setLfoDestination(MonologLfoDestination.PITCH)}>PITCH</button>
               <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.CUTOFF })}
                 @click=${() => this.controller.setLfoDestination(MonologLfoDestination.CUTOFF)}>CUT</button>
               <button class=${classMap({ "dest-btn": true, active: dest === MonologLfoDestination.PULSE_WIDTH })}
                 @click=${() => this.controller.setLfoDestination(MonologLfoDestination.PULSE_WIDTH)}>PW</button>
             </div>
-            <span class="toggle-label">DEST</span>
+            <button
+              class=${classMap({ "toggle-btn": true, active: keySyncOn })}
+              @click=${() => this.controller.setLfoKeySync(keySyncOn ? 0 : 127)}
+            >${keySyncOn ? "SYNC" : "FREE"}</button>
           </div>
-          <control-learn-wrapper .controlID=${ControlID.ML_LFO_RATE}>
-            <knob-element .value=${this.lfoState.rate.value} .label=${"RATE"}
-              @change=${(e: CustomEvent) => this.controller.setLfoRate(e.detail.value)}></knob-element>
-          </control-learn-wrapper>
-          <control-learn-wrapper .controlID=${ControlID.ML_LFO_AMOUNT}>
-            <knob-element .value=${this.lfoState.amount.value} .label=${"AMT"}
-              @change=${(e: CustomEvent) => this.controller.setLfoAmount(e.detail.value)}></knob-element>
-          </control-learn-wrapper>
+          <div class="knob-row">
+            <control-learn-wrapper .controlID=${ControlID.ML_LFO_RATE}>
+              <knob-element .value=${this.lfoState.rate.value} .label=${"RATE"}
+                @change=${(e: CustomEvent) => this.controller.setLfoRate(e.detail.value)}></knob-element>
+            </control-learn-wrapper>
+            <control-learn-wrapper .controlID=${ControlID.ML_LFO_AMOUNT}>
+              <knob-element .value=${this.lfoState.amount.value} .label=${"AMT"}
+                @change=${(e: CustomEvent) => this.controller.setLfoAmount(e.detail.value)}></knob-element>
+            </control-learn-wrapper>
+            <control-learn-wrapper .controlID=${ControlID.ML_LFO_DELAY}>
+              <knob-element .value=${this.lfoState.delay.value} .label=${"DELAY"}
+                @change=${(e: CustomEvent) => this.controller.setLfoDelay(e.detail.value)}></knob-element>
+            </control-learn-wrapper>
+          </div>
         </div>
       </panel-wrapper-element>
     `;
@@ -313,12 +338,11 @@ export class MonologElement extends LitElement {
             <knob-element .value=${this.perfState.dirt.value} .label=${"DIRT"}
               @change=${(e: CustomEvent) => this.controller.setDirt(e.detail.value)}></knob-element>
           </control-learn-wrapper>
-          <div class="toggle-group">
+          <div class="toggle-group leg-group">
             <button
               class=${classMap({ "toggle-btn": true, active: legatoActive })}
               @click=${() => this.controller.setLegato(legatoActive ? 0 : 127)}
             >LEG</button>
-            <span class="toggle-label">LEGATO</span>
           </div>
         </div>
       </panel-wrapper-element>
@@ -377,9 +401,47 @@ export class MonologElement extends LitElement {
         width: 100%;
       }
 
-      /* Asymmetric filter knobs: cutoff is the star, the other two descend, so
-         the trio reads as a graded row spanning the panel (bottom-aligned via
-         the .knob-row's align-items: flex-end). */
+      /* Asymmetric filter knobs (poly-ticks style): the three differ in size,
+         but every knob is vertically centred on a shared line while the labels
+         sit on one baseline below — each knob is centred in a flexible band
+         above a fixed label row, and the row stretches all bands to equal
+         height. */
+      /* Space between the panel title and the type buttons. */
+      .panel-stack > filter-model-selector-element {
+        margin-top: 0.7em;
+      }
+
+      .filter-knobs {
+        display: flex;
+        justify-content: space-evenly;
+        align-items: stretch;
+        width: 100%;
+      }
+
+      .fk {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* Band height = the largest knob, so knobs centre on one line and labels
+         sit just below (a compact knob-to-label gap) rather than the band
+         stretching to fill the panel. */
+      .fk-knob {
+        height: 46px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .fk label {
+        display: block;
+        color: var(--control-label-color);
+        font-size: var(--control-label-font-size);
+        text-align: center;
+        margin-top: 0.2em;
+      }
+
       .filter-cutoff { --knob-size: 46px; }
       .filter-res { --knob-size: 34px; }
       .filter-drive { --knob-size: 28px; }
@@ -400,6 +462,17 @@ export class MonologElement extends LitElement {
         flex-direction: column;
         align-items: center;
         gap: 0.4em;
+      }
+
+      /* LEGATO has no label of its own: make the LEG button span the full cell
+         height (knob + label) so it reads as a deliberate switch filling its
+         column rather than a small floating button. */
+      .leg-group {
+        align-self: stretch;
+      }
+
+      .leg-group .toggle-btn {
+        height: 100%;
       }
 
       .toggle-label {
@@ -473,6 +546,18 @@ export class MonologElement extends LitElement {
         background: #2a2a2a;
         color: var(--monolog-accent, #F5DF4D);
         border-color: var(--monolog-accent, #F5DF4D);
+      }
+
+      /* LFO: label-less buttons, sized up a touch, with roomier knobs using the
+         space freed by dropping the button labels. */
+      .lfo-stack {
+        --knob-size: 32px;
+      }
+
+      .lfo-stack .dest-btn,
+      .lfo-stack .toggle-btn {
+        height: 24px;
+        font-size: 0.6em;
       }
 
       .keyboard {

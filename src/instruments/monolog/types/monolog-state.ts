@@ -31,6 +31,8 @@ export interface MonologState {
     rate: { value: number };
     amount: { value: number };
     destination: { value: number };
+    delay: { value: number };
+    keySync: { value: number };
   };
   performance: {
     glide: { value: number };
@@ -74,6 +76,8 @@ export function createMonologState(partial?: Partial<any>): MonologState {
       rate: { value: 15 },
       amount: { value: 0 },
       destination: { value: 1 },
+      delay: { value: 0 },
+      keySync: { value: 127 },
     },
     performance: {
       glide: { value: 15 },
