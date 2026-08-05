@@ -46,6 +46,7 @@ export const darkTheme = `
     --lcd-led-off-color: rgba(180, 212, 85, 0.08);
     --lcd-led-border-radius: 20%;
     --lcd-screen-border-color: var(--lighter);
+    --lcd-screen-border-radius: 4px;
     --lcd-screen-background: var(--dark-secondary);
     --lcd-font-size: 10px;
     --lcd-text-color: #b4d455;
@@ -54,14 +55,18 @@ export const darkTheme = `
     --main-panel-label-font-family: "Bungee Outline", cursive;
     --main-panel-label-color: var(--lighter);
 
-    --oscillator-panel-color: #145a6a;
+    /* Poly-ticks: neutral charcoal panels with a faint per-section tint,
+       unified by --poly-accent (cyan). Kept subtle so sections stay
+       color-coded without the old vivid saturation. */
+    --poly-accent: #2cc5c0;
+    --oscillator-panel-color: #2b322f;
     --oscillator-mix-panel-color: var(--oscillator-panel-color);
     --envelope-panel-color: var(--oscillator-panel-color);
-    --filter-panel-color: #ac8f1d;
+    --filter-panel-color: #33322a;
     --filter-mod-panel-color: var(--filter-panel-color);
-    --lfo-panel-color: #9a1a40;
-    --voice-config-panel-color: #4a2d7a;
-    --space-panel-color: #3f434a;
+    --lfo-panel-color: #342b2f;
+    --voice-config-panel-color: #2f2c37;
+    --space-panel-color: #2e3133;
     --sequencer-panel-color: #3a3d42;
 
     --monolog-panel-color: #1a1a1a;
@@ -135,6 +140,7 @@ export const retroTheme = `
     --lcd-led-off-color: rgba(255, 99, 71, 0.08);
     --lcd-led-border-radius: 50%;
     --lcd-screen-border-color: var(--lighter);
+    --lcd-screen-border-radius: 4px;
     --lcd-screen-background: var(--dark-secondary);
     --lcd-font-size: 10px;
     --lcd-text-color: #ff6347;
@@ -143,14 +149,17 @@ export const retroTheme = `
     --main-panel-label-font-family: "Bungee Outline", cursive;
     --main-panel-label-color: var(--lighter);
 
-    --oscillator-panel-color: #8b4513;
+    /* Poly-ticks: same neutral-with-tint treatment as the dark theme, kept
+       warm here to match the retro palette; accent stays the retro tomato. */
+    --poly-accent: #ff6347;
+    --oscillator-panel-color: #2f251b;
     --oscillator-mix-panel-color: var(--oscillator-panel-color);
     --envelope-panel-color: var(--oscillator-panel-color);
-    --filter-panel-color: #b8860b;
+    --filter-panel-color: #322a1c;
     --filter-mod-panel-color: var(--filter-panel-color);
-    --lfo-panel-color: #800020;
-    --voice-config-panel-color: #4a2a5e;
-    --space-panel-color: #4a443d;
+    --lfo-panel-color: #30231f;
+    --voice-config-panel-color: #2c2427;
+    --space-panel-color: #2d2823;
     --sequencer-panel-color: #4a4540;
 
     --monolog-panel-color: #1a1a1a;

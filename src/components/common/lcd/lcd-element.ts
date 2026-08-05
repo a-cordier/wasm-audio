@@ -34,6 +34,9 @@ export class LCD extends LitElement {
       :host {
         display: block;
         height: 100%;
+        /* Never exceed the host container: keeps the screen (and its side
+           borders) inside clipping ancestors instead of being cropped away. */
+        max-width: 100%;
       }
 
       .lcd {
@@ -50,6 +53,9 @@ export class LCD extends LitElement {
 
         background-color: var(--lcd-screen-background, darkslategray);
         border-color: var(--lcd-screen-border-color);
+        /* Configurable per gear: override --lcd-screen-border-radius (e.g. set
+           it to 0 for a sharp-cornered screen on a future instrument). */
+        border-radius: var(--lcd-screen-border-radius, 4px);
 
         padding: 4px 6px;
       }

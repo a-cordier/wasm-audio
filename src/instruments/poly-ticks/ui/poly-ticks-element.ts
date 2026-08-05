@@ -344,13 +344,36 @@ export class WasmPoly extends LitElement {
         width: 100%;
         background-color: var(--main-panel-color);
         border-radius: 0 0 0.5rem 0.5rem;
-        padding: 1.5em;
+        padding: 1em;
         box-sizing: border-box;
+
+        /* Neutral + accent treatment, à la monolog: a single cyan accent
+           carries the identity across labels, knob cursors, active toggles and
+           the LCDs; everything else reads as muted charcoal. */
+        --panel-wrapper-label-color: var(--poly-accent);
+        --control-label-color: #9aa0a6;
+        --control-cursor-color: var(--poly-accent);
+
+        --lcd-text-color: var(--poly-accent);
+        --lcd-led-on-color: var(--poly-accent);
+        --lcd-led-off-color: color-mix(in srgb, var(--poly-accent) 10%, transparent);
+        --lcd-screen-border-color: #55575b;
+
+        --button-active-label-color: var(--poly-accent);
+        --button-active-border-color: var(--poly-accent);
+        --button-active-background-color: #24272b;
+        --button-disposed-background-color: #3a3b3f;
+        --button-disposed-label-color: #9aa0a6;
+        --button-border-color: #4a4b50;
+
+        /* Neutral gutter so the tinted charcoal panels read as raised cards. */
+        --row-toggle-bg: #1e2023;
+        --row-padding: 7px;
       }
 
       .panels-row {
         display: grid;
-        gap: 0.5rem;
+        gap: 0.4rem;
         align-items: stretch;
         grid-auto-rows: 1fr;
       }
@@ -364,7 +387,7 @@ export class WasmPoly extends LitElement {
       }
 
       .panels-row.lower {
-        grid-template-columns: 6fr 5fr 5fr 5fr 4fr;
+        grid-template-columns: 6fr 5fr 5fr 6fr 3fr;
       }
 
       .keyboard {
@@ -373,7 +396,7 @@ export class WasmPoly extends LitElement {
       }
 
       row-element + row-element {
-        margin-top: 0.5em;
+        margin-top: 0.4em;
       }
 
       .keyboard .keys {

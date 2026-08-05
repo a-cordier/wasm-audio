@@ -73,7 +73,7 @@ export class RowElement extends LitElement {
         width: 100%;
         background: var(--row-bg, var(--row-toggle-bg, var(--medium)));
         border-radius: 0.5rem;
-        padding: 10px;
+        padding: var(--row-padding, 10px);
         box-sizing: border-box;
       }
 

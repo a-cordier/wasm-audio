@@ -91,7 +91,7 @@ export class VoiceConfigElement extends SynthPanel {
         font-weight: bold;
         background-color: var(--button-disposed-background-color);
         color: var(--button-disposed-label-color);
-        border: 1px solid #ccc;
+        border: 1px solid var(--button-border-color, #ccc);
         border-radius: 4px;
         cursor: pointer;
         transition: all 0.1s ease-in-out;
@@ -106,7 +106,7 @@ export class VoiceConfigElement extends SynthPanel {
       .retrigger-btn.active {
         background-color: var(--button-active-background-color);
         color: var(--button-active-label-color);
-        border-color: white;
+        border-color: var(--button-active-border-color, var(--button-active-label-color));
       }
 
       .mono-controls {

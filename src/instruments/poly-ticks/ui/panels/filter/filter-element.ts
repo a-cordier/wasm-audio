@@ -85,7 +85,7 @@ export class Filter extends SynthPanel {
       .filter-controls {
         position: relative;
         width: 100%;
-        min-height: 120px;
+        min-height: 106px;
       }
 
       .mode-control { width: 100%; display: block; }
@@ -112,9 +112,9 @@ export class Filter extends SynthPanel {
         height: 90%;
       }
 
-      .cutoff-control { --knob-size: 50px; }
-      .resonance-control { --knob-size: 40px; }
-      .drive-control { --knob-size: 35px; }
+      .cutoff-control { --knob-size: 46px; }
+      .resonance-control { --knob-size: 36px; }
+      .drive-control { --knob-size: 32px; }
 
       @container (max-width: 120px) {
         .frequency-controls { flex-direction: column; gap: 0.5em; }

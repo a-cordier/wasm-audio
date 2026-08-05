@@ -98,7 +98,7 @@ export class Lfo extends SynthPanel {
       .lfo-controls {
         position: relative;
         width: 100%;
-        min-height: 160px;
+        min-height: 138px;
       }
 
       .destination-control {
@@ -126,7 +126,7 @@ export class Lfo extends SynthPanel {
         align-items: center;
         width: 100%;
         height: 90%;
-        --knob-size: 40px;
+        --knob-size: 36px;
       }
 
       .mod-amount-control {
@@ -135,7 +135,7 @@ export class Lfo extends SynthPanel {
         justify-content: center;
         width: 100%;
         height: 90%;
-        --knob-size: 40px;
+        --knob-size: 36px;
       }
 
       @container (max-width: 100px) {

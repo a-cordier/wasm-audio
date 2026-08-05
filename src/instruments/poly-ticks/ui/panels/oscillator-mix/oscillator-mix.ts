@@ -93,7 +93,7 @@ export class OscillatorMix extends SynthPanel {
         justify-content: flex-start;
         gap: 0.6em;
         width: 100%;
-        min-height: 105px;
+        min-height: 94px;
       }
 
       .knobs {

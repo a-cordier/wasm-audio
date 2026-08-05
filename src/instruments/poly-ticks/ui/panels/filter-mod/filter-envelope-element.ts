@@ -28,35 +28,27 @@ export class FilterEnvelope extends SynthPanel {
   render() {
     return html`
       <panel-wrapper-element label="Mod.">
-        <div class="envelope-controls">
-          <div class="time-controls">
-            <control-learn-wrapper controlID=${ControlID.CUT_ATTACK}>
-              <fader-element label="A" .value=${this.state.attack.value as number}
-                @change=${(e: CustomEvent) => this.dispatchChange(FilterEnvelopeEvent.ATTACK, e.detail.value)}
-              ></fader-element>
-            </control-learn-wrapper>
-            <control-learn-wrapper controlID=${ControlID.CUT_DECAY}>
-              <fader-element label="D" .value=${this.state.decay.value as number}
-                @change=${(e: CustomEvent) => this.dispatchChange(FilterEnvelopeEvent.DECAY, e.detail.value)}
-              ></fader-element>
-            </control-learn-wrapper>
-          </div>
-          <div class="mod-controls">
-            <div class="mod-control mod">
-              <control-learn-wrapper controlID=${ControlID.CUT_MOD}>
-                <knob-element label="mod" .value=${this.state.amount.value as number}
-                  @change=${(e: CustomEvent) => this.dispatchChange(FilterEnvelopeEvent.AMOUNT, e.detail.value)}
-                ></knob-element>
-              </control-learn-wrapper>
-            </div>
-            <div class="mod-control velocity">
-              <control-learn-wrapper controlID=${ControlID.CUT_VEL}>
-                <knob-element label="vel" .value=${this.state.velocity.value as number}
-                  @change=${(e: CustomEvent) => this.dispatchChange(FilterEnvelopeEvent.VELOCITY, e.detail.value)}
-                ></knob-element>
-              </control-learn-wrapper>
-            </div>
-          </div>
+        <div class="mod-controls">
+          <control-learn-wrapper controlID=${ControlID.CUT_ATTACK}>
+            <fader-element label="A" .value=${this.state.attack.value as number}
+              @change=${(e: CustomEvent) => this.dispatchChange(FilterEnvelopeEvent.ATTACK, e.detail.value)}
+            ></fader-element>
+          </control-learn-wrapper>
+          <control-learn-wrapper controlID=${ControlID.CUT_DECAY}>
+            <fader-element label="D" .value=${this.state.decay.value as number}
+              @change=${(e: CustomEvent) => this.dispatchChange(FilterEnvelopeEvent.DECAY, e.detail.value)}
+            ></fader-element>
+          </control-learn-wrapper>
+          <control-learn-wrapper controlID=${ControlID.CUT_MOD}>
+            <fader-element label="AMT" .value=${this.state.amount.value as number}
+              @change=${(e: CustomEvent) => this.dispatchChange(FilterEnvelopeEvent.AMOUNT, e.detail.value)}
+            ></fader-element>
+          </control-learn-wrapper>
+          <control-learn-wrapper controlID=${ControlID.CUT_VEL}>
+            <fader-element label="VEL" .value=${this.state.velocity.value as number}
+              @change=${(e: CustomEvent) => this.dispatchChange(FilterEnvelopeEvent.VELOCITY, e.detail.value)}
+            ></fader-element>
+          </control-learn-wrapper>
         </div>
       </panel-wrapper-element>
     `;
@@ -66,47 +58,33 @@ export class FilterEnvelope extends SynthPanel {
     return css`
       :host {
         --panel-wrapper-background-color: var(--filter-mod-panel-color);
-        --fader-height: 120px;
-        --fader-width: 40px;
-        --knob-size: 50px;
+        /* Fader SVG viewBox is 50x140 (1:2.8). Keep --fader-height ≤ width*2.8
+           so the graphic fills its box without letterboxing (which would gap
+           the fader from its label). */
+        --fader-width: 32px;
+        --fader-height: 88px;
         container-type: inline-size;
       }
 
-      .envelope-controls {
+      /* Four faders in an even row — the filter envelope (A / D / Amt / Vel)
+         mirrors the amp Envelope panel so the two read as a matched pair, with
+         every label on one shared baseline like the rest of the panels. */
+      .mod-controls {
         display: flex;
         align-items: center;
         justify-content: space-evenly;
         width: 100%;
-        min-height: 160px;
+        min-height: 114px;
       }
-
-      .time-controls {
-        display: flex;
-        align-items: center;
-        justify-content: space-evenly;
-        width: 60%;
-      }
-
-      .mod-controls {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: space-between;
-        height: 70%;
-      }
-
-      .mod-controls .mod { --knob-size: 40px; }
-      .mod-controls .velocity { --knob-size: 25px; }
 
       @container (max-width: 120px) {
-        .envelope-controls { flex-direction: column; gap: 0.5em; }
-        .time-controls { width: 100%; }
-        .mod-controls { flex-direction: row; gap: 0.5em; height: auto; }
-        .mod-controls .mod { --knob-size: 30px; }
-        .mod-controls .velocity { --knob-size: 25px; }
+        .mod-controls {
+          flex-wrap: wrap;
+          gap: 0.25em;
+        }
         :host {
-          --fader-height: 80px;
-          --fader-width: 32px;
+          --fader-height: 72px;
+          --fader-width: 26px;
         }
       }
     `;

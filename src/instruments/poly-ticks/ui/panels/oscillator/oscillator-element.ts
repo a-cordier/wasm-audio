@@ -98,7 +98,7 @@ export class Oscillator extends SynthPanel {
       .oscillator-controls {
         position: relative;
         width: 100%;
-        min-height: 100px;
+        min-height: 88px;
       }
 
       .tone-controls {
@@ -123,9 +123,9 @@ export class Oscillator extends SynthPanel {
         height: 90%;
       }
 
-      .semi-shift-control { --knob-size: 50px; }
-      .cent-shift-control { --knob-size: 40px; }
-      .cycle-shift-control { --knob-size: 35px; }
+      .semi-shift-control { --knob-size: 46px; }
+      .cent-shift-control { --knob-size: 38px; }
+      .cycle-shift-control { --knob-size: 32px; }
 
       @container (max-width: 120px) {
         .tone-controls { flex-direction: column; gap: 0.5em; }

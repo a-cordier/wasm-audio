@@ -80,7 +80,7 @@ export class Space extends SynthPanel {
         align-items: center;
         justify-content: space-evenly;
         width: 100%;
-        min-height: 160px;
+        min-height: 138px;
       }
 
       .space-control {
@@ -97,9 +97,9 @@ export class Space extends SynthPanel {
         width: 100%;
       }
 
-      .spread-control { --knob-size: 40px; }
-      .width-control { --knob-size: 40px; }
-      .drift-control { --knob-size: 35px; }
+      .spread-control { --knob-size: 36px; }
+      .width-control { --knob-size: 36px; }
+      .drift-control { --knob-size: 32px; }
 
       @container (max-width: 100px) {
         .spread-control, .width-control, .drift-control { --knob-size: 30px; }

@@ -58,7 +58,7 @@ export class Envelope extends SynthPanel {
     return css`
       :host {
         --panel-wrapper-background-color: var(--envelope-panel-color);
-        --fader-height: 100px;
+        --fader-height: 90px;
         --fader-width: 40px;
         container-type: inline-size;
       }
@@ -68,7 +68,7 @@ export class Envelope extends SynthPanel {
         align-items: center;
         justify-content: space-evenly;
         width: 100%;
-        min-height: 130px;
+        min-height: 114px;
       }
 
       @container (max-width: 120px) {

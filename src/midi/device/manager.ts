@@ -31,11 +31,22 @@ export class DeviceManager {
   private listeners: PortListener[] = [];
 
   async init(options?: MIDIOptions): Promise<this> {
+    // Web MIDI is optional: it is absent on Safari/Firefox and may be denied by
+    // the user or the environment. In every such case we degrade to a working
+    // synth with an empty device list (on-screen keyboard + sequencer still
+    // drive it) rather than leaving the whole UI unrendered.
     if (!navigator.requestMIDIAccess) {
-      throw new Error("Web MIDI API not supported in this browser");
+      console.warn("Web MIDI API not supported in this browser — continuing without MIDI devices.");
+      return this;
     }
 
-    this.midiAccess = await navigator.requestMIDIAccess(options ?? { sysex: false });
+    try {
+      this.midiAccess = await navigator.requestMIDIAccess(options ?? { sysex: false });
+    } catch (err) {
+      console.warn("Web MIDI access unavailable — continuing without MIDI devices.", err);
+      return this;
+    }
+
     this.midiAccess.onstatechange = this.onStateChange;
 
     this.midiAccess.inputs.forEach((port) => this.registerInput(port));
