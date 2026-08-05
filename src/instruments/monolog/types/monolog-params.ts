@@ -22,7 +22,12 @@ export const MonologParamId = Object.freeze({
   LEGATO: 19,
   PULSE_WIDTH: 20,
   FILTER_MODEL: 21,
-  PARAM_COUNT: 22,
+  SUB_OCTAVE: 22,
+  SUB_WAVE: 23,
+  DETUNE: 24,
+  ACCENT: 25,
+  DIRT: 26,
+  PARAM_COUNT: 27,
 });
 
 // Must match wasm_audio::Monolog::FilterModel

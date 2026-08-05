@@ -105,6 +105,7 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
       ControlID.ML_FLT_ATTACK, ControlID.ML_FLT_DECAY, ControlID.ML_FLT_AMOUNT, ControlID.ML_FLT_VELOCITY,
       ControlID.ML_LFO_RATE, ControlID.ML_LFO_AMOUNT,
       ControlID.ML_GLIDE,
+      ControlID.ML_DETUNE, ControlID.ML_ACCENT, ControlID.ML_DIRT,
     ].map((id) => ({ id, name: ControlID[id].replace(/^ML_/, "").replace(/_/g, " ") }));
   }
 
@@ -138,6 +139,24 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
   setNoiseLevel(value: number) {
     this.state.osc.noiseLevel.value = value;
     this.sendParam(MonologParamId.NOISE_LEVEL, value);
+    this.dispatch(MonologEvent.OSC, { ...this.state.osc });
+  }
+
+  setSubWave(value: number) {
+    this.state.osc.subWave.value = value;
+    this.sendParam(MonologParamId.SUB_WAVE, OscModeToCpp[value]);
+    this.dispatch(MonologEvent.OSC, { ...this.state.osc });
+  }
+
+  setSubOctave(value: number) {
+    this.state.osc.subOctave.value = value;
+    this.sendParam(MonologParamId.SUB_OCTAVE, value);
+    this.dispatch(MonologEvent.OSC, { ...this.state.osc });
+  }
+
+  setDetune(value: number) {
+    this.state.osc.detune.value = value;
+    this.sendParam(MonologParamId.DETUNE, value);
     this.dispatch(MonologEvent.OSC, { ...this.state.osc });
   }
 
@@ -249,6 +268,18 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     this.dispatch(MonologEvent.PERFORMANCE, { ...this.state.performance });
   }
 
+  setAccent(value: number) {
+    this.state.performance.accent.value = value;
+    this.sendParam(MonologParamId.ACCENT, value);
+    this.dispatch(MonologEvent.PERFORMANCE, { ...this.state.performance });
+  }
+
+  setDirt(value: number) {
+    this.state.performance.dirt.value = value;
+    this.sendParam(MonologParamId.DIRT, value);
+    this.dispatch(MonologEvent.PERFORMANCE, { ...this.state.performance });
+  }
+
   // --- Internal ---
 
   private dispatch(eventId: string, detail: any) {
@@ -299,6 +330,11 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     this.sendParam(MonologParamId.LFO_DESTINATION, s.lfo.destination.value);
     this.sendParam(MonologParamId.GLIDE_TIME, s.performance.glide.value);
     this.sendParam(MonologParamId.LEGATO, s.performance.legato.value);
+    this.sendParam(MonologParamId.SUB_OCTAVE, s.osc.subOctave.value);
+    this.sendParam(MonologParamId.SUB_WAVE, OscModeToCpp[s.osc.subWave.value]);
+    this.sendParam(MonologParamId.DETUNE, s.osc.detune.value);
+    this.sendParam(MonologParamId.ACCENT, s.performance.accent.value);
+    this.sendParam(MonologParamId.DIRT, s.performance.dirt.value);
   }
 
   private initControlHandlers() {
@@ -350,5 +386,12 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
 
     reg(ControlID.ML_GLIDE, MonologParamId.GLIDE_TIME, MonologEvent.PERFORMANCE,
       (v) => { this.state.performance.glide.value = v; }, () => this.state.performance);
+
+    reg(ControlID.ML_DETUNE, MonologParamId.DETUNE, MonologEvent.OSC,
+      (v) => { this.state.osc.detune.value = v; }, () => this.state.osc);
+    reg(ControlID.ML_ACCENT, MonologParamId.ACCENT, MonologEvent.PERFORMANCE,
+      (v) => { this.state.performance.accent.value = v; }, () => this.state.performance);
+    reg(ControlID.ML_DIRT, MonologParamId.DIRT, MonologEvent.PERFORMANCE,
+      (v) => { this.state.performance.dirt.value = v; }, () => this.state.performance);
   }
 }

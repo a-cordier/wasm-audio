@@ -47,6 +47,11 @@ namespace Monolog {
 		LEGATO,
 		PULSE_WIDTH,
 		FILTER_MODEL,
+		SUB_OCTAVE,
+		SUB_WAVE,
+		DETUNE,
+		ACCENT,
+		DIRT,
 		PARAM_COUNT,
 	};
 
@@ -173,9 +178,14 @@ namespace Monolog {
 			voice.setOscMode(static_cast<Oscillator::Mode>(static_cast<uint32_t>(params[pi(ParamId::OSC_MODE)])));
 			voice.setSubLevel(zeroOneRange.map(params[pi(ParamId::SUB_LEVEL)], midiRange));
 			voice.setNoiseLevel(zeroOneRange.map(params[pi(ParamId::NOISE_LEVEL)], midiRange));
+			voice.setSubOctave(params[pi(ParamId::SUB_OCTAVE)] < 0.5f ? -12.f : -24.f);
+			voice.setSubMode(static_cast<Oscillator::Mode>(static_cast<uint32_t>(params[pi(ParamId::SUB_WAVE)])));
+			// Unison detune amount: 0..50 cents on the second main oscillator.
+			voice.setDetune(zeroOneRange.map(params[pi(ParamId::DETUNE)], midiRange) * 50.f);
 			voice.setCutoff(cutoffRange.map(params[pi(ParamId::CUTOFF)], midiRange));
 			voice.setResonance(resonanceRange.map(params[pi(ParamId::RESONANCE)], midiRange));
 			voice.setDrive(driveRange.map(params[pi(ParamId::DRIVE)], midiRange));
+			voice.setDirt(zeroOneRange.map(params[pi(ParamId::DIRT)], midiRange));
 			// Kept on the original 0..1 mapping so preset pulse widths are
 			// unchanged, but nudged off the rails: at exactly 0 or 1 the square
 			// is constant and the DC blocker mutes the oscillator outright.
@@ -189,7 +199,14 @@ namespace Monolog {
 			voice.setAmpRelease(params[pi(ParamId::AMP_RELEASE)]);
 
 			voice.setFilterAttack(params[pi(ParamId::FILTER_ATTACK)]);
-			voice.setFilterDecay(params[pi(ParamId::FILTER_DECAY)]);
+			// Accent (303-style): depth from the ACCENT param, strength from the
+			// per-note velocity above ~0.8. setAccentAmount feeds the per-sample
+			// cutoff + amp boost in the voice; here we also shorten the filter-env
+			// decay for snap, re-derived each block so it never integrates/clicks.
+			float accentDepth = zeroOneRange.map(params[pi(ParamId::ACCENT)], midiRange);
+			float accentAmt = accentDepth * zeroOneRange.clamp((currentVelocity - 0.8f) / 0.2f);
+			voice.setAccentAmount(accentDepth);
+			voice.setFilterDecay(params[pi(ParamId::FILTER_DECAY)] * (1.f - 0.4f * accentAmt));
 			voice.setFilterEnvAmount(params[pi(ParamId::FILTER_AMOUNT)]);
 			voice.setFilterEnvVelocity(params[pi(ParamId::FILTER_VELOCITY)]);
 

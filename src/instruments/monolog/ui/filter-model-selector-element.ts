@@ -4,10 +4,10 @@ import { classMap } from "lit/directives/class-map.js";
 import { MonologFilterModel } from "../types/monolog-params";
 
 const FILTER_OPTIONS = [
-  { label: "M", value: MonologFilterModel.MOOG },
-  { label: "A", value: MonologFilterModel.ACID },
-  { label: "S", value: MonologFilterModel.SCREAM },
-  { label: "K", value: MonologFilterModel.KORG },
+  { label: "MOOG", value: MonologFilterModel.MOOG },
+  { label: "ACID", value: MonologFilterModel.ACID },
+  { label: "SCREAM", value: MonologFilterModel.SCREAM },
+  { label: "KORG", value: MonologFilterModel.KORG },
 ];
 
 @customElement("filter-model-selector-element")
@@ -38,28 +38,30 @@ export class FilterModelSelector extends LitElement {
   static get styles() {
     return css`
       :host {
-        display: flex;
-        align-items: center;
+        display: block;
+        width: 100%;
       }
 
       .selector {
         display: flex;
-        align-items: center;
-        gap: 2px;
+        align-items: stretch;
+        gap: 3px;
+        width: 100%;
       }
 
       button {
-        width: var(--button-width, 25px);
-        height: var(--button-height, 25px);
-        font-size: var(--button-font-size, 0.6em);
+        flex: 1 1 0;
+        min-width: 0;
+        height: var(--button-height, 20px);
+        font-size: var(--button-font-size, 0.55em);
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.03em;
 
         background-color: var(--button-disposed-background-color);
         color: var(--button-disposed-label-color);
         border: 1px solid var(--button-border-color, #ccc);
-        border-radius: var(--button-border-radius, 50%);
+        border-radius: 3px;
         box-shadow: var(--box-shadow);
         box-sizing: border-box;
         transition: all 0.1s ease-in-out;
@@ -69,7 +71,7 @@ export class FilterModelSelector extends LitElement {
         justify-content: center;
 
         cursor: pointer;
-        padding: var(--button-padding, 0);
+        padding: 0 2px;
       }
 
       button:focus {

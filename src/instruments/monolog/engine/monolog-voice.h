@@ -55,6 +55,7 @@ namespace Monolog {
 		Voice(float sampleRate) :
 			sampleRate(sampleRate),
 			osc(sampleRate),
+			osc2(sampleRate),
 			subOsc(sampleRate),
 			noise(),
 			moogFilter(sampleRate),
@@ -67,9 +68,10 @@ namespace Monolog {
 			filterEnv(sampleRate, 1.f, 0.f, 0.01f, 0.5f, 0.f),
 			state(VoiceState::DISPOSED) {
 			osc.setAmplitude(1.0f);
+			osc2.setAmplitude(1.0f);
 			subOsc.setAmplitude(1.0f);
-			subOsc.setMode(Oscillator::Mode::SQUARE);
-			subOsc.setSemiShift(-12.f);
+			// Osc mode / sub octave / wave / detune are all param-driven (set every
+			// block in Engine::applyParams), so nothing is hard-coded here.
 			moogFilter.setMode(Filter::Mode::LOWPASS_PLUS);
 			diodeFilter.setMode(Filter::Mode::LOWPASS_PLUS);
 			screamerFilter.setMode(Filter::Mode::LOWPASS_PLUS);
@@ -82,7 +84,11 @@ namespace Monolog {
 			applyLfo(lfoMod, frequency);
 
 			osc.setDutyCycle(pulseWidth);
-			float oscOut = osc.nextSample(frequency);
+			osc2.setDutyCycle(pulseWidth);
+			// Detuned unison: a second main oscillator offset by a few cents. At
+			// detune 0 the two are identical, so this collapses to a single osc at
+			// the same level; as detune opens they beat and thicken.
+			float oscOut = 0.5f * (osc.nextSample(frequency) + osc2.nextSample(frequency));
 			float subOut = subOsc.nextSample(frequency) * subLevel;
 			float noiseOut = noise.nextSample() * noiseLevel;
 			// Deliberately unnormalised. The sum can exceed unity and push the
@@ -90,9 +96,23 @@ namespace Monolog {
 			// is where a lot of monolog's loudness and grit comes from.
 			float mix = oscOut + subOut + noiseOut;
 
+			// Pre-filter wavefolder ("dirt"). Sits before the lowpass so the
+			// filter tames the (non-band-limited) folded harmonics, and the
+			// mandatory end-of-chain DC blocker removes any asymmetric-fold DC.
+			if (dirtAmount > 0.f) {
+				float threshold = 1.0f - 0.6f * dirtAmount;               // 1.0 -> 0.4
+				float safe = std::clamp(mix, -4.f, 4.f);                  // bound foldback's loop
+				float folded = Waveshaper::foldback(safe, threshold) * (1.0f + 0.5f * dirtAmount);
+				mix = (1.0f - dirtAmount) * mix + dirtAmount * folded;    // crossfade blend
+			}
+
 			float filterEnvMod = filterEnvAmount * filterEnv.nextLevel();
 			float velMod = velocity * filterEnvVelocity;
-			float modulatedCutoff = cutoffRange.clamp(cutoff + filterEnvMod + velMod);
+			// 303-style accent: a per-note boost keyed on high velocity (sequencer
+			// steps clear the threshold; the keyboards send a fixed velocity).
+			// Constant across a note, so it never integrates or clicks.
+			float accent = accentAmount * zeroOneRange.clamp((velocity - ACCENT_VEL_THRESH) / (1.0f - ACCENT_VEL_THRESH));
+			float modulatedCutoff = cutoffRange.clamp(cutoff + filterEnvMod + velMod + accent * ACCENT_CUTOFF);
 
 			float filtered;
 			switch (filterModel) {
@@ -120,7 +140,7 @@ namespace Monolog {
 
 			stopIfNecessary();
 
-			return clean * velocity * ampLevel;
+			return clean * velocity * ampLevel * (1.0f + accent * ACCENT_AMP);
 		}
 
 		void noteOn() {
@@ -140,6 +160,7 @@ namespace Monolog {
 
 		void reset() {
 			osc.reset();
+			osc2.reset();
 			subOsc.reset();
 			moogFilter.reset();
 			diodeFilter.reset();
@@ -152,10 +173,16 @@ namespace Monolog {
 			state = VoiceState::DISPOSED;
 		}
 
-		void setOscMode(Oscillator::Mode mode) { osc.setMode(mode); }
+		void setOscMode(Oscillator::Mode mode) { osc.setMode(mode); osc2.setMode(mode); }
 		void setPulseWidth(float pw) { pulseWidthBase = pw; pulseWidth = pw; }
 		void setSubLevel(float level) { subLevel = level; }
 		void setNoiseLevel(float level) { noiseLevel = level; }
+		void setSubOctave(float semi) { subOsc.setSemiShift(semi); }
+		void setSubMode(Oscillator::Mode mode) { subOsc.setMode(mode); }
+		// Unison detune: offsets the second main oscillator (osc2) in cents.
+		void setDetune(float cents) { osc2.setCentShift(cents); }
+		void setAccentAmount(float a) { accentAmount = a; }
+		void setDirt(float d) { dirtAmount = d; }
 
 		void setFilterModel(FilterModel model) { filterModel = model; }
 		void setCutoff(float c) { cutoffBase = c; cutoff = c; }
@@ -221,6 +248,7 @@ namespace Monolog {
 		float sampleRate;
 
 		Oscillator::Kernel osc;
+		Oscillator::Kernel osc2;
 		Oscillator::Kernel subOsc;
 		Oscillator::NoiseKernel noise;
 
@@ -248,6 +276,12 @@ namespace Monolog {
 
 		float filterEnvAmount = 0.0f;
 		float filterEnvVelocity = 0.0f;
+
+		float accentAmount = 0.0f;
+		float dirtAmount = 0.0f;
+		static constexpr float ACCENT_CUTOFF = 0.30f;    // cutoff add at full accent
+		static constexpr float ACCENT_AMP = 0.30f;       // amp boost at full accent
+		static constexpr float ACCENT_VEL_THRESH = 0.8f; // velocity (0..1) that starts accenting
 
 		LfoDestination lfoDest = LfoDestination::CUTOFF;
 		float lfoRate = 1.0f;

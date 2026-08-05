@@ -73,6 +73,11 @@ export enum ControlID {
   ML_LFO_RATE,
   ML_LFO_AMOUNT,
   ML_GLIDE,
+  ML_SUB_OCTAVE,
+  ML_SUB_WAVE,
+  ML_DETUNE,
+  ML_ACCENT,
+  ML_DIRT,
 }
 
 export interface ControlSignal {

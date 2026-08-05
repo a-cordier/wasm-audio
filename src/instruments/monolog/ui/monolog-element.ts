@@ -12,6 +12,7 @@ import { Channel } from "../../../midi/types";
 import type { Plugin } from "../../../core/types";
 
 import "../../../components/common/controls/knob-element";
+import "../../../components/common/controls/fader-element";
 import "../../../components/common/controls/keys-element";
 import "../../../components/common/controls/control-learn-wrapper";
 import "../../../components/common/panel-wrapper-element";
@@ -132,21 +133,53 @@ export class MonologElement extends LitElement {
 
   private renderOscPanel() {
     if (!this.oscState) return nothing;
+    const subOctaveLow = (this.oscState.subOctave.value ?? 0) < 64;
     return html`
       <panel-wrapper-element label="OSC" style="--panel-wrapper-background-color: var(--monolog-osc-panel-color)">
-        <div class="knob-row">
-          <div class="toggle-group">
-            <wave-selector-element
-              .value=${this.oscState.mode.value}
-              .modes=${[OscillatorMode.SAWTOOTH, OscillatorMode.SQUARE, OscillatorMode.TRIANGLE]}
-              @change=${(e: CustomEvent) => this.controller.setOscMode(e.detail.value)}
-            ></wave-selector-element>
-            <span class="toggle-label">WAVEFORM</span>
+        <div class="panel-stack">
+          <div class="knob-row">
+            <div class="toggle-group">
+              <wave-selector-element
+                .value=${this.oscState.mode.value}
+                .modes=${[OscillatorMode.SAWTOOTH, OscillatorMode.SQUARE, OscillatorMode.TRIANGLE]}
+                @change=${(e: CustomEvent) => this.controller.setOscMode(e.detail.value)}
+              ></wave-selector-element>
+              <span class="toggle-label">WAVEFORM</span>
+            </div>
+            <control-learn-wrapper .controlID=${ControlID.ML_DETUNE}>
+              <knob-element .value=${this.oscState.detune.value} .label=${"DETUNE"}
+                @change=${(e: CustomEvent) => this.controller.setDetune(e.detail.value)}></knob-element>
+            </control-learn-wrapper>
+            <control-learn-wrapper .controlID=${ControlID.ML_PW}>
+              <knob-element .value=${this.oscState.pulseWidth.value} .label=${"PW"}
+                @change=${(e: CustomEvent) => this.controller.setPulseWidth(e.detail.value)}></knob-element>
+            </control-learn-wrapper>
           </div>
-          <control-learn-wrapper .controlID=${ControlID.ML_SUB_LEVEL}>
-            <knob-element .value=${this.oscState.subLevel.value} .label=${"SUB"}
-              @change=${(e: CustomEvent) => this.controller.setSubLevel(e.detail.value)}></knob-element>
-          </control-learn-wrapper>
+          <div class="knob-row sub-row">
+            <div class="toggle-group">
+              <wave-selector-element
+                .value=${this.oscState.subWave.value}
+                .modes=${[OscillatorMode.SQUARE, OscillatorMode.SAWTOOTH, OscillatorMode.SINE]}
+                @change=${(e: CustomEvent) => this.controller.setSubWave(e.detail.value)}
+              ></wave-selector-element>
+              <span class="toggle-label">SUB WAVE</span>
+            </div>
+            <div class="toggle-group">
+              <button
+                class=${classMap({ "toggle-btn": true, active: !subOctaveLow })}
+                @click=${() => this.controller.setSubOctave(subOctaveLow ? 127 : 0)}
+              >${subOctaveLow ? "-1" : "-2"}</button>
+              <span class="toggle-label">OCT</span>
+            </div>
+            <control-learn-wrapper .controlID=${ControlID.ML_SUB_LEVEL}>
+              <knob-element .value=${this.oscState.subLevel.value} .label=${"SUB"}
+                @change=${(e: CustomEvent) => this.controller.setSubLevel(e.detail.value)}></knob-element>
+            </control-learn-wrapper>
+            <control-learn-wrapper .controlID=${ControlID.ML_NOISE_LEVEL}>
+              <knob-element .value=${this.oscState.noiseLevel.value} .label=${"NOISE"}
+                @change=${(e: CustomEvent) => this.controller.setNoiseLevel(e.detail.value)}></knob-element>
+            </control-learn-wrapper>
+          </div>
         </div>
       </panel-wrapper-element>
     `;
@@ -156,26 +189,25 @@ export class MonologElement extends LitElement {
     if (!this.filterState) return nothing;
     return html`
       <panel-wrapper-element label="FILTER" style="--panel-wrapper-background-color: var(--monolog-filter-panel-color)">
-        <div class="knob-row">
-          <div class="toggle-group">
-            <filter-model-selector-element
-              .value=${this.filterState.model.value}
-              @change=${(e: CustomEvent) => this.controller.setFilterModel(e.detail.value)}
-            ></filter-model-selector-element>
-            <span class="toggle-label">TYPE</span>
+        <div class="panel-stack">
+          <filter-model-selector-element
+            .value=${this.filterState.model.value}
+            @change=${(e: CustomEvent) => this.controller.setFilterModel(e.detail.value)}
+          ></filter-model-selector-element>
+          <div class="knob-row filter-knobs">
+            <control-learn-wrapper class="filter-cutoff" .controlID=${ControlID.ML_CUTOFF}>
+              <knob-element .value=${this.filterState.cutoff.value} .label=${"CUTOFF"}
+                @change=${(e: CustomEvent) => this.controller.setCutoff(e.detail.value)}></knob-element>
+            </control-learn-wrapper>
+            <control-learn-wrapper class="filter-res" .controlID=${ControlID.ML_RESONANCE}>
+              <knob-element .value=${this.filterState.resonance.value} .label=${"RES"}
+                @change=${(e: CustomEvent) => this.controller.setResonance(e.detail.value)}></knob-element>
+            </control-learn-wrapper>
+            <control-learn-wrapper class="filter-drive" .controlID=${ControlID.ML_DRIVE}>
+              <knob-element .value=${this.filterState.drive.value} .label=${"DRIVE"}
+                @change=${(e: CustomEvent) => this.controller.setDrive(e.detail.value)}></knob-element>
+            </control-learn-wrapper>
           </div>
-          <control-learn-wrapper .controlID=${ControlID.ML_CUTOFF}>
-            <knob-element .value=${this.filterState.cutoff.value} .label=${"CUTOFF"}
-              @change=${(e: CustomEvent) => this.controller.setCutoff(e.detail.value)}></knob-element>
-          </control-learn-wrapper>
-          <control-learn-wrapper .controlID=${ControlID.ML_RESONANCE}>
-            <knob-element .value=${this.filterState.resonance.value} .label=${"RES"}
-              @change=${(e: CustomEvent) => this.controller.setResonance(e.detail.value)}></knob-element>
-          </control-learn-wrapper>
-          <control-learn-wrapper .controlID=${ControlID.ML_DRIVE}>
-            <knob-element .value=${this.filterState.drive.value} .label=${"DRIVE"}
-              @change=${(e: CustomEvent) => this.controller.setDrive(e.detail.value)}></knob-element>
-          </control-learn-wrapper>
         </div>
       </panel-wrapper-element>
     `;
@@ -185,18 +217,22 @@ export class MonologElement extends LitElement {
     if (!this.ampEnvState) return nothing;
     return html`
       <panel-wrapper-element label="AMP" style="--panel-wrapper-background-color: var(--monolog-env-panel-color)">
-        <div class="knob-row">
+        <div class="fader-row">
           <control-learn-wrapper .controlID=${ControlID.ML_AMP_ATTACK}>
-            <knob-element .value=${this.ampEnvState.attack.value} .label=${"A"}
-              @change=${(e: CustomEvent) => this.controller.setAmpAttack(e.detail.value)}></knob-element>
+            <fader-element .value=${this.ampEnvState.attack.value} .label=${"A"}
+              @change=${(e: CustomEvent) => this.controller.setAmpAttack(e.detail.value)}></fader-element>
           </control-learn-wrapper>
           <control-learn-wrapper .controlID=${ControlID.ML_AMP_DECAY}>
-            <knob-element .value=${this.ampEnvState.decay.value} .label=${"D"}
-              @change=${(e: CustomEvent) => this.controller.setAmpDecay(e.detail.value)}></knob-element>
+            <fader-element .value=${this.ampEnvState.decay.value} .label=${"D"}
+              @change=${(e: CustomEvent) => this.controller.setAmpDecay(e.detail.value)}></fader-element>
           </control-learn-wrapper>
           <control-learn-wrapper .controlID=${ControlID.ML_AMP_SUSTAIN}>
-            <knob-element .value=${this.ampEnvState.sustain.value} .label=${"S"}
-              @change=${(e: CustomEvent) => this.controller.setAmpSustain(e.detail.value)}></knob-element>
+            <fader-element .value=${this.ampEnvState.sustain.value} .label=${"S"}
+              @change=${(e: CustomEvent) => this.controller.setAmpSustain(e.detail.value)}></fader-element>
+          </control-learn-wrapper>
+          <control-learn-wrapper .controlID=${ControlID.ML_AMP_RELEASE}>
+            <fader-element .value=${this.ampEnvState.release.value} .label=${"R"}
+              @change=${(e: CustomEvent) => this.controller.setAmpRelease(e.detail.value)}></fader-element>
           </control-learn-wrapper>
         </div>
       </panel-wrapper-element>
@@ -269,6 +305,14 @@ export class MonologElement extends LitElement {
             <knob-element .value=${this.perfState.glide.value} .label=${"GLIDE"}
               @change=${(e: CustomEvent) => this.controller.setGlide(e.detail.value)}></knob-element>
           </control-learn-wrapper>
+          <control-learn-wrapper .controlID=${ControlID.ML_ACCENT}>
+            <knob-element .value=${this.perfState.accent.value} .label=${"ACC"}
+              @change=${(e: CustomEvent) => this.controller.setAccent(e.detail.value)}></knob-element>
+          </control-learn-wrapper>
+          <control-learn-wrapper .controlID=${ControlID.ML_DIRT}>
+            <knob-element .value=${this.perfState.dirt.value} .label=${"DIRT"}
+              @change=${(e: CustomEvent) => this.controller.setDirt(e.detail.value)}></knob-element>
+          </control-learn-wrapper>
           <div class="toggle-group">
             <button
               class=${classMap({ "toggle-btn": true, active: legatoActive })}
@@ -289,8 +333,9 @@ export class MonologElement extends LitElement {
         border-radius: 0 0 0.5rem 0.5rem;
         padding: 1.5em;
         box-sizing: border-box;
-        --knob-size: var(--control-size-sm);
+        --knob-size: 26px;
         --control-label-color: #939597;
+        --control-label-font-size: 0.7em;
         --panel-wrapper-label-color: var(--monolog-accent, #F5DF4D);
         --control-cursor-color: var(--monolog-accent, #F5DF4D);
       }
@@ -307,11 +352,11 @@ export class MonologElement extends LitElement {
       }
 
       .panels-row.sound {
-        grid-template-columns: 3fr 6fr 3fr;
+        grid-template-columns: 5fr 5fr 3fr;
       }
 
       .panels-row.mod {
-        grid-template-columns: 5fr 5fr 3fr;
+        grid-template-columns: 4fr 5fr 4fr;
       }
 
       .knob-row {
@@ -320,6 +365,34 @@ export class MonologElement extends LitElement {
         justify-content: space-evenly;
         gap: 0.5em;
         width: 100%;
+      }
+
+      /* Two-row panels (OSC, FILTER): a selector/first row stacked over a
+         controls row, so a panel can hold more than one row fits across. */
+      .panel-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6em;
+        width: 100%;
+      }
+
+      /* Asymmetric filter knobs: cutoff is the star, the other two descend, so
+         the trio reads as a graded row spanning the panel (bottom-aligned via
+         the .knob-row's align-items: flex-end). */
+      .filter-cutoff { --knob-size: 46px; }
+      .filter-res { --knob-size: 34px; }
+      .filter-drive { --knob-size: 28px; }
+
+      /* AMP envelope uses faders (poly-ticks style) instead of knobs. */
+      .fader-row {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-evenly;
+        gap: 0.4em;
+        width: 100%;
+        --fader-width: 26px;
+        --fader-height: 72px;
       }
 
       .toggle-group {

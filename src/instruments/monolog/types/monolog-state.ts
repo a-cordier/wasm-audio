@@ -4,6 +4,9 @@ export interface MonologState {
     pulseWidth: { value: number };
     subLevel: { value: number };
     noiseLevel: { value: number };
+    subWave: { value: number };
+    subOctave: { value: number };
+    detune: { value: number };
   };
   filter: {
     model: { value: number };
@@ -32,6 +35,8 @@ export interface MonologState {
   performance: {
     glide: { value: number };
     legato: { value: number };
+    accent: { value: number };
+    dirt: { value: number };
   };
 }
 
@@ -42,6 +47,9 @@ export function createMonologState(partial?: Partial<any>): MonologState {
       pulseWidth: { value: 63.5 },
       subLevel: { value: 80 },
       noiseLevel: { value: 0 },
+      subWave: { value: 2 },
+      subOctave: { value: 0 },
+      detune: { value: 0 },
     },
     filter: {
       model: { value: 0 },
@@ -70,6 +78,8 @@ export function createMonologState(partial?: Partial<any>): MonologState {
     performance: {
       glide: { value: 15 },
       legato: { value: 0 },
+      accent: { value: 0 },
+      dirt: { value: 0 },
     },
   };
 
