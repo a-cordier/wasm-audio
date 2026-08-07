@@ -158,9 +158,11 @@ public:
 		if (paramId < 0 || paramId >= NUM_PARAMS) return;
 
 		float prev = params[paramId];
-		params[paramId] = value;
+		// The wire contract is raw 0-127 (GLIDE_TIME's 0-1 sits inside it);
+		// clamping keeps a misrouted CC or corrupt preset out of the mappings.
+		params[paramId] = std::clamp(value, 0.f, 127.f);
 
-		if (paramId == pi(ParamId::VOICE_MODE) && prev != value) {
+		if (paramId == pi(ParamId::VOICE_MODE) && prev != params[paramId]) {
 			onVoiceModeChanged();
 		}
 	}

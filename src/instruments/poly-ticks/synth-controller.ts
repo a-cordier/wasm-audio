@@ -515,8 +515,13 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
     reg(ControlID.CUT_VEL, ParamId.CUTOFF_ENV_VELOCITY, VoiceEvent.CUTOFF_MOD,
       (v) => { this.state.cutoffMod.velocity.value = v; }, () => this.state.cutoffMod);
 
-    reg(ControlID.GLIDE_TIME, ParamId.GLIDE_TIME, VoiceEvent.VOICE_CONFIG,
-      (v) => { this.state.voiceConfig.glideTime.value = v; }, () => this.state.voiceConfig);
+    // GLIDE_TIME's wire value is 0..1 (the engine squares it into seconds) and
+    // the UI already divides by 127 — a learned CC arrives raw 0-127 and must
+    // be normalized here too, or glide times reach hours and the saved state
+    // is corrupted.
+    this.controlHandlers.set(ControlID.GLIDE_TIME, (value: number) => {
+      this.setGlideTime(value / 127);
+    });
 
     reg(ControlID.FM_INDEX, ParamId.FM_INDEX, VoiceEvent.ROUTING,
       (v) => { this.state.routing.fmIndex.value = v; }, () => this.state.routing);

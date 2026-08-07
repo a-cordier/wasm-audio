@@ -75,9 +75,11 @@ struct SampleParameters {
 		resonance = getCurrentValue(resonanceValues, sample, midiRange, resonanceRange);
 		overdrive = getCurrentValue(driveValues, sample, midiRange, driveRange);
 		lfo1Frequency = getCurrentValue(lfo1FrequencyValues, sample, midiRange, lfoFrequencyRange);
-		lfo1ModAmount = getCurrentValue(lfo1ModAmountValues, sample, midiRange, zeroOneRange);
+		// Halved: the LFOs run at unit amplitude (house convention); the old
+		// kernels ran at 0.5, so this keeps every preset's audible depth.
+		lfo1ModAmount = 0.5f * getCurrentValue(lfo1ModAmountValues, sample, midiRange, zeroOneRange);
 		lfo2Frequency = getCurrentValue(lfo2FrequencyValues, sample, midiRange, lfoFrequencyRange);
-		lfo2ModAmount = getCurrentValue(lfo2ModAmountValues, sample, midiRange, zeroOneRange);
+		lfo2ModAmount = 0.5f * getCurrentValue(lfo2ModAmountValues, sample, midiRange, zeroOneRange);
 
 		osc1Cycle = osc1CycleBase;
 		osc2Cycle = osc2CycleBase;

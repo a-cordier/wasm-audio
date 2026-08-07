@@ -30,11 +30,20 @@ class LFOKernel {
 	}
 
 	float nextSample(float frequency) {
-		return osc.nextSample(frequency);
+		float sample = osc.nextSample(frequency);
+		// NOISE as an LFO is sample-and-hold at the LFO rate: latching on the
+		// phase wrap gives one random level per cycle. Raw per-sample noise on
+		// a modulation target is broadband noise on a coefficient, not an LFO.
+		if (mode == Oscillator::Mode::NOISE) {
+			if (osc.didWrap()) held = sample;
+			return held;
+		}
+		return sample;
 	}
 
-	void setMode(Oscillator::Mode mode) {
-		osc.setMode(mode);
+	void setMode(Oscillator::Mode newMode) {
+		mode = newMode;
+		osc.setMode(newMode);
 	}
 
 	void reset() {
@@ -43,6 +52,8 @@ class LFOKernel {
 
 	private:
 	Oscillator::Kernel osc;
+	Oscillator::Mode mode = Oscillator::Mode::SINE;
+	float held = 0.f;
 };
 
 } // namespace wasm_audio

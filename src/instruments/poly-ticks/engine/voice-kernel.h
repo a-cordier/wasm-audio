@@ -139,6 +139,11 @@ namespace Voice {
 			state(State::DISPOSED),
 			sampleRate(sampleRate),
 			renderFrames(renderFrames) {
+			// Unit-amplitude LFOs (the house convention, matching monolog);
+			// the mod-amount mapping is halved to compensate, so existing
+			// presets keep their depth.
+			lfo1.setAmplitude(1.f);
+			lfo2.setAmplitude(1.f);
 		}
 
 		// Writes planar channels: channel n starts at outputPtr + n * renderFrames,
@@ -182,7 +187,9 @@ namespace Voice {
 		void setParameters(uintptr_t blockPtr) {
 			const ParameterBlock *block = reinterpret_cast<const ParameterBlock *>(blockPtr);
 
-			velocity = zeroOneRange.map(block->velocity, midiRange);
+			// Perceptual velocity curve: linear velocity-to-gain leaves the
+			// bottom half of the keybed nearly inaudible.
+			velocity = std::pow(zeroOneRange.map(block->velocity, midiRange), 0.6f);
 
 			osc1.setMode(static_cast<Oscillator::Mode>(block->osc1Mode));
 			subOsc.setOsc1Mode(static_cast<Oscillator::Mode>(block->osc1Mode));
@@ -212,11 +219,11 @@ namespace Voice {
 			sampleParameters.amplitudeEnvelopeRelease = releaseRange.map(block->amplitudeRelease, midiRange);
 			sampleParameters.osc1SemiShift = semiShiftRange.map(block->osc1SemiShift, midiRange);
 			sampleParameters.osc1CentShift = centShiftRange.map(block->osc1CentShift, midiRange);
-			sampleParameters.osc1CycleBase = zeroOneRange.map(block->osc1Cycle, midiRange);
+			sampleParameters.osc1CycleBase = pulseWidthSafeRange.clamp(zeroOneRange.map(block->osc1Cycle, midiRange));
 			sampleParameters.osc1Cycle = sampleParameters.osc1CycleBase;
 			sampleParameters.osc2SemiShift = semiShiftRange.map(block->osc2SemiShift, midiRange);
 			sampleParameters.osc2CentShift = centShiftRange.map(block->osc2CentShift, midiRange);
-			sampleParameters.osc2CycleBase = zeroOneRange.map(block->osc2Cycle, midiRange);
+			sampleParameters.osc2CycleBase = pulseWidthSafeRange.clamp(zeroOneRange.map(block->osc2Cycle, midiRange));
 			sampleParameters.osc2Cycle = sampleParameters.osc2CycleBase;
 			sampleParameters.cutoffEnvelopeAmount = zeroOneRange.map(block->cutoffEnvelopeAmount, midiRange);
 			sampleParameters.cutoffEnvelopeVelocity = zeroOneRange.map(block->cutoffEnvelopeVelocity, midiRange);
@@ -248,7 +255,7 @@ namespace Voice {
 		}
 
 		void setOsc1Cycle(float value) {
-			sampleParameters.osc1CycleBase = zeroOneRange.map(value, midiRange);
+			sampleParameters.osc1CycleBase = pulseWidthSafeRange.clamp(zeroOneRange.map(value, midiRange));
 			sampleParameters.osc1Cycle = sampleParameters.osc1CycleBase;
 		}
 
@@ -266,7 +273,7 @@ namespace Voice {
 		}
 
 		void setOsc2Cycle(float value) {
-			sampleParameters.osc2CycleBase = zeroOneRange.map(value, midiRange);
+			sampleParameters.osc2CycleBase = pulseWidthSafeRange.clamp(zeroOneRange.map(value, midiRange));
 			sampleParameters.osc2Cycle = sampleParameters.osc2CycleBase;
 		}
 
@@ -546,17 +553,29 @@ namespace Voice {
 		void applyModulations() {
 			float lfo1Mod = sampleParameters.lfo1ModAmount * lfo1.nextSample(sampleParameters.lfo1Frequency);
 			float lfo2Mod = sampleParameters.lfo2ModAmount * lfo2.nextSample(sampleParameters.lfo2Frequency);
-			float cutoffMod = sampleParameters.cutoffEnvelopeAmount * cutoffEnvelope.nextLevel();
-			cutoffMod += velocity * sampleParameters.cutoffEnvelopeVelocity;
+			// CUT VEL scales the envelope's depth by velocity rather than
+			// adding a constant offset — a static filter opening is not
+			// velocity sensitivity.
+			float velAmount = sampleParameters.cutoffEnvelopeVelocity;
+			float cutoffMod = sampleParameters.cutoffEnvelopeAmount
+				* (1.f - velAmount + velAmount * velocity)
+				* cutoffEnvelope.nextLevel();
 			applyLFO(lfo1Destination, lfo1Mod);
 			applyLFO(lfo2Destination, lfo2Mod);
 			sampleParameters.cutoff = cutoffRange.clamp(sampleParameters.cutoff + cutoffMod);
+			// Re-derive the crossfade AFTER modulation: an LFO on the mix
+			// otherwise amplitude-modulates osc2 over a stale osc1 instead of
+			// crossfading, and the total level pumps.
+			sampleParameters.osc1Amplitude = 1.f - sampleParameters.osc2Amplitude;
 		}
 
 		void applyLFO(LfoDestination destination, float mod) {
 			switch (destination) {
 				case LfoDestination::FREQUENCY:
-					sampleParameters.frequency += mod * sampleParameters.frequency;
+					// Exponential (semitone) pitch modulation: the old linear
+					// form swung -12/+7 semitones from the same excursion and
+					// could reach 0 Hz. +/-7 semitones at full depth.
+					sampleParameters.frequency *= std::exp2(mod * (7.f / 12.f));
 					break;
 				case LfoDestination::CUTOFF:
 					sampleParameters.cutoff = cutoffRange.clamp(sampleParameters.cutoff + mod);
@@ -568,10 +587,10 @@ namespace Voice {
 					sampleParameters.osc2Amplitude = zeroOneRange.clamp(sampleParameters.osc2Amplitude + mod);
 					break;
 				case LfoDestination::OSC1_CYCLE:
-					sampleParameters.osc1Cycle = oscCycleRange.clamp(sampleParameters.osc1Cycle + mod);
+					sampleParameters.osc1Cycle = pulseWidthSafeRange.clamp(sampleParameters.osc1Cycle + mod);
 					break;
 				case LfoDestination::OSC2_CYCLE:
-					sampleParameters.osc2Cycle = oscCycleRange.clamp(sampleParameters.osc2Cycle + mod);
+					sampleParameters.osc2Cycle = pulseWidthSafeRange.clamp(sampleParameters.osc2Cycle + mod);
 					break;
 			}
 		}

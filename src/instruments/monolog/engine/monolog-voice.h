@@ -217,6 +217,12 @@ namespace Monolog {
 		bool isStopped() const { return state == VoiceState::STOPPED; }
 		bool isActive() const { return state == VoiceState::STARTED || state == VoiceState::STOPPING; }
 
+		// Key sync means "the LFO phase locks to note starts" — every note-on,
+		// legato included. The delay fade only re-arms on retriggered notes.
+		void syncLfoToNote() {
+			if (lfoKeySync) lfo.reset();
+		}
+
 		void reset() {
 			osc.reset();
 			osc2.reset();
@@ -310,7 +316,10 @@ namespace Monolog {
 			cutoff = sCutoff;
 			switch (lfoDest) {
 				case LfoDestination::PITCH:
-					frequency += mod * frequency;
+					// Exponential (semitone) modulation: the linear form swung
+					// -12/+7 semitones from the same excursion and reached 0 Hz
+					// at full depth. +/-7 semitones at full depth.
+					frequency *= std::exp2(mod * (7.f / 12.f));
 					break;
 				case LfoDestination::CUTOFF:
 					cutoff = cutoffRange.clamp(sCutoff + mod);
@@ -370,7 +379,10 @@ namespace Monolog {
 		float dirtAmount = 0.0f;
 		static constexpr float ACCENT_CUTOFF = 0.30f;    // cutoff add at full accent
 		static constexpr float ACCENT_AMP = 0.30f;       // amp boost at full accent
-		static constexpr float ACCENT_VEL_THRESH = 0.8f; // velocity (0..1) that starts accenting
+		// 0.75 so the default keyboard/sequencer velocity of 100 (curved:
+		// (100/127)^0.6 ~= 0.87) clears it; at 0.8 raw-linear, accent was
+		// unreachable from every on-screen input.
+		static constexpr float ACCENT_VEL_THRESH = 0.75f; // velocity (0..1) that starts accenting
 
 		LfoDestination lfoDest = LfoDestination::CUTOFF;
 		float lfoRate = 1.0f;

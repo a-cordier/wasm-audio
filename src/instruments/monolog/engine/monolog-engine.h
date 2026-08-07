@@ -87,9 +87,10 @@ namespace Monolog {
 			bool retriggering = !wasHeld || !isLegato();
 			// Velocity is per retrigger, not per key: updating it mid-phrase in
 			// legato mode stepped the gain (and could flip accent) on a note
-			// that deliberately keeps its envelope running.
+			// that deliberately keeps its envelope running. Perceptual curve:
+			// linear velocity-to-gain leaves soft playing nearly inaudible.
 			if (retriggering) {
-				currentVelocity = zeroOneRange.map(velocity, midiRange);
+				currentVelocity = std::pow(zeroOneRange.map(velocity, midiRange), 0.6f);
 			}
 
 			if (retriggering) {
@@ -101,6 +102,10 @@ namespace Monolog {
 					voice.reset();
 					voice.noteOn();
 				}
+			} else {
+				// Legato: no envelope retrigger, but key-synced LFOs still
+				// lock their phase to the new note.
+				voice.syncLfoToNote();
 			}
 		}
 
@@ -128,6 +133,8 @@ namespace Monolog {
 				if (!isLegato()) {
 					// Falling back to a held note: the voice is sounding.
 					voice.retrigger();
+				} else {
+					voice.syncLfoToNote();
 				}
 			} else {
 				if (voice.isActive() && currentMidi == midi) {
@@ -138,7 +145,9 @@ namespace Monolog {
 
 		void setParam(int paramId, float value) {
 			if (paramId < 0 || paramId >= NUM_PARAMS) return;
-			params[paramId] = value;
+			// The wire contract is raw 0-127; clamp so an out-of-scale value
+			// (a misrouted CC, a corrupt preset) cannot reach the DSP mappings.
+			params[paramId] = std::clamp(value, 0.f, 127.f);
 		}
 
 		void process(uintptr_t outputPtr, unsigned channelCount) {

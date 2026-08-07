@@ -28,7 +28,11 @@ struct Range {
 		min(min), max(max) {}
 
 	float map(float value, Range const &range) const {
-		return min + ((value - range.min) * (max - min) / (range.max - range.min));
+		// A degenerate source range would otherwise divide by zero and send
+		// NaN straight into oscillator phases and filter states.
+		float span = range.max - range.min;
+		if (span == 0.f) return min;
+		return min + ((value - range.min) * (max - min) / span);
 	}
 
 	float clamp(float value) const {
