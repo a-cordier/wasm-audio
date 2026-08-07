@@ -67,6 +67,11 @@ export class WasmPoly extends LitElement {
     this.registerVoiceHandlers();
   }
 
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.plugin) this.unregisterVoiceHandlers();
+  }
+
   private scheduleKeyUpdate() {
     if (this._pendingKeyUpdate) return;
     this._pendingKeyUpdate = true;
@@ -76,64 +81,62 @@ export class WasmPoly extends LitElement {
     });
   }
 
+  // Stable handler identities so add/removeEventListener stay symmetric.
+  private onNoteOn = (e: Event) => {
+    this.pressedKeys.add((e as CustomEvent).detail.midiValue);
+    this.scheduleKeyUpdate();
+  };
+  private onNoteOff = (e: Event) => {
+    this.pressedKeys.delete((e as CustomEvent).detail.midiValue);
+    this.scheduleKeyUpdate();
+  };
+  private onOsc1 = (e: Event) => { this.state.osc1 = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onOscMix = (e: Event) => { this.state.osc2Amplitude = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onNoise = (e: Event) => { this.state.noiseLevel = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onOsc2 = (e: Event) => { this.state.osc2 = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onFilter = (e: Event) => { this.state.filter = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onEnvelope = (e: Event) => { this.state.envelope = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onLfo1 = (e: Event) => { this.state.lfo1 = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onLfo2 = (e: Event) => { this.state.lfo2 = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onCutoffMod = (e: Event) => { this.state.cutoffMod = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onVoiceConfig = (e: Event) => { this.state.voiceConfig = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onRouting = (e: Event) => { this.state.routing = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onSpace = (e: Event) => { this.state.space = (e as CustomEvent).detail; this.requestUpdate(); };
+
   private registerVoiceHandlers() {
-    this.voiceManager
-      .subscribe(VoiceEvent.NOTE_ON, (note) => {
-        this.pressedKeys.add(note.midiValue);
-        this.scheduleKeyUpdate();
-      })
-      .subscribe(VoiceEvent.NOTE_OFF, (note) => {
-        this.pressedKeys.delete(note.midiValue);
-        this.scheduleKeyUpdate();
-      })
-      .subscribe(VoiceEvent.OSC1, (newState) => {
-        this.state.osc1 = newState;
-        this.requestUpdate();
-      })
-      .subscribe(VoiceEvent.OSC_MIX, (newState) => {
-        this.state.osc2Amplitude = newState;
-        this.requestUpdate();
-      })
-      .subscribe(VoiceEvent.NOISE, (newState) => {
-        this.state.noiseLevel = newState;
-        this.requestUpdate();
-      })
-      .subscribe(VoiceEvent.OSC2, (newState) => {
-        this.state.osc2 = newState;
-        this.requestUpdate();
-      })
-      .subscribe(VoiceEvent.FILTER, (newState) => {
-        this.state.filter = newState;
-        this.requestUpdate();
-      })
-      .subscribe(VoiceEvent.ENVELOPE, (newState) => {
-        this.state.envelope = newState;
-        this.requestUpdate();
-      })
-      .subscribe(VoiceEvent.LFO1, (newState) => {
-        this.state.lfo1 = newState;
-        this.requestUpdate();
-      })
-      .subscribe(VoiceEvent.LFO2, (newState) => {
-        this.state.lfo2 = newState;
-        this.requestUpdate();
-      })
-      .subscribe(VoiceEvent.CUTOFF_MOD, (newState) => {
-        this.state.cutoffMod = newState;
-        this.requestUpdate();
-      })
-      .subscribe(VoiceEvent.VOICE_CONFIG, (newState) => {
-        this.state.voiceConfig = newState;
-        this.requestUpdate();
-      })
-      .subscribe(VoiceEvent.ROUTING, (newState) => {
-        this.state.routing = newState;
-        this.requestUpdate();
-      })
-      .subscribe(VoiceEvent.SPACE, (newState) => {
-        this.state.space = newState;
-        this.requestUpdate();
-      });
+    const vm = this.voiceManager;
+    vm.addEventListener(VoiceEvent.NOTE_ON, this.onNoteOn);
+    vm.addEventListener(VoiceEvent.NOTE_OFF, this.onNoteOff);
+    vm.addEventListener(VoiceEvent.OSC1, this.onOsc1);
+    vm.addEventListener(VoiceEvent.OSC_MIX, this.onOscMix);
+    vm.addEventListener(VoiceEvent.NOISE, this.onNoise);
+    vm.addEventListener(VoiceEvent.OSC2, this.onOsc2);
+    vm.addEventListener(VoiceEvent.FILTER, this.onFilter);
+    vm.addEventListener(VoiceEvent.ENVELOPE, this.onEnvelope);
+    vm.addEventListener(VoiceEvent.LFO1, this.onLfo1);
+    vm.addEventListener(VoiceEvent.LFO2, this.onLfo2);
+    vm.addEventListener(VoiceEvent.CUTOFF_MOD, this.onCutoffMod);
+    vm.addEventListener(VoiceEvent.VOICE_CONFIG, this.onVoiceConfig);
+    vm.addEventListener(VoiceEvent.ROUTING, this.onRouting);
+    vm.addEventListener(VoiceEvent.SPACE, this.onSpace);
+  }
+
+  private unregisterVoiceHandlers() {
+    const vm = this.voiceManager;
+    vm.removeEventListener(VoiceEvent.NOTE_ON, this.onNoteOn);
+    vm.removeEventListener(VoiceEvent.NOTE_OFF, this.onNoteOff);
+    vm.removeEventListener(VoiceEvent.OSC1, this.onOsc1);
+    vm.removeEventListener(VoiceEvent.OSC_MIX, this.onOscMix);
+    vm.removeEventListener(VoiceEvent.NOISE, this.onNoise);
+    vm.removeEventListener(VoiceEvent.OSC2, this.onOsc2);
+    vm.removeEventListener(VoiceEvent.FILTER, this.onFilter);
+    vm.removeEventListener(VoiceEvent.ENVELOPE, this.onEnvelope);
+    vm.removeEventListener(VoiceEvent.LFO1, this.onLfo1);
+    vm.removeEventListener(VoiceEvent.LFO2, this.onLfo2);
+    vm.removeEventListener(VoiceEvent.CUTOFF_MOD, this.onCutoffMod);
+    vm.removeEventListener(VoiceEvent.VOICE_CONFIG, this.onVoiceConfig);
+    vm.removeEventListener(VoiceEvent.ROUTING, this.onRouting);
+    vm.removeEventListener(VoiceEvent.SPACE, this.onSpace);
   }
 
   private get resolvedChannel(): Channel {

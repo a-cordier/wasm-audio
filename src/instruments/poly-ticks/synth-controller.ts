@@ -43,7 +43,6 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
   private audioContext: AudioContext;
 
   private state: VoiceState;
-  private _observers = new Map<Function, EventListenerOrEventListenerObject>();
 
   private controlHandlers = new Map<ControlID, ControlHandler>();
 
@@ -128,19 +127,6 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
 
   dispatch(actionId: string, detail: any) {
     this.dispatchEvent(new CustomEvent(actionId, { detail }));
-    return this;
-  }
-
-  subscribe(actionId: string, callback: (detail: any) => void) {
-    const observer = (event: CustomEvent) => callback(event.detail);
-    this._observers.set(callback, observer);
-    this.addEventListener(actionId, observer);
-    return this;
-  }
-
-  unsubscribe(actionId: string, callback: (detail: any) => void) {
-    this.removeEventListener(actionId, this._observers.get(callback));
-    this._observers.delete(callback);
     return this;
   }
 

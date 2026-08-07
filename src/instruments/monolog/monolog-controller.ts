@@ -299,12 +299,6 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     this.dispatchEvent(new CustomEvent(eventId, { detail }));
   }
 
-  subscribe(eventId: string, callback: (detail: any) => void) {
-    const handler = (e: Event) => callback((e as CustomEvent).detail);
-    this.addEventListener(eventId, handler);
-    return this;
-  }
-
   private sendParam(id: number, value: number) {
     this.node?.setParam(id, value);
   }

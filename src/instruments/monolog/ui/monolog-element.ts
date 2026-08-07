@@ -64,6 +64,11 @@ export class MonologElement extends LitElement {
     this.registerHandlers();
   }
 
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.plugin) this.unregisterHandlers();
+  }
+
   private scheduleKeyUpdate() {
     if (this._pendingKeyUpdate) return;
     this._pendingKeyUpdate = true;
@@ -73,22 +78,44 @@ export class MonologElement extends LitElement {
     });
   }
 
+  // Stable handler identities so add/removeEventListener stay symmetric.
+  private onNoteOn = (e: Event) => {
+    this.pressedKeys.add((e as CustomEvent).detail.midiValue);
+    this.scheduleKeyUpdate();
+  };
+  private onNoteOff = (e: Event) => {
+    this.pressedKeys.delete((e as CustomEvent).detail.midiValue);
+    this.scheduleKeyUpdate();
+  };
+  private onOsc = (e: Event) => { this.oscState = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onFilter = (e: Event) => { this.filterState = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onAmpEnv = (e: Event) => { this.ampEnvState = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onFilterEnv = (e: Event) => { this.filterEnvState = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onLfo = (e: Event) => { this.lfoState = (e as CustomEvent).detail; this.requestUpdate(); };
+  private onPerformance = (e: Event) => { this.perfState = (e as CustomEvent).detail; this.requestUpdate(); };
+
   private registerHandlers() {
-    this.controller
-      .subscribe(MonologEvent.NOTE_ON, (d) => {
-        this.pressedKeys.add(d.midiValue);
-        this.scheduleKeyUpdate();
-      })
-      .subscribe(MonologEvent.NOTE_OFF, (d) => {
-        this.pressedKeys.delete(d.midiValue);
-        this.scheduleKeyUpdate();
-      })
-      .subscribe(MonologEvent.OSC, (s) => { this.oscState = s; this.requestUpdate(); })
-      .subscribe(MonologEvent.FILTER, (s) => { this.filterState = s; this.requestUpdate(); })
-      .subscribe(MonologEvent.AMP_ENV, (s) => { this.ampEnvState = s; this.requestUpdate(); })
-      .subscribe(MonologEvent.FILTER_ENV, (s) => { this.filterEnvState = s; this.requestUpdate(); })
-      .subscribe(MonologEvent.LFO, (s) => { this.lfoState = s; this.requestUpdate(); })
-      .subscribe(MonologEvent.PERFORMANCE, (s) => { this.perfState = s; this.requestUpdate(); });
+    const c = this.controller;
+    c.addEventListener(MonologEvent.NOTE_ON, this.onNoteOn);
+    c.addEventListener(MonologEvent.NOTE_OFF, this.onNoteOff);
+    c.addEventListener(MonologEvent.OSC, this.onOsc);
+    c.addEventListener(MonologEvent.FILTER, this.onFilter);
+    c.addEventListener(MonologEvent.AMP_ENV, this.onAmpEnv);
+    c.addEventListener(MonologEvent.FILTER_ENV, this.onFilterEnv);
+    c.addEventListener(MonologEvent.LFO, this.onLfo);
+    c.addEventListener(MonologEvent.PERFORMANCE, this.onPerformance);
+  }
+
+  private unregisterHandlers() {
+    const c = this.controller;
+    c.removeEventListener(MonologEvent.NOTE_ON, this.onNoteOn);
+    c.removeEventListener(MonologEvent.NOTE_OFF, this.onNoteOff);
+    c.removeEventListener(MonologEvent.OSC, this.onOsc);
+    c.removeEventListener(MonologEvent.FILTER, this.onFilter);
+    c.removeEventListener(MonologEvent.AMP_ENV, this.onAmpEnv);
+    c.removeEventListener(MonologEvent.FILTER_ENV, this.onFilterEnv);
+    c.removeEventListener(MonologEvent.LFO, this.onLfo);
+    c.removeEventListener(MonologEvent.PERFORMANCE, this.onPerformance);
   }
 
   private get resolvedChannel(): Channel {

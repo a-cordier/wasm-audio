@@ -161,11 +161,6 @@ export class TemplateController extends EventTarget implements InstrumentPlugin,
     this.dispatch(TemplateEvent.AMP, { ...this.state.amp });
   }
 
-  subscribe(eventId: string, callback: (detail: any) => void) {
-    this.addEventListener(eventId, (e) => callback((e as CustomEvent).detail));
-    return this;
-  }
-
   private sendParam(id: number, value: number) {
     this.node?.setParam(id, value);
   }

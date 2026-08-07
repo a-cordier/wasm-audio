@@ -56,15 +56,27 @@ export class TemplateElement extends LitElement {
     return this.plugin as TemplateController;
   }
 
+  // Stable handler identities so add/removeEventListener stay symmetric:
+  // controllers are plain EventTargets, and a disconnected element MUST
+  // unsubscribe or the controller keeps it alive forever.
+  private onOsc = (e: Event) => { this.osc = { ...(e as CustomEvent).detail }; };
+  private onAmp = (e: Event) => { this.amp = { ...(e as CustomEvent).detail }; };
+
   connectedCallback() {
     super.connectedCallback();
     if (!this.plugin) return;
     const s = this.controller.getState();
     this.osc = s.osc;
     this.amp = s.amp;
-    this.controller
-      .subscribe(TemplateEvent.OSC, (osc) => { this.osc = { ...osc }; })
-      .subscribe(TemplateEvent.AMP, (amp) => { this.amp = { ...amp }; });
+    this.controller.addEventListener(TemplateEvent.OSC, this.onOsc);
+    this.controller.addEventListener(TemplateEvent.AMP, this.onAmp);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (!this.plugin) return;
+    this.controller.removeEventListener(TemplateEvent.OSC, this.onOsc);
+    this.controller.removeEventListener(TemplateEvent.AMP, this.onAmp);
   }
 
   render() {

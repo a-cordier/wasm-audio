@@ -112,7 +112,7 @@ export class Keys extends LitElement {
 
   async connectedCallback() {
     super.connectedCallback();
-    this.registerMouseUpHandler();
+    document.addEventListener("mouseup", this.onDocMouseUp);
 
     this.resizeObserver = new ResizeObserver(this.onResize);
     this.resizeObserver.observe(this);
@@ -124,20 +124,17 @@ export class Keys extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    document.removeEventListener("mouseup", this.onDocMouseUp);
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
   }
 
-  registerMouseUpHandler() {
-    document.addEventListener("mouseup", this.mouseUp.bind(this));
-  }
-
-  mouseUp() {
+  private onDocMouseUp = () => {
     if (!!this.mouseControlledKey) {
       this.keyOff(this.mouseControlledKey);
       this.mouseControlledKey = null;
     }
-  }
+  };
 
   mouseDown(key) {
     return async (event) => {
