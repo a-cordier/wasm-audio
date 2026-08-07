@@ -79,6 +79,11 @@ export enum ControlID {
   ML_DETUNE,
   ML_ACCENT,
   ML_DIRT,
+
+  // Template (reference instrument)
+  TPL_ATTACK,
+  TPL_RELEASE,
+  TPL_LEVEL,
 }
 
 export interface ControlSignal {

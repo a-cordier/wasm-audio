@@ -56,6 +56,17 @@ export class Root extends LitElement {
   async connectedCallback() {
     super.connectedCallback();
 
+    // Reference/template instrument: opt-in even in dev (add ?template to the
+    // URL) so it never clutters normal work, and never shipped to production.
+    // tsc still compiles it regardless of this runtime flag. Awaited here so it
+    // lands in the registry before the worklet-load loop below.
+    const showTemplate =
+      (import.meta as any).env?.DEV &&
+      new URLSearchParams(window.location.search).has("template");
+    if (showTemplate) {
+      await import("../instruments/template/register");
+    }
+
     this.midi = await createMidi();
     this.midiBus = this.midi.bus("main");
 
@@ -82,7 +93,7 @@ export class Root extends LitElement {
 
     this.mixerEngine = new MixerEngine(this.audioContext);
 
-    this.slotTree = createBranchSlot("root", "DAW", [
+    const slots = [
       createLeafSlot("slot-synth", "POLY TICKS", "poly-ticks", {
         midiChannel: 0 as Channel,
       }),
@@ -93,7 +104,15 @@ export class Root extends LitElement {
         // CH 2 == MONOLOG's input channel, so the sequencer drives it on load.
         outputChannel: 1 as Channel,
       }),
-    ]);
+    ];
+    if (showTemplate) {
+      slots.push(
+        createLeafSlot("slot-template", "TEMPLATE", "template", {
+          midiChannel: 3 as Channel,
+        })
+      );
+    }
+    this.slotTree = createBranchSlot("root", "DAW", slots);
 
     this.mixerEngine.setLabel(0, "POLY TICKS");
     this.mixerEngine.setLabel(1, "MONOLOG");

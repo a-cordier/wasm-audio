@@ -9,6 +9,8 @@
     "prebuild": "make",
     "build": "vite build",
     "preview": "vite preview",
+    "check:conventions": "node scripts/verify-conventions.mjs",
+    "check": "tsc --noEmit && node scripts/verify-conventions.mjs",
     "license:check": "license-check-and-add check -f lca-config.json",
     "license:fix": "license-check-and-add add -f lca-config.json -r"
   },

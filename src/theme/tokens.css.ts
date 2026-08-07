@@ -77,6 +77,11 @@ export const darkTheme = `
     --seq-generate-panel-color: #2b322e;  /* teal  — Euclid generator */
     --seq-steps-panel-color: #2f332c;     /* green — step canvas / pads */
 
+    /* Template (reference instrument): violet accent + two-zone camaïeu. */
+    --template-accent: #b57edc;
+    --template-osc-panel-color: #302e33;
+    --template-amp-panel-color: #2d2f30;
+
     --monolog-panel-color: #1a1a1a;
     --monolog-osc-panel-color: #2e2e2e;
     --monolog-filter-panel-color: #383830;
@@ -174,6 +179,11 @@ export const retroTheme = `
     --seq-pattern-panel-color: #302d2c;   /* cool mauve — pattern banks & slots */
     --seq-generate-panel-color: #332f22;  /* olive     — Euclid generator */
     --seq-steps-panel-color: #37312a;     /* amber     — step canvas / pads */
+
+    /* Template (reference instrument): warm violet accent + two-zone camaïeu. */
+    --template-accent: #c08fd6;
+    --template-osc-panel-color: #332d2e;
+    --template-amp-panel-color: #312d28;
 
     --monolog-panel-color: #1a1a1a;
     --monolog-osc-panel-color: #2e2e2e;
