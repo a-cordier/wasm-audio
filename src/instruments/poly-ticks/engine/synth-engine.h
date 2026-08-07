@@ -105,6 +105,19 @@ class SynthEngine {
 	float sampleRate;
 	uint64_t noteCounter = 0;
 
+	// Previous-block values for the ramped parameter buffers, raw 0-127.
+	float lastOsc2Amplitude = 0.f;
+	float lastNoiseLevel = 0.f;
+	float lastCutoff = 0.f;
+	float lastResonance = 0.f;
+	float lastDrive = 0.f;
+	float lastLfo1Frequency = 0.f;
+	float lastLfo1ModAmount = 0.f;
+	float lastLfo2Frequency = 0.f;
+	float lastLfo2ModAmount = 0.f;
+	float smoothedSpread = 0.f;
+	float smoothedWidth = 0.f;
+
 	static constexpr int NOTE_STACK_SIZE = 16;
 	int noteStack[NOTE_STACK_SIZE] = {};
 	float noteStackFreq[NOTE_STACK_SIZE] = {};
@@ -160,15 +173,24 @@ public:
 		unsigned stereoChannels = std::min(channelCount, 2u);
 		std::fill(output, output + renderFrames * stereoChannels, 0.f);
 
-		fillBuf(osc2AmplitudeBuf, params[pi(ParamId::OSC2_AMPLITUDE)]);
-		fillBuf(noiseLevelBuf, params[pi(ParamId::NOISE_LEVEL)]);
-		fillBuf(cutoffBuf, params[pi(ParamId::CUTOFF)]);
-		fillBuf(resonanceBuf, params[pi(ParamId::RESONANCE)]);
-		fillBuf(driveBuf, params[pi(ParamId::DRIVE)]);
-		fillBuf(lfo1FrequencyBuf, params[pi(ParamId::LFO1_FREQUENCY)]);
-		fillBuf(lfo1ModAmountBuf, params[pi(ParamId::LFO1_MOD_AMOUNT)]);
-		fillBuf(lfo2FrequencyBuf, params[pi(ParamId::LFO2_FREQUENCY)]);
-		fillBuf(lfo2ModAmountBuf, params[pi(ParamId::LFO2_MOD_AMOUNT)]);
+		// Ramped, not constant-filled: a knob/CC step spreads over the block
+		// (~2.7 ms) instead of landing as a discontinuity at the boundary —
+		// one integer cutoff step is otherwise a ~semitone jump ("zipper").
+		rampBuf(osc2AmplitudeBuf, lastOsc2Amplitude, params[pi(ParamId::OSC2_AMPLITUDE)]);
+		rampBuf(noiseLevelBuf, lastNoiseLevel, params[pi(ParamId::NOISE_LEVEL)]);
+		rampBuf(cutoffBuf, lastCutoff, params[pi(ParamId::CUTOFF)]);
+		rampBuf(resonanceBuf, lastResonance, params[pi(ParamId::RESONANCE)]);
+		rampBuf(driveBuf, lastDrive, params[pi(ParamId::DRIVE)]);
+		rampBuf(lfo1FrequencyBuf, lastLfo1Frequency, params[pi(ParamId::LFO1_FREQUENCY)]);
+		rampBuf(lfo1ModAmountBuf, lastLfo1ModAmount, params[pi(ParamId::LFO1_MOD_AMOUNT)]);
+		rampBuf(lfo2FrequencyBuf, lastLfo2Frequency, params[pi(ParamId::LFO2_FREQUENCY)]);
+		rampBuf(lfo2ModAmountBuf, lastLfo2ModAmount, params[pi(ParamId::LFO2_MOD_AMOUNT)]);
+
+		// The stereo field moves at block rate (its trig stays per block), but
+		// through a one-pole so width/spread knob steps glide over ~10 ms
+		// instead of snapping the pan gains.
+		smoothedSpread += 0.3f * (params[pi(ParamId::STEREO_SPREAD)] - smoothedSpread);
+		smoothedWidth += 0.3f * (params[pi(ParamId::STEREO_WIDTH)] - smoothedWidth);
 
 		for (auto &slot : voices) {
 			if (!slot.active) continue;
@@ -215,7 +237,7 @@ public:
 			block.oscRouting = pui(ParamId::OSC_ROUTING);
 			block.fmIndex = params[pi(ParamId::FM_INDEX)];
 			block.subLevel = params[pi(ParamId::SUB_LEVEL)];
-			block.stereoWidth = params[pi(ParamId::STEREO_WIDTH)];
+			block.stereoWidth = smoothedWidth;
 			block.pan = voicePan(slot.midiNote);
 
 			slot.kernel.setParameters(reinterpret_cast<uintptr_t>(&block));
@@ -260,7 +282,7 @@ private:
 	// edges of the field at full spread.
 	float voicePan(int midiNote) const {
 		if (midiNote < 0) return 0.f;
-		float spread = zeroOneRange.map(params[pi(ParamId::STEREO_SPREAD)], midiRange);
+		float spread = zeroOneRange.map(smoothedSpread, midiRange);
 		float offset = (static_cast<float>(midiNote) - 60.f) / 24.f;
 		return std::max(-1.f, std::min(1.f, offset * spread));
 	}
@@ -279,6 +301,21 @@ private:
 
 	void fillBuf(float *buf, float value) {
 		std::fill(buf, buf + renderFrames, value);
+	}
+
+	// Linear per-block ramp from the previous block's value to the target.
+	void rampBuf(float *buf, float &last, float target) {
+		if (last == target) {
+			std::fill(buf, buf + renderFrames, target);
+			return;
+		}
+		float step = (target - last) / renderFrames;
+		float v = last;
+		for (unsigned s = 0; s < renderFrames; ++s) {
+			v += step;
+			buf[s] = v;
+		}
+		last = target;
 	}
 
 	void onVoiceModeChanged() {

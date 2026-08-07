@@ -78,7 +78,9 @@ export class MixerEngine {
   setPan(index: number, value: number): void {
     const s = this.state.channels[index];
     s.pan = Math.max(-1, Math.min(1, value));
-    this.channels[index].pan.pan.setValueAtTime(s.pan, this.ctx.currentTime);
+    // setTargetAtTime, not setValueAtTime: an instant step under signal is a
+    // click, and dragging emits one step per pointer event (zipper).
+    this.channels[index].pan.pan.setTargetAtTime(s.pan, this.ctx.currentTime, 0.01);
   }
 
   setMute(index: number, mute: boolean): void {
@@ -96,7 +98,7 @@ export class MixerEngine {
 
   setMasterGain(value: number): void {
     this.state.masterGain = Math.max(0, Math.min(1, value));
-    this.master.gain.gain.setValueAtTime(this.state.masterGain, this.ctx.currentTime);
+    this.master.gain.gain.setTargetAtTime(this.state.masterGain, this.ctx.currentTime, 0.01);
   }
 
   setLabel(index: number, label: string): void {
@@ -158,7 +160,9 @@ export class MixerEngine {
       effectiveGain = 0;
     }
 
-    ch.gain.gain.setValueAtTime(effectiveGain, this.ctx.currentTime);
+    // 10 ms ramp: fader zipper and hard mute/solo clicks both come from
+    // stepping this value instantly under a sustaining signal.
+    ch.gain.gain.setTargetAtTime(effectiveGain, this.ctx.currentTime, 0.01);
   }
 
   getMeterLevel(index: number): [number, number] {

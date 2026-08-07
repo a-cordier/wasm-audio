@@ -55,6 +55,7 @@ namespace Monolog {
 	public:
 		Voice(float sampleRate) :
 			sampleRate(sampleRate),
+			smoothAlpha(1.0f - std::exp(-1.0f / (0.010f * sampleRate))),
 			osc(sampleRate),
 			osc2(sampleRate),
 			subOsc(sampleRate),
@@ -84,10 +85,35 @@ namespace Monolog {
 
 		float processSample(float frequency, float velocity) {
 
+			// One-pole smoothing (~10 ms) between the block-rate param targets
+			// and the audio path: raw 0-127 knob/CC steps otherwise land as
+			// ~semitone cutoff jumps and audible gain steps at every 128-sample
+			// boundary. A fresh voice snaps straight to its targets so note
+			// attacks stay percussive.
+			if (snapSmoothing) {
+				sCutoff = cutoffBase;
+				sResonance = resonance;
+				sDrive = drive;
+				sSubLevel = subLevel;
+				sNoiseLevel = noiseLevel;
+				sPulseWidth = pulseWidthBase;
+				sLfoAmount = lfoAmount;
+				sVelocity = velocity;
+				snapSmoothing = false;
+			}
+			sCutoff += smoothAlpha * (cutoffBase - sCutoff);
+			sResonance += smoothAlpha * (resonance - sResonance);
+			sDrive += smoothAlpha * (drive - sDrive);
+			sSubLevel += smoothAlpha * (subLevel - sSubLevel);
+			sNoiseLevel += smoothAlpha * (noiseLevel - sNoiseLevel);
+			sPulseWidth += smoothAlpha * (pulseWidthBase - sPulseWidth);
+			sLfoAmount += smoothAlpha * (lfoAmount - sLfoAmount);
+			sVelocity += smoothAlpha * (velocity - sVelocity);
+
 			// LFO with per-note fade-in (delay): lfoFade ramps 0 -> 1 over the
 			// delay time so the modulation blooms in after the note starts.
 			lfoFade = std::min(lfoFade + lfoFadeInc, 1.0f);
-			float lfoMod = lfoAmount * lfoFade * lfo.nextSample(lfoRate);
+			float lfoMod = sLfoAmount * lfoFade * lfo.nextSample(lfoRate);
 			applyLfo(lfoMod, frequency);
 
 			osc.setDutyCycle(pulseWidth);
@@ -96,8 +122,8 @@ namespace Monolog {
 			// detune 0 the two are identical, so this collapses to a single osc at
 			// the same level; as detune opens they beat and thicken.
 			float oscOut = 0.5f * (osc.nextSample(frequency) + osc2.nextSample(frequency));
-			float subOut = subOsc.nextSample(frequency) * subLevel;
-			float noiseOut = noise.nextSample() * noiseLevel;
+			float subOut = subOsc.nextSample(frequency) * sSubLevel;
+			float noiseOut = noise.nextSample() * sNoiseLevel;
 			// Deliberately unnormalised. The sum can exceed unity and push the
 			// filter models into their own input saturators, and that overload
 			// is where a lot of monolog's loudness and grit comes from.
@@ -119,40 +145,48 @@ namespace Monolog {
 			}
 
 			float filterEnvMod = filterEnvAmount * filterEnv.nextLevel();
-			float velMod = velocity * filterEnvVelocity;
+			float velMod = sVelocity * filterEnvVelocity;
 			// 303-style accent: a per-note boost keyed on high velocity (sequencer
 			// steps clear the threshold; the keyboards send a fixed velocity).
-			// Constant across a note, so it never integrates or clicks.
-			float accent = accentAmount * zeroOneRange.clamp((velocity - ACCENT_VEL_THRESH) / (1.0f - ACCENT_VEL_THRESH));
+			// Rides the smoothed velocity, so retriggers glide instead of stepping.
+			float accent = accentAmount * zeroOneRange.clamp((sVelocity - ACCENT_VEL_THRESH) / (1.0f - ACCENT_VEL_THRESH));
 			float modulatedCutoff = cutoffRange.clamp(cutoff + filterEnvMod + velMod + accent * ACCENT_CUTOFF);
+
+			// Drive follows the smoothed value per sample; setDrive only stores
+			// the target now, so the kernel's drive is set here.
+			float filterDrive = 1.0f + sDrive * 2.5f;
 
 			float filtered;
 			switch (filterModel) {
 				case FilterModel::ACID:
-					filtered = diodeFilter.nextSample(mix, modulatedCutoff, resonance);
+					diodeFilter.setDrive(filterDrive);
+					filtered = diodeFilter.nextSample(mix, modulatedCutoff, sResonance);
 					break;
 				case FilterModel::SCREAM:
-					filtered = screamerFilter.nextSample(mix, modulatedCutoff, resonance);
+					screamerFilter.setDrive(filterDrive);
+					filtered = screamerFilter.nextSample(mix, modulatedCutoff, sResonance);
 					break;
 				case FilterModel::KORG:
-					filtered = korgFilter.nextSample(mix, modulatedCutoff, resonance);
+					korgFilter.setDrive(filterDrive);
+					filtered = korgFilter.nextSample(mix, modulatedCutoff, sResonance);
 					break;
 				case FilterModel::MOOG:
 				default:
-					filtered = moogFilter.nextSample(mix, modulatedCutoff, resonance);
+					moogFilter.setDrive(filterDrive);
+					filtered = moogFilter.nextSample(mix, modulatedCutoff, sResonance);
 					break;
 			}
 
 			// The saturator sits ahead of the VCA on purpose: it compresses the
 			// filter output on every note, and that compression is a good part
 			// of the density and perceived loudness of the instrument.
-			float shaped = Waveshaper::tanhLimit(filtered, 1.0f + drive * 1.5f);
+			float shaped = Waveshaper::tanhLimit(filtered, 1.0f + sDrive * 1.5f);
 			float clean = dcBlocker.process(shaped);
 			float ampLevel = ampEnv.nextLevel();
 
 			stopIfNecessary();
 
-			return clean * velocity * ampLevel * (1.0f + accent * ACCENT_AMP);
+			return clean * sVelocity * ampLevel * (1.0f + accent * ACCENT_AMP);
 		}
 
 		void noteOn() {
@@ -197,6 +231,9 @@ namespace Monolog {
 			dcBlocker.reset();
 			ampEnv.reset();
 			filterEnv.reset();
+			// Fresh voice: land on the targets immediately (percussive attack),
+			// don't glide in from stale smoothed values.
+			snapSmoothing = true;
 			state = VoiceState::DISPOSED;
 		}
 
@@ -226,14 +263,9 @@ namespace Monolog {
 		}
 		void setCutoff(float c) { cutoffBase = c; cutoff = c; }
 		void setResonance(float r) { resonance = r; }
-		void setDrive(float d) {
-			drive = d;
-			float filterDrive = 1.0f + d * 2.5f;
-			moogFilter.setDrive(filterDrive);
-			diodeFilter.setDrive(filterDrive);
-			screamerFilter.setDrive(filterDrive);
-			korgFilter.setDrive(filterDrive);
-		}
+		// Target only: processSample derives the per-sample filter drive from
+		// the smoothed value and pushes it to the selected kernel.
+		void setDrive(float d) { drive = d; }
 
 		void setAmpAttack(float v) { ampEnv.setAttackTime(attackRange.map(v, midiRange)); }
 		void setAmpDecay(float v) { ampEnv.setDecayTime(decayRange.map(v, midiRange)); }
@@ -272,18 +304,19 @@ namespace Monolog {
 		// Every destination re-derives from its base each sample. Writing back
 		// into a member that is only re-seeded once per block would make the
 		// modulation integrate instead of offset, and rail within a few samples.
+		// Bases are the SMOOTHED values, so knob steps glide under the LFO.
 		void applyLfo(float mod, float &frequency) {
-			pulseWidth = pulseWidthBase;
-			cutoff = cutoffBase;
+			pulseWidth = sPulseWidth;
+			cutoff = sCutoff;
 			switch (lfoDest) {
 				case LfoDestination::PITCH:
 					frequency += mod * frequency;
 					break;
 				case LfoDestination::CUTOFF:
-					cutoff = cutoffRange.clamp(cutoffBase + mod);
+					cutoff = cutoffRange.clamp(sCutoff + mod);
 					break;
 				case LfoDestination::PULSE_WIDTH:
-					pulseWidth = oscCycleRange.clamp(pulseWidthBase + mod);
+					pulseWidth = oscCycleRange.clamp(sPulseWidth + mod);
 					break;
 			}
 		}
@@ -320,6 +353,18 @@ namespace Monolog {
 
 		float filterEnvAmount = 0.0f;
 		float filterEnvVelocity = 0.0f;
+
+		// One-pole smoothing (~10 ms) state between param targets and audio.
+		float smoothAlpha;
+		bool snapSmoothing = true;
+		float sCutoff = 0.5f;
+		float sResonance = 0.0f;
+		float sDrive = 0.0f;
+		float sSubLevel = 0.0f;
+		float sNoiseLevel = 0.0f;
+		float sPulseWidth = 0.5f;
+		float sLfoAmount = 0.0f;
+		float sVelocity = 0.0f;
 
 		float accentAmount = 0.0f;
 		float dirtAmount = 0.0f;
