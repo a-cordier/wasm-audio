@@ -76,6 +76,28 @@ for (const inst of readdirSync(INSTRUMENTS)) {
   }
 }
 
+// Every workletModules entry must be a key in vite.config.ts's workletFiles
+// map — that map is how worklet files are served in dev and copied on build;
+// miss it and addModule() 404s at runtime (CLAUDE.md invariant, tsc-blind).
+const viteConfig = readFileSync(join(ROOT, "vite.config.ts"), "utf-8");
+const mapBody = viteConfig.match(/workletFiles[^=]*=\s*{([^}]*)}/s)?.[1] ?? "";
+const servedFiles = new Set([...mapBody.matchAll(/"([^"]+)"\s*:/g)].map((m) => m[1]));
+if (servedFiles.size === 0) {
+  failures.push("vite.config.ts: could not parse the workletFiles map");
+}
+for (const inst of readdirSync(INSTRUMENTS)) {
+  const registerTs = join(INSTRUMENTS, inst, "register.ts");
+  if (!existsSync(registerTs)) continue;
+  const body = readFileSync(registerTs, "utf-8").match(/workletModules\s*:\s*\[([^\]]*)\]/)?.[1] ?? "";
+  for (const [, mod] of body.matchAll(/"([^"]+)"/g)) {
+    if (!servedFiles.has(mod)) {
+      failures.push(`${inst}: workletModules entry "${mod}" missing from vite.config.ts workletFiles — addModule() will 404`);
+    } else {
+      notes.push(`  ${inst}: worklet module "${mod}" served`);
+    }
+  }
+}
+
 // The template instrument must stay registered (dev-gated) so it keeps
 // compiling and rendering as the living reference.
 const rootEl = join(ROOT, "src/components/root-element.ts");

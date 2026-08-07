@@ -16,19 +16,16 @@ Audits first: the DAW shell will multiply whatever per-instrument costs exist
 today (N mounted devices instead of 3 fixed ones), and DSP fixes get more
 expensive once more engines are built on the same patterns.
 
-### 1. [ ] Scalability audit & improvements
-Assess the architecture against the DAW target and fix what blocks it.
-- Plugin lifecycle: instances are created once at boot, one per plugin id
-  ([root-element.ts](src/components/root-element.ts)). The DAW needs
-  per-slot instantiation, disposal, and (question to settle) multiple
-  instances of the same device.
-- Audio graph hygiene: worklet/node teardown on unmount, AudioContext usage,
-  SharedParamBuffer per instance.
-- Asset & bundle cost: worklet module loading is serial and up-front; a device
-  browser wants lazy loading per mount.
-- State/preset model under dynamic slots (state must be keyed by slot, not
-  by plugin).
-- Output: findings + prioritized fixes; the fixes that gate item 3 land here.
+### 1. [x] Scalability audit & improvements — done 2026-08-07
+Everything below the future shell is now multi-instance-safe, leak-free, and
+guarded: per-instance worklet state (+ change-gated params), per-slot plugin
+instantiation keyed by slot id, full disposal chain with real teardown on
+unmount, one app-level MIDI-learn adapter, slot-scoped sequels storage,
+poly-ticks preset back-compat, routed-channels-only metering, metronome
+through the mixer, wasm heap growth (flags unified with CI), and a
+conventions guard for the workletFiles map. Verified live incl. a
+two-monolog multi-instance smoke test. **Deferred findings for items 3/5/6
+live in [docs/scalability-audit.md](docs/scalability-audit.md).**
 
 ### 2. [ ] DSP audit & improvements
 Quality pass over both engine flavours (C++/wasm: monolog, poly-ticks;

@@ -43,6 +43,24 @@ Any **new worklet file** (`*-processor.js`, `*.wasmmodule.js`) must be added to 
 - **Tokenize the look** — add a CSS custom property (per-device configurable), never hardcode a colour/radius/size. Restyle via vars, not edits.
 - **Compact-first**: dense, tidy layouts; borrow whitespace toward content.
 
+## Lifecycle — non-negotiables
+
+- **Plugins are instantiated per SLOT** (root-element walks the slot tree;
+  the instance map is keyed by slot id). Never assume one instance per plugin
+  id — the same device can be mounted twice.
+- **Worklet processors keep all mutable state per instance** (`this._*` or the
+  wasm hooks' `state` bag) — a module-scope variable in a processor file is
+  shared by every instance and cross-wires them. Load modules via
+  `addWorkletModuleOnce`, never raw `addModule`.
+- **dispose() must release everything**: controllers dispose their node (which
+  posts `__dispose`; processors free the engine and return false from
+  process()), and device-slot teardown disposes the plugin + clears its mixer
+  routing. New processors must handle `__dispose`.
+- **UI elements unsubscribe symmetrically**: stable handler fields,
+  addEventListener in connectedCallback, removeEventListener in
+  disconnectedCallback (controllers are plain EventTargets — no subscribe
+  wrappers). Same for document-level listeners.
+
 ## Params — invariants
 
 - **Append params, never reorder** — indices are baked into saved presets.

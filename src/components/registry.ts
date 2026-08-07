@@ -30,5 +30,3 @@ import "./common/panel-wrapper-element";
 import "./common/row-element";
 
 import "./device-slot/device-slot";
-
-import "./visualizer-element";
