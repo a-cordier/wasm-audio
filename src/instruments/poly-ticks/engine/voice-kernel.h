@@ -454,7 +454,10 @@ namespace Voice {
 			float cleanLeft = dcBlockerLeft.process(shapedLeft);
 			float cleanRight = dcBlockerRight.process(shapedRight);
 
-			float gain = velocity * amplitudeEnvelope.nextLevel();
+			// voiceGain: 16 voices sum with no other attenuation, so dense
+			// chords clipped the output stage hard at drive 0. -6 dB per voice
+			// keeps an 8-note chord inside the rails.
+			float gain = velocity * amplitudeEnvelope.nextLevel() * PolyTicksConstants::voiceGain;
 			return StereoSample{
 				cleanLeft * gain * voicePan.left,
 				cleanRight * gain * voicePan.right,
