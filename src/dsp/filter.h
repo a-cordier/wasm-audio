@@ -289,7 +289,12 @@ namespace Filter {
 
 			float nextSample(float sample, float cutoff, float resonance) override {
 				float cutoffHz = 20.0f * std::pow(800.0f, cutoff);
-				cutoffHz = std::min(cutoffHz, sampleRate * 0.45f);
+				// 0.25*SR, not 0.45: with the clamped-tanh feedback, driving the
+				// poles much past a quarter of the sample rate period-doubles
+				// into a sustained ~fc/2 limit-cycle whistle riding every bright
+				// sweep. A quarter of the rate keeps the full musical range
+				// (12 kHz at 48k) without ever reaching the unstable region.
+				cutoffHz = std::min(cutoffHz, sampleRate * 0.25f);
 
 				float g = std::tan(Constants::pi * cutoffHz / sampleRate);
 				float G = g / (1.0f + g);
@@ -452,11 +457,18 @@ namespace Filter {
 	namespace Korg {
 		// Korg35 / MS-20 Rev1: TPT 2-pole Sallen-Key with forward-path saturation.
 		// Based on Will Pirkle AN-5 (Zavalishin TPT, delay-free feedback).
-		// The key to the MS-20 "screaming" character is diodes IN the signal path:
-		// resonance boosts signal at cutoff → drives diodes harder → harmonics.
+		// True Korg35 (MS-20) topology: LPF1 feeds a resonance loop in which
+		// LPF2's output returns through a same-cutoff HIGHPASS, scaled by K.
+		// The highpass in the loop is what makes the resonance ring at the
+		// cutoff (self-oscillation as K approaches 2) — and it has zero DC
+		// gain, so the loop structurally cannot latch onto a rail (the
+		// previous input-feedback-of-a-lowpass topology both failed to
+		// resonate and needed a DC-blocker band-aid). The MS-20's scream is
+		// the loop CLIPPING: the feedback estimate saturates through fastTanh
+		// (same idiom as the Moog kernel) and the forward diodes are driven
+		// harder as resonance rises.
 		// Cutoff: 0..1 mapped exponentially to 20..18000 Hz.
 		// Resonance: 0..1 mapped to K=0..2.0 (self-oscillation at K=2).
-		// Highpass is 6dB/oct (authentic MS-20 behavior).
 		class Korg35Kernel : public Kernel {
 			public:
 			Korg35Kernel(float sampleRate) :
@@ -474,41 +486,45 @@ namespace Filter {
 
 				float K = resonance * 2.0f;
 
-				// Delay-free feedback resolution (Pirkle/Zavalishin TPT Sallen-Key)
-				float S = (1.0f - G) * (G * s1 + s2);
-
-				// The delay-free solution is only valid while K*G^2 < 1. Above
-				// that the denominator inverts: at 44.1kHz and full cutoff,
-				// K*G^2 reaches 1.13, so clamping the denominator afterwards
-				// left a x1000 gain step at the top of the sweep. Back the
-				// resonance off instead, which keeps the response continuous.
-				float G2 = G * G;
-				float denom = 1.0f - K * G2;
-				constexpr float minDenom = 0.05f;
-				if (denom < minDenom) {
-					K = (1.0f - minDenom) / std::max(G2, 1e-6f);
-					denom = minDenom;
-				}
-
-				float u = (sample + K * S) / denom;
-
-				// Forward-path saturation (MS-20 Rev1 diodes in signal path)
-				u = std::tanh(drive * u);
-
-				// TPT Stage 1 (lowpass)
-				float v1 = G * (u - s1);
+				// LPF1 sits outside the loop.
+				float v1 = G * (sample - s1);
 				float y1 = v1 + s1;
 				s1 = y1 + v1;
 
-				// TPT Stage 2 (lowpass)
-				float v2 = G * (y1 - s2);
+				// Zero-delay resolution of u = y1 + K*HPF1(LPF2(u)) with
+				// one-pole TPT forms y = G*x + (1-G)*state:
+				//   fb collects the states' contribution, and the instantaneous
+				//   part gives the 1 - K*G*(1-G) denominator.
+				float fb = (1.0f - G) * ((1.0f - G) * s2 - sh);
+				float denom = 1.0f - K * G * (1.0f - G);
+				constexpr float minDenom = 0.05f;
+				if (denom < minDenom) denom = minDenom;
+
+				// The ring is boosted BEFORE the shared forward saturator, and
+				// the drive is NOT scaled with resonance: scaling the whole sum
+				// raised the body's small-signal gain in step with the ring, so
+				// the two coexisted ("a peak layered on top"). Boosting only
+				// the ring lets it dominate the diodes' headroom at high
+				// resonance — the body audibly compresses under it, the MS-20
+				// "thins out and screams" behaviour.
+				float ring = fastTanh(K * fb) * (1.0f + 0.8f * resonance);
+				float u = (y1 + ring) / denom;
+				u = std::tanh(drive * u);
+
+				// LPF2 (in the loop)
+				float v2 = G * (u - s2);
 				float y2 = v2 + s2;
 				s2 = y2 + v2;
+
+				// HPF1 (in the loop): advance its state with y2.
+				float vh = G * (y2 - sh);
+				float ylph = vh + sh;
+				sh = ylph + vh;
 
 				float bp = y1 - y2;
 				float hp = u - y1;
 
-				float norm = 1.0f / (1.0f + K * 0.3f);
+				float norm = 1.0f / (1.0f + K * 0.2f);
 
 				switch (mode) {
 					case Mode::LOWPASS_PLUS:
@@ -527,6 +543,7 @@ namespace Filter {
 			void reset() override {
 				s1 = 0.0f;
 				s2 = 0.0f;
+				sh = 0.0f;
 			}
 
 			private:
@@ -534,6 +551,7 @@ namespace Filter {
 			float drive = 1.0f;
 			float s1 = 0.0f;
 			float s2 = 0.0f;
+			float sh = 0.0f;
 		};
 	} // namespace Korg
 
@@ -568,7 +586,13 @@ namespace Filter {
 				// whistling sweep, which is the opposite of the dense, dirty
 				// character it exists for.
 				float K = resonance * 1.5f;
-				float stageDrive = 1.2f + drive * 0.3f;
+				// Hotter than the pre-fix 1.2 + drive*0.3: the latched
+				// integrators used to add their own (unstable) grit on top of
+				// the stage saturation; with the integrators linear the scream
+				// comes from here alone, so the stages push harder. Stability
+				// is unconditional now — tanh bounds every stage — so this is
+				// pure voicing.
+				float stageDrive = 1.4f + drive * 0.5f;
 
 				float G2 = G * G;
 				float G3 = G2 * G;
@@ -579,13 +603,20 @@ namespace Filter {
 				float u = (sample - K * S) / (1.0f + K * G4);
 				u = std::tanh(drive * u);
 
+				// The integrators must stay LINEAR. Writing the saturated output
+				// back into the state turned each pole into a bistable latch
+				// (tanh(sat*s) has stable non-zero fixed points for sat > 1):
+				// below ~1.4 kHz cutoff the states parked on a DC rail and the
+				// voice went silent mid-note. The cumulative per-stage
+				// saturation this filter exists for is applied to the value
+				// passed DOWN the cascade instead.
 				float y = u;
 				for (int i = 0; i < 4; ++i) {
 					float v = G * (y - state[i]);
-					float sum = v + state[i];
+					float lin = v + state[i];
+					state[i] = lin + v;
 					float sat = (i >= 2) ? stageDrive * 1.2f : stageDrive;
-					y = std::tanh(sat * sum);
-					state[i] = y + v;
+					y = std::tanh(sat * lin);
 				}
 
 				float lp4 = y;

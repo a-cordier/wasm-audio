@@ -21,6 +21,7 @@
 #include "filter.h"
 #include "lfo.h"
 #include "oscillator.h"
+#include "oversampling.h"
 #include "range.h"
 #include "waveshaper.h"
 #include <algorithm>
@@ -102,14 +103,19 @@ namespace Monolog {
 			// is where a lot of monolog's loudness and grit comes from.
 			float mix = oscOut + subOut + noiseOut;
 
-			// Pre-filter wavefolder ("dirt"). Sits before the lowpass so the
-			// filter tames the (non-band-limited) folded harmonics, and the
-			// mandatory end-of-chain DC blocker removes any asymmetric-fold DC.
+			// Pre-filter wavefolder ("dirt"), run at 2x. The piecewise-linear
+			// foldback has unbounded bandwidth, and at 1x its products reflect
+			// straight back into the audio band as inharmonic grit that no
+			// downstream lowpass can remove. The dry/wet blend happens INSIDE
+			// the oversampler so both paths share its small group delay (a
+			// dry path outside would comb against the delayed wet one).
 			if (dirtAmount > 0.f) {
 				float threshold = 1.0f - 0.6f * dirtAmount;               // 1.0 -> 0.4
-				float safe = std::clamp(mix, -4.f, 4.f);                  // bound foldback's loop
-				float folded = Waveshaper::foldback(safe, threshold) * (1.0f + 0.5f * dirtAmount);
-				mix = (1.0f - dirtAmount) * mix + dirtAmount * folded;    // crossfade blend
+				mix = dirtOversampler.process(mix, [&](float s) {
+					float safe = std::clamp(s, -4.f, 4.f);                // bound foldback's loop
+					float folded = Waveshaper::foldback(safe, threshold) * (1.0f + 0.5f * dirtAmount);
+					return (1.0f - dirtAmount) * s + dirtAmount * folded; // crossfade blend
+				});
 			}
 
 			float filterEnvMod = filterEnvAmount * filterEnv.nextLevel();
@@ -187,6 +193,7 @@ namespace Monolog {
 			korgFilter.reset();
 			// Key sync on = LFO phase retriggers with the note; off = free-running.
 			if (lfoKeySync) lfo.reset();
+			dirtOversampler.reset();
 			dcBlocker.reset();
 			ampEnv.reset();
 			filterEnv.reset();
@@ -204,7 +211,19 @@ namespace Monolog {
 		void setAccentAmount(float a) { accentAmount = a; }
 		void setDirt(float d) { dirtAmount = d; }
 
-		void setFilterModel(FilterModel model) { filterModel = model; }
+		void setFilterModel(FilterModel model) {
+			if (model == filterModel) return;
+			filterModel = model;
+			// The incoming kernel's state froze whenever it was last selected;
+			// entering it stale mid-note is a click. (Called every block from
+			// applyParams, hence the same-model early return.)
+			switch (model) {
+				case FilterModel::ACID: diodeFilter.reset(); break;
+				case FilterModel::SCREAM: screamerFilter.reset(); break;
+				case FilterModel::KORG: korgFilter.reset(); break;
+				case FilterModel::MOOG: moogFilter.reset(); break;
+			}
+		}
 		void setCutoff(float c) { cutoffBase = c; cutoff = c; }
 		void setResonance(float r) { resonance = r; }
 		void setDrive(float d) {
@@ -281,6 +300,7 @@ namespace Monolog {
 		Filter::Screamer::ScreamerKernel screamerFilter;
 		Filter::Korg::Korg35Kernel korgFilter;
 		LFOKernel lfo;
+		Oversampler2x dirtOversampler;
 		DCBlocker dcBlocker;
 
 		Envelope::Kernel ampEnv;
