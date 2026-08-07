@@ -108,6 +108,7 @@ export class DeviceSlot extends LitElement {
   private portChangeCleanup: (() => void) | null = null;
   private controlChangeListener: EventListener | null = null;
   private learnStateListener: (() => void) | null = null;
+  private wiredPlugin: Plugin | null = null;
 
   connectedCallback() {
     super.connectedCallback();
@@ -119,6 +120,15 @@ export class DeviceSlot extends LitElement {
 
   updated(changed: Map<string, unknown>) {
     if (changed.has("config") || changed.has("plugin") || changed.has("bus") || changed.has("audioContext") || changed.has("parentOutput") || changed.has("mixerEngine")) {
+      // Unwire the outgoing plugin on swap, or its audio stays connected and
+      // its mixer routing keeps pointing at a device this slot no longer hosts.
+      if (this.wiredPlugin && this.wiredPlugin !== this.plugin) {
+        if (isInstrumentPlugin(this.wiredPlugin)) {
+          (this.wiredPlugin as InstrumentPlugin).disconnectAudio();
+        }
+        this.mixerEngine?.clearRouting(this.config.id);
+      }
+      this.wiredPlugin = this.plugin ?? null;
       this.wireAudio();
       this.wireRouting();
       this.setupCoreFeatures();
@@ -213,6 +223,14 @@ export class DeviceSlot extends LitElement {
     this.portChangeCleanup?.();
     this.portChangeCleanup = null;
     this.mixNode?.disconnect();
+    // DOM disconnect == unmount: release the mixer routing and the engine.
+    // Item 3 (dynamic mounting) must distinguish unmount from move before it
+    // starts reusing or reordering live slots.
+    if (this.config?.mode === "leaf" && this.plugin) {
+      this.mixerEngine?.clearRouting(this.config.id);
+      this.plugin.dispose();
+    }
+    this.wiredPlugin = null;
     this.teardownCoreFeatures();
   }
 
@@ -414,7 +432,8 @@ export class DeviceSlot extends LitElement {
     return html`
       <div class="branch">
         ${children.map((childConfig) => {
-          const childPlugin = this.plugins?.get(childConfig.pluginId ?? "");
+          // Instances are keyed by SLOT id: two slots can host the same device.
+          const childPlugin = this.plugins?.get(childConfig.id);
           return html`
             <device-slot
               .config=${childConfig}

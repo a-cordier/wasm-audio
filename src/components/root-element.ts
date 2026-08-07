@@ -21,7 +21,7 @@ import { MidiBus } from "../midi/bus/bus";
 import { KeyboardController, KbTarget } from "../midi/keyboard";
 import { Channel } from "../midi/types";
 
-import { SlotConfig, createBranchSlot, createLeafSlot } from "../core/slot";
+import { SlotConfig, createBranchSlot, createLeafSlot, collectLeafSlots } from "../core/slot";
 import { pluginRegistry } from "../core/plugin-registry";
 import type { Plugin, InstrumentPlugin } from "../core/types";
 import { isInstrumentPlugin } from "../core/types";
@@ -29,6 +29,7 @@ import { getBindingManager } from "../control/binding-manager";
 import { MidiControlAdapter } from "../control/adapters/midi-adapter";
 
 import { MixerEngine } from "../mixer";
+import { addWorkletModuleOnce } from "../runtime/worklet-modules";
 
 import "./device-slot/device-slot";
 import "./mixer/mixer-element";
@@ -91,15 +92,6 @@ export class Root extends LitElement {
     this.keyboard = new KeyboardController();
     this.keyboard.connect(this.midiBus);
 
-    for (const reg of pluginRegistry.getAll()) {
-      for (const mod of reg.workletModules ?? []) {
-        await this.audioContext.audioWorklet.addModule(mod);
-      }
-      const plugin = reg.controllerFactory(this.audioContext);
-      plugin.init();
-      this.plugins.set(reg.descriptor.id, plugin);
-    }
-
     this.mixerEngine = new MixerEngine(this.audioContext);
 
     const slots = [
@@ -123,15 +115,29 @@ export class Root extends LitElement {
     }
     this.slotTree = createBranchSlot("root", "DAW", slots);
 
+    // One controller per LEAF SLOT, keyed by slot id: the same device can be
+    // mounted in several slots, each with its own engine and state.
+    for (const slot of collectLeafSlots(this.slotTree)) {
+      if (!slot.pluginId) continue;
+      const reg = pluginRegistry.get(slot.pluginId);
+      if (!reg) continue;
+      for (const mod of reg.workletModules ?? []) {
+        await addWorkletModuleOnce(this.audioContext, mod);
+      }
+      const plugin = reg.controllerFactory(this.audioContext);
+      plugin.init();
+      this.plugins.set(slot.id, plugin);
+    }
+
     this.mixerEngine.setLabel(0, "POLY TICKS");
     this.mixerEngine.setLabel(1, "MONOLOG");
     this.mixerEngine.setLabel(2, "SEQUELS");
 
-    const polyTicks = this.plugins.get("poly-ticks");
+    const polyTicks = this.plugins.get("slot-synth");
     if (polyTicks && isInstrumentPlugin(polyTicks)) {
       this.mixerEngine.setRouting("slot-synth", (polyTicks as InstrumentPlugin).getOutputNode(), [0]);
     }
-    const monolog = this.plugins.get("monolog");
+    const monolog = this.plugins.get("slot-monolog");
     if (monolog && isInstrumentPlugin(monolog)) {
       this.mixerEngine.setRouting("slot-monolog", (monolog as InstrumentPlugin).getOutputNode(), [1]);
     }

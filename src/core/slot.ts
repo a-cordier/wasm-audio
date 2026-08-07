@@ -55,3 +55,7 @@ export function createBranchSlot(id: string, name: string, children: SlotConfig[
     children,
   };
 }
+
+export function collectLeafSlots(slot: SlotConfig): SlotConfig[] {
+  return slot.mode === "leaf" ? [slot] : (slot.children ?? []).flatMap(collectLeafSlots);
+}
