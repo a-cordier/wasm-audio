@@ -34,6 +34,21 @@ const PARAM_COUNT = 5;
 const attackSeconds = (raw) => 0.002 + (raw / 127) * 1.5;
 const releaseSeconds = (raw) => 0.01 + (raw / 127) * 2.0;
 
+// PolyBLEP residual for a unit-period phase t with per-sample increment dt —
+// the house band-limiting idiom (mirrors dsp/oscillator.h). Sign convention:
+// for the RISING saw (2t-1, a -2 step at wrap) the residual is SUBTRACTED;
+// a falling saw would ADD it. Naive saws/squares alias audibly, and this file
+// is the template new synths copy.
+const polyBlep = (t, dt) => {
+  if (t < dt) { t /= dt; return t + t - t * t - 1; }
+  if (t > 1 - dt) { t = (t - 1) / dt; return t * t + t + t + 1; }
+  return 0;
+};
+
+// ~10 ms one-pole for the level knob: raw 0-127 steps land at block
+// boundaries and zipper without it.
+const LEVEL_SMOOTH_ALPHA = 1 - Math.exp(-1 / (0.010 * sampleRate));
+
 class TemplateProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -43,6 +58,8 @@ class TemplateProcessor extends AudioWorkletProcessor {
     this._env = 0;
     this._gate = 0;
     this._freq = 440;
+    this._velocity = 1;
+    this._levelSm = 0;
     this._alive = true;
     this.port.onmessage = (e) => {
       if (e.data && e.data.type === "__init_sab") {
@@ -68,6 +85,9 @@ class TemplateProcessor extends AudioWorkletProcessor {
         (this._midi.status === this._midi.NOTE_ON && this._midi.data2 === 0);
       if (on) {
         this._freq = this._midi.frequency || this._freq;
+        // Perceptual velocity curve (house convention): linear velocity-to-
+        // gain leaves soft playing nearly inaudible.
+        this._velocity = Math.pow(this._midi.data2 / 127, 0.6);
         this._gate = 1;
       } else if (off) {
         this._gate = 0;
@@ -91,15 +111,25 @@ class TemplateProcessor extends AudioWorkletProcessor {
         ? Math.min(1, this._env + aRate)
         : Math.max(0, this._env - rRate);
 
-      // Oscillator
+      // Oscillator — band-limited (see polyBlep above).
       let s;
-      if (wave === 0) s = Math.sin(2 * Math.PI * this._phase);        // sine
-      else if (wave === 2) s = this._phase < 0.5 ? 1 : -1;            // square
-      else s = 2 * this._phase - 1;                                  // saw
+      if (wave === 0) {
+        s = Math.sin(2 * Math.PI * this._phase);                      // sine (alias-free)
+      } else if (wave === 2) {
+        s = this._phase < 0.5 ? 1 : -1;                               // square
+        s += polyBlep(this._phase, inc);                              // rising edge at 0
+        let t = this._phase - 0.5;
+        if (t < 0) t += 1;
+        s -= polyBlep(t, inc);                                        // falling edge at 0.5
+      } else {
+        s = 2 * this._phase - 1;                                      // rising saw
+        s -= polyBlep(this._phase, inc);
+      }
       this._phase += inc;
       if (this._phase >= 1) this._phase -= 1;
 
-      const y = s * this._env * level * 0.3; // 0.3 headroom
+      this._levelSm += LEVEL_SMOOTH_ALPHA * (level - this._levelSm);
+      const y = s * this._env * this._levelSm * this._velocity * 0.3; // 0.3 headroom
       ch0[i] = y;
       if (ch1) ch1[i] = y;
     }

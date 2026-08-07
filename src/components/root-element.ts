@@ -146,6 +146,13 @@ export class Root extends LitElement {
     if (sequels && isAudioProducer(sequels)) {
       this.mixerEngine.setRouting("slot-seq", sequels.getOutputNode(), [2]);
     }
+    // Dev-only template slot: without a mixer route its subgraph is never
+    // pulled by the audio graph — the reference synth was silent.
+    const template = this.plugins.get("slot-template");
+    if (template && isInstrumentPlugin(template)) {
+      this.mixerEngine.setLabel(3, "TEMPLATE");
+      this.mixerEngine.setRouting("slot-template", (template as InstrumentPlugin).getOutputNode(), [3]);
+    }
 
     const defaultReg = pluginRegistry.get("poly-ticks");
     this.kbSlotConfigs.set("slot-synth", {

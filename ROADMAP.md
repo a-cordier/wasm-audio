@@ -27,13 +27,16 @@ conventions guard for the workletFiles map. Verified live incl. a
 two-monolog multi-instance smoke test. **Deferred findings for items 3/5/6
 live in [docs/scalability-audit.md](docs/scalability-audit.md).**
 
-### 2. [ ] DSP audit & improvements
-Quality pass over both engine flavours (C++/wasm: monolog, poly-ticks;
-JS worklet: sequels).
-- Aliasing, denormals, param smoothing (zipper noise), per-block vs per-sample
-  work, CPU headroom with many voices/devices.
-- Output: findings + fixes where warranted. Informs the drum synth and
-  effects DSP later.
+### 2. [x] DSP audit & improvements — done 2026-08-07
+Nine QA'd batches over both engine flavours + the mixer path + the sequencer
+clock: envelope/retrigger clicks killed, the saw polyBLEP sign fixed, all
+four monolog filter models repaired (KORG rebuilt as a true Korg35),
+smoothing on every param path, voice headroom, modulation semantics
+(semitone pitch LFOs, perceptual velocity, reachable accent), denormal
+guards + hot-path cost cuts, a tempo-honest sequencer clock, and the
+template upgraded to model house DSP standards. **Findings ledger and
+deferred items (notably sample-accurate event scheduling → item 4) live in
+[docs/dsp-audit.md](docs/dsp-audit.md).**
 
 ## Phase 1 — DAW foundations
 

@@ -61,6 +61,23 @@ Any **new worklet file** (`*-processor.js`, `*.wasmmodule.js`) must be added to 
   disconnectedCallback (controllers are plain EventTargets — no subscribe
   wrappers). Same for document-level listeners.
 
+## DSP — house standards
+
+- **Band-limit every discontinuous waveform** (polyBLEP/BLAMP; the saw's sign
+  convention is documented at `dsp/oscillator.h` `computeSaw`). Naive
+  saws/squares alias — the template shows the JS-side idiom.
+- **Smooth every param that reaches the audio path** (ramped block buffers or
+  ~10 ms one-poles; snap to targets on fresh voices so attacks stay
+  percussive). Mixer/graph gains ramp via `setTargetAtTime`, never
+  `setValueAtTime`.
+- **Envelopes retrigger from their current level**; a full `reset()` is only
+  for silent voices. Flush denormals at feedback-state writes
+  (`flushDenormal` in `dsp/constants.h` — wasm has no FTZ).
+- **Velocity is perceptual** (`pow 0.6`), **pitch modulation is exponential**
+  (semitones), waveshapers get oversampled (`Oversampler2x`), and per-sample
+  maps use `exp2(c·log2 base)` over `pow`.
+- Full findings ledger + deferred DSP work: `docs/dsp-audit.md`.
+
 ## Params — invariants
 
 - **Append params, never reorder** — indices are baked into saved presets.
