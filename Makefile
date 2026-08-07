@@ -9,10 +9,15 @@ DEPS = $(wildcard $(ENGINE)/*.h) $(wildcard $(ENGINE)/*.cpp) $(wildcard $(DSP)/*
 MONOLOG_DEPS = $(wildcard $(MONOLOG_ENGINE)/*.h) $(wildcard $(MONOLOG_ENGINE)/*.cpp) $(wildcard $(DSP)/*.h) Makefile
 
 SHELL := /bin/bash
-EMCC := docker run --rm -v $(CURDIR):/src -u $(shell id -u):$(shell id -g) emscripten/emsdk emcc
+# Overridable so CI (native emsdk) can run the same targets: make build EMCC=emcc
+EMCC ?= docker run --rm -v $(CURDIR):/src -u $(shell id -u):$(shell id -g) emscripten/emsdk emcc
 
+# ALLOW_MEMORY_GROWTH: all instances of one engine share a single wasm heap;
+# without growth a _malloc failure aborts the whole AudioWorkletGlobalScope,
+# killing every device's audio at once.
 EMCC_FLAGS = -std=c++17 -O3 -g0 \
 	-sINITIAL_MEMORY=4MB \
+	-sALLOW_MEMORY_GROWTH=1 \
 	-sWASM_ASYNC_COMPILATION=0 \
 	-sSINGLE_FILE=1 \
 	-sEXPORT_ES6=1 \
