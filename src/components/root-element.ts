@@ -25,6 +25,8 @@ import { SlotConfig, createBranchSlot, createLeafSlot } from "../core/slot";
 import { pluginRegistry } from "../core/plugin-registry";
 import type { Plugin, InstrumentPlugin } from "../core/types";
 import { isInstrumentPlugin } from "../core/types";
+import { getBindingManager } from "../control/binding-manager";
+import { MidiControlAdapter } from "../control/adapters/midi-adapter";
 
 import { MixerEngine } from "../mixer";
 
@@ -44,6 +46,7 @@ export class Root extends LitElement {
 
   private plugins = new Map<string, Plugin>();
   private slotTree: SlotConfig;
+  private midiAdapter: MidiControlAdapter | null = null;
 
   @state()
   private ready = false;
@@ -69,6 +72,12 @@ export class Root extends LitElement {
 
     this.midi = await createMidi();
     this.midiBus = this.midi.bus("main");
+
+    // One CC adapter for the whole app: bindings are globally keyed and the
+    // control-change event carries the slot id, so per-slot adapters would
+    // only multiply every CC dispatch.
+    this.midiAdapter = new MidiControlAdapter(this.midiBus);
+    getBindingManager().registerSource(this.midiAdapter);
 
     for (const input of this.midi.devices.inputs.values()) {
       input.connect(this.midiBus);
@@ -136,6 +145,14 @@ export class Root extends LitElement {
     this.syncKeyboardTargets();
 
     this.ready = true;
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.midiAdapter) {
+      getBindingManager().unregisterSource(this.midiAdapter);
+      this.midiAdapter = null;
+    }
   }
 
   private onSlotSelected(e: CustomEvent<{ slotId: string; pluginId?: string; channel: Channel }>) {

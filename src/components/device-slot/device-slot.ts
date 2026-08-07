@@ -27,7 +27,6 @@ import { Midi } from "../../midi/api";
 import { Channel, Disposable, INTERNAL_SOURCE, MidiEvent, RouteFilter, Status } from "../../midi/types";
 import { isNoteOn, isNoteOff } from "../../midi/codec/decode";
 import { getBindingManager } from "../../control/binding-manager";
-import { MidiControlAdapter } from "../../control/adapters/midi-adapter";
 import { MixerEngine } from "../../mixer";
 
 /** Label for the synthetic slot holding the user's own working state. */
@@ -107,7 +106,6 @@ export class DeviceSlot extends LitElement {
   private busSubscription: Disposable | null = null;
   private activeNotes = new Set<number>();
   private portChangeCleanup: (() => void) | null = null;
-  private midiAdapterRegistered = false;
   private controlChangeListener: EventListener | null = null;
   private learnStateListener: (() => void) | null = null;
 
@@ -229,14 +227,14 @@ export class DeviceSlot extends LitElement {
   }
 
   private setupBindingManager() {
-    if (!this.bus || this.midiAdapterRegistered) return;
+    // Remove-then-add: this re-runs whenever the plugin or config changes, and
+    // the listeners must close over the CURRENT plugin and slot id — the old
+    // guard flag kept them bound to the first plugin forever. The MIDI adapter
+    // itself is app-level (registered once by root-element), not per slot.
+    this.teardownCoreFeatures();
     if (!this.plugin || !isLearnable(this.plugin)) return;
 
     const bm = getBindingManager();
-    const adapter = new MidiControlAdapter(this.bus);
-    bm.registerSource(adapter);
-    this.midiAdapterRegistered = true;
-
     const plugin = this.plugin;
     const mySlotId = this.config.id;
     this.controlChangeListener = ((e: CustomEvent) => {

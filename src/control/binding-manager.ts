@@ -21,8 +21,7 @@ import { Disposable } from "../midi/types";
 export class BindingManager extends EventTarget {
   private bindings = new Map<string, ControlID>();
   private slotBindings = new Map<string, string>();
-  private adapters: ControlSourceAdapter[] = [];
-  private subscriptions: Disposable[] = [];
+  private sources = new Map<ControlSourceAdapter, Disposable>();
   private _learningTarget: ControlID = ControlID.NONE;
   private _learningSlotId: string | null = null;
 
@@ -55,10 +54,18 @@ export class BindingManager extends EventTarget {
   }
 
   registerSource(adapter: ControlSourceAdapter) {
-    this.adapters.push(adapter);
+    if (this.sources.has(adapter)) return;
     const sub = adapter.onSignal((signal) => this.handleSignal(signal));
-    this.subscriptions.push(sub);
+    this.sources.set(adapter, sub);
     adapter.connect();
+  }
+
+  unregisterSource(adapter: ControlSourceAdapter) {
+    const sub = this.sources.get(adapter);
+    if (!sub) return;
+    sub.dispose();
+    adapter.disconnect();
+    this.sources.delete(adapter);
   }
 
   startLearning(target: ControlID) {
@@ -115,15 +122,11 @@ export class BindingManager extends EventTarget {
   }
 
   destroy() {
-    for (const sub of this.subscriptions) {
-      sub.dispose();
+    for (const adapter of Array.from(this.sources.keys())) {
+      this.unregisterSource(adapter);
     }
-    for (const adapter of this.adapters) {
-      adapter.disconnect();
-    }
-    this.adapters.length = 0;
-    this.subscriptions.length = 0;
     this.bindings.clear();
+    this.slotBindings.clear();
   }
 }
 
