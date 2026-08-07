@@ -39,6 +39,9 @@ namespace Oscillator {
 			float index = phase * INDEX_SCALE;
 			int i0 = static_cast<int>(index);
 			float frac = index - i0;
+			// Float rounding can hand wrapPhase's callers a phase of exactly
+			// twoPi, making i0 == SIZE and table[i0 + 1] a one-past-end read.
+			i0 &= SIZE - 1;
 			return table[i0] + frac * (table[i0 + 1] - table[i0]);
 		}
 	} // namespace SineTable
@@ -169,9 +172,14 @@ namespace Oscillator {
 			return SineTable::lookup(p);
 		}
 
+		// This saw FALLS (1-2t): its wrap step is +2, while the BLEP residual's
+		// step is -2 (it is shaped for the rising saw 2t-1, where it is
+		// subtracted). For the falling saw the residual must therefore be
+		// ADDED — subtracting it doubled the discontinuity instead of
+		// cancelling it, leaving the saw buzzier and ~6 dB hotter than naive.
 		float computeSaw(float p) {
 			float value = 1.0 - (2.0 * p / Constants::twoPi);
-			return value - computePolyBLEP(p / Constants::twoPi, phaseIncrement / Constants::twoPi);
+			return value + computePolyBLEP(p / Constants::twoPi, phaseIncrement / Constants::twoPi);
 		}
 
 		// Two discontinuities per cycle: the rising edge at phase 0 and the
