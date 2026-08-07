@@ -71,4 +71,9 @@ export class SelectOptions {
   getCurrent(): SelectOption {
     return this.options[this.currentOption];
   }
+
+  /** Cursor-free read: unlike getCurrent(), unaffected by any UI stepping. */
+  at(index: number): SelectOption {
+    return this.options[index];
+  }
 }

@@ -77,94 +77,54 @@ export interface VoiceState {
   space: SpaceState;
 }
 
-function cloneControl(c: Control): Control {
-  return { value: c.value };
+// Full defaults double as the back-compat source: any field an old preset or
+// saved state omits falls back to its INIT value instead of throwing. The
+// routing defaults reproduce the behaviour that predated those controls: plain
+// osc1/osc2 crossfade, no stereo placement, phase-locked note starts, and a
+// sub level of 31.75/127, which is exactly the 0.25 once hardcoded in the voice.
+const DEFAULTS: VoiceState = {
+  osc1: { mode: { value: 1 }, semiShift: { value: 63.5 }, centShift: { value: 63.5 }, cycle: { value: 63.5 } },
+  osc2: { mode: { value: 1 }, semiShift: { value: 63.5 }, centShift: { value: 63.5 }, cycle: { value: 63.5 } },
+  osc2Amplitude: { value: 0 },
+  noiseLevel: { value: 0 },
+  envelope: { attack: { value: 0 }, decay: { value: 63 }, sustain: { value: 80 }, release: { value: 20 } },
+  filter: { mode: { value: 0 }, cutoff: { value: 127 }, resonance: { value: 0 }, drive: { value: 0 } },
+  cutoffMod: { attack: { value: 0 }, decay: { value: 0 }, amount: { value: 0 }, velocity: { value: 0 } },
+  lfo1: { mode: { value: 0 }, frequency: { value: 0 }, modAmount: { value: 0 }, destination: { value: 0 } },
+  lfo2: { mode: { value: 0 }, frequency: { value: 0 }, modAmount: { value: 0 }, destination: { value: 0 } },
+  voiceConfig: { voiceMode: { value: 0 }, glideTime: { value: 0 }, retrigger: { value: 1 } },
+  routing: { routing: { value: 0 }, fmIndex: { value: 0 }, subLevel: { value: 31.75 } },
+  space: { spread: { value: 0 }, width: { value: 0 }, drift: { value: 0 } },
+};
+
+function mergeControl(defaultControl: Control, saved?: Control): Control {
+  return { value: typeof saved?.value === "number" ? saved.value : defaultControl.value };
 }
 
-function cloneOscillator(s: OscillatorState): OscillatorState {
-  return {
-    mode: cloneControl(s.mode),
-    semiShift: cloneControl(s.semiShift),
-    centShift: cloneControl(s.centShift),
-    cycle: cloneControl(s.cycle),
-  };
+function mergeSection<T extends { [K in keyof T]: Control }>(
+  defaults: T,
+  partial?: Partial<T>
+): T {
+  const out = {} as T;
+  for (const key of Object.keys(defaults) as (keyof T)[]) {
+    out[key] = mergeControl(defaults[key], partial?.[key]) as T[keyof T];
+  }
+  return out;
 }
 
-const defaultVoiceConfig: VoiceConfigState = {
-  voiceMode: { value: 0 },
-  glideTime: { value: 0 },
-  retrigger: { value: 1 },
-};
-
-// Presets written before these controls existed omit them entirely, so the
-// defaults have to reproduce the previous fixed behaviour: plain osc1/osc2
-// crossfade, no stereo placement, phase-locked note starts, and a sub level of
-// 31.75/127, which is exactly the 0.25 that used to be hardcoded in the voice.
-const defaultRouting: RoutingState = {
-  routing: { value: 0 },
-  fmIndex: { value: 0 },
-  subLevel: { value: 31.75 },
-};
-
-const defaultSpace: SpaceState = {
-  spread: { value: 0 },
-  width: { value: 0 },
-  drift: { value: 0 },
-};
-
-export function createVoiceState(src: Partial<VoiceState>): VoiceState {
-  const vc = src.voiceConfig ?? defaultVoiceConfig;
-  const routing = src.routing ?? defaultRouting;
-  const space = src.space ?? defaultSpace;
+export function createVoiceState(src: Partial<VoiceState> = {}): VoiceState {
   return {
-    osc1: cloneOscillator(src.osc1),
-    osc2: cloneOscillator(src.osc2),
-    osc2Amplitude: cloneControl(src.osc2Amplitude),
-    noiseLevel: cloneControl(src.noiseLevel),
-    envelope: {
-      attack: cloneControl(src.envelope.attack),
-      decay: cloneControl(src.envelope.decay),
-      sustain: cloneControl(src.envelope.sustain),
-      release: cloneControl(src.envelope.release),
-    },
-    filter: {
-      mode: cloneControl(src.filter.mode),
-      cutoff: cloneControl(src.filter.cutoff),
-      resonance: cloneControl(src.filter.resonance),
-      drive: cloneControl(src.filter.drive),
-    },
-    cutoffMod: {
-      attack: cloneControl(src.cutoffMod.attack),
-      decay: cloneControl(src.cutoffMod.decay),
-      amount: cloneControl(src.cutoffMod.amount),
-      velocity: cloneControl(src.cutoffMod.velocity),
-    },
-    lfo1: {
-      mode: cloneControl(src.lfo1.mode),
-      destination: cloneControl(src.lfo1.destination),
-      frequency: cloneControl(src.lfo1.frequency),
-      modAmount: cloneControl(src.lfo1.modAmount),
-    },
-    lfo2: {
-      mode: cloneControl(src.lfo2.mode),
-      destination: cloneControl(src.lfo2.destination),
-      frequency: cloneControl(src.lfo2.frequency),
-      modAmount: cloneControl(src.lfo2.modAmount),
-    },
-    voiceConfig: {
-      voiceMode: cloneControl(vc.voiceMode),
-      glideTime: cloneControl(vc.glideTime),
-      retrigger: cloneControl(vc.retrigger),
-    },
-    routing: {
-      routing: cloneControl(routing.routing),
-      fmIndex: cloneControl(routing.fmIndex),
-      subLevel: cloneControl(routing.subLevel),
-    },
-    space: {
-      spread: cloneControl(space.spread),
-      width: cloneControl(space.width),
-      drift: cloneControl(space.drift),
-    },
+    osc1: mergeSection(DEFAULTS.osc1, src.osc1),
+    osc2: mergeSection(DEFAULTS.osc2, src.osc2),
+    osc2Amplitude: mergeControl(DEFAULTS.osc2Amplitude, src.osc2Amplitude),
+    noiseLevel: mergeControl(DEFAULTS.noiseLevel, src.noiseLevel),
+    envelope: mergeSection(DEFAULTS.envelope, src.envelope),
+    filter: mergeSection(DEFAULTS.filter, src.filter),
+    cutoffMod: mergeSection(DEFAULTS.cutoffMod, src.cutoffMod),
+    lfo1: mergeSection(DEFAULTS.lfo1, src.lfo1),
+    lfo2: mergeSection(DEFAULTS.lfo2, src.lfo2),
+    voiceConfig: mergeSection(DEFAULTS.voiceConfig, src.voiceConfig),
+    routing: mergeSection(DEFAULTS.routing, src.routing),
+    space: mergeSection(DEFAULTS.space, src.space),
   };
 }

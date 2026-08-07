@@ -70,6 +70,14 @@ export interface Learnable {
   handleControlChange(paramId: number, value: number): void;
 }
 
+/**
+ * Plugins whose persistence must be scoped to the hosting slot implement this;
+ * the host calls setSlotId before init() so state loads under the right key.
+ */
+export interface SlotAware {
+  setSlotId(slotId: string): void;
+}
+
 export interface PresetEntry {
   name: string;
   state: unknown;
@@ -95,4 +103,8 @@ export function isMidiConsumer(plugin: Plugin): plugin is Plugin & MidiConsumer 
 
 export function hasPresets(plugin: Plugin): plugin is Plugin & HasPresets {
   return "getFactoryPresets" in plugin;
+}
+
+export function isSlotAware(plugin: Plugin): plugin is Plugin & SlotAware {
+  return "setSlotId" in plugin;
 }

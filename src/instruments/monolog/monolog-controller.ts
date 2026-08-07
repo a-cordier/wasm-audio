@@ -29,8 +29,11 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     super();
     this.audioContext = audioContext;
     this.output = new GainNode(audioContext);
+    // at(0), not getCurrent(): the preset cursor is a module-level singleton
+    // shared by every instance, so a second instance must not boot from
+    // wherever the first instance's menu happens to point.
     this.state = createMonologState(
-      MonologPresetOptions.getCurrent().value as MonologState
+      MonologPresetOptions.at(0).value as MonologState
     );
     this.initControlHandlers();
   }

@@ -34,6 +34,15 @@ import {
 
 const STORAGE_KEY = "sequels.state.v1";
 
+/**
+ * Persistence is keyed by hosting slot so two mounted sequencers never clobber
+ * each other. Reads fall back to the legacy shared key (pre-slot-scoping
+ * saves keep loading); writes always go to the slot key.
+ */
+function storageKey(slotId?: string): string {
+  return slotId ? `${STORAGE_KEY}/${slotId}` : STORAGE_KEY;
+}
+
 function num(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -132,17 +141,18 @@ export function applyState(
   return { activePattern, bank };
 }
 
-export function saveState(state: SequencerState): void {
+export function saveState(state: SequencerState, slotId?: string): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(storageKey(slotId), JSON.stringify(state));
   } catch {
     // Storage disabled or over quota — persistence is best effort.
   }
 }
 
-export function loadStoredState(): SequencerState | null {
+export function loadStoredState(slotId?: string): SequencerState | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw =
+      localStorage.getItem(storageKey(slotId)) ?? localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SequencerState;
     if (parsed?.version !== STATE_VERSION) return null;
@@ -152,9 +162,9 @@ export function loadStoredState(): SequencerState | null {
   }
 }
 
-export function clearStoredState(): void {
+export function clearStoredState(slotId?: string): void {
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey(slotId));
   } catch {
     // ignore
   }

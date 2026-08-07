@@ -73,9 +73,16 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
   private readonly recorder = new PatternRecorder();
   private _recording = false;
 
+  private slotId: string | null = null;
+
   constructor(audioContext: AudioContext) {
     super();
     this.audioContext = audioContext;
+  }
+
+  /** Must be called before init(): state loads under the slot-scoped key. */
+  setSlotId(slotId: string): void {
+    this.slotId = slotId;
   }
 
   init(): void {
@@ -93,7 +100,7 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
       this.dispatchEvent(new CustomEvent("position", { detail: { step } }));
     });
 
-    const stored = loadStoredState();
+    const stored = loadStoredState(this.slotId ?? undefined);
     if (stored) {
       const { bank } = applyState(stored, this.node.config, this.node.pattern);
       this._bank = bank;
@@ -563,7 +570,7 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     if (this.autosaveTimer !== null) clearTimeout(this.autosaveTimer);
     this.autosaveTimer = setTimeout(() => {
       this.autosaveTimer = null;
-      saveState(this.getState());
+      saveState(this.getState(), this.slotId ?? undefined);
     }, AUTOSAVE_DEBOUNCE_MS);
   }
 
@@ -571,7 +578,7 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     if (this.autosaveTimer === null) return;
     clearTimeout(this.autosaveTimer);
     this.autosaveTimer = null;
-    saveState(this.getState());
+    saveState(this.getState(), this.slotId ?? undefined);
   }
 
   private allNotesOff(): void {

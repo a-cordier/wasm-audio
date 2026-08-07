@@ -24,7 +24,7 @@ import { Channel } from "../midi/types";
 import { SlotConfig, createBranchSlot, createLeafSlot, collectLeafSlots } from "../core/slot";
 import { pluginRegistry } from "../core/plugin-registry";
 import type { Plugin, InstrumentPlugin } from "../core/types";
-import { isInstrumentPlugin } from "../core/types";
+import { isInstrumentPlugin, isSlotAware } from "../core/types";
 import { getBindingManager } from "../control/binding-manager";
 import { MidiControlAdapter } from "../control/adapters/midi-adapter";
 
@@ -125,6 +125,7 @@ export class Root extends LitElement {
         await addWorkletModuleOnce(this.audioContext, mod);
       }
       const plugin = reg.controllerFactory(this.audioContext);
+      if (isSlotAware(plugin)) plugin.setSlotId(slot.id);
       plugin.init();
       this.plugins.set(slot.id, plugin);
     }

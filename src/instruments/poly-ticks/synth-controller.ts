@@ -50,7 +50,10 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
     super();
     this.audioContext = audioContext;
     this.output = new GainNode(audioContext);
-    this.setState(createVoiceState(PresetOptions.getCurrent().value as VoiceState));
+    // at(0), not getCurrent(): the preset cursor is a module-level singleton
+    // shared by every instance, so a second instance must not boot from
+    // wherever the first instance's menu happens to point.
+    this.setState(createVoiceState(PresetOptions.at(0).value as VoiceState));
     this.initControlHandlers();
   }
 
