@@ -110,8 +110,14 @@ class SeqProcessor extends AudioWorkletProcessor {
     this._countInTotal = 0;
     this._countInLastStep = -1;
 
-    // Pending note-offs: array of { note, offSample }
-    this._pendingOffs = [];
+    // Preallocated pending note-off queue (audio thread — no per-step object
+    // allocation): parallel arrays with _pendingOffCount live entries.
+    this._pendingOffNote = new Int32Array(64);
+    this._pendingOffSample = new Float64Array(64);
+    this._pendingOffCount = 0;
+    // Fractional grid position, advanced per sample by the current step rate.
+    this._stepPos = 0;
+    this._cachedLogicalStep = 0;
 
     // The note a slide step is holding open, deferred past the next note-on so
     // the two overlap and a legato monolog glides instead of retriggering.
@@ -149,10 +155,11 @@ class SeqProcessor extends AudioWorkletProcessor {
           this._countInLeft = this._countInTotal;
         }
         this._sampleCounter = 0;
+        this._stepPos = 0;
         this._currentStep = -1;
         this._lastReportedStep = -1;
         this._pingPongForward = true;
-        this._pendingOffs = [];
+        this._pendingOffCount = 0;
         this._slideNote = -1;
         this._stepOrigin = 0;
         this._lastRawStep = -1;
@@ -172,7 +179,8 @@ class SeqProcessor extends AudioWorkletProcessor {
       case "__stop":
         this._running = false;
         this._countInLeft = 0;
-        this._clickLeft = 0;
+        // _clickLeft deliberately NOT zeroed: the burst rings out through the
+        // stopped-transport path instead of truncating mid-sine (a pop).
         this._flushPendingOffs();
         this._currentStep = -1;
         this._lastReportedStep = -1;
@@ -192,7 +200,16 @@ class SeqProcessor extends AudioWorkletProcessor {
 
     const out = outputs[0] && outputs[0][0];
 
-    if (!this._running || !this._configView || !this._lengthsView) return true;
+    if (!this._running || !this._configView || !this._lengthsView) {
+      // A click that was sounding when the transport stopped rings out here
+      // instead of truncating mid-sine (a pop).
+      if (out && this._clickLeft > 0) {
+        for (let frame = 0; frame < RENDER_QUANTUM_FRAMES; frame++) {
+          out[frame] = this._clickSample();
+        }
+      }
+      return true;
+    }
 
     const bpm = this._configView[BPM];
     const subdivision = this._configView[SUBDIVISION];
@@ -218,6 +235,11 @@ class SeqProcessor extends AudioWorkletProcessor {
     const stepsPerBeat = subdivision;
     const stepsPerSecond = beatsPerSecond * stepsPerBeat;
     const samplesPerStep = sampleRate / stepsPerSecond;
+    // The grid position accumulates fractionally: a tempo change alters the
+    // RATE from here on. Deriving the step from the whole sample history
+    // (floor(absolute / samplesPerStep)) teleported the sequence on any BPM
+    // nudge — 120 -> 121 after a minute jumped ~4 steps.
+    const stepInc = stepsPerSecond / sampleRate;
 
     const beatSteps = Math.max(1, Math.round(subdivision));
     const barSteps = beatSteps * BEATS_PER_BAR;
@@ -235,6 +257,7 @@ class SeqProcessor extends AudioWorkletProcessor {
         this._countInLeft--;
         if (this._countInLeft <= 0) {
           this._sampleCounter = 0;
+          this._stepPos = 0;
           this._lastRawStep = -1;
           this._currentStep = -1;
         }
@@ -245,16 +268,17 @@ class SeqProcessor extends AudioWorkletProcessor {
 
       const absoluteSample = this._sampleCounter;
 
-      // Process pending note-offs
-      for (let i = this._pendingOffs.length - 1; i >= 0; i--) {
-        if (absoluteSample >= this._pendingOffs[i].offSample) {
-          this._enqueueNoteOff(this._pendingOffs[i].note, channel);
-          this._pendingOffs[i] = this._pendingOffs[this._pendingOffs.length - 1];
-          this._pendingOffs.pop();
+      // Process pending note-offs (preallocated parallel arrays)
+      for (let i = this._pendingOffCount - 1; i >= 0; i--) {
+        if (absoluteSample >= this._pendingOffSample[i]) {
+          this._enqueueNoteOff(this._pendingOffNote[i], channel);
+          const last = --this._pendingOffCount;
+          this._pendingOffNote[i] = this._pendingOffNote[last];
+          this._pendingOffSample[i] = this._pendingOffSample[last];
         }
       }
 
-      const rawStep = Math.floor(absoluteSample / samplesPerStep);
+      const rawStep = Math.floor(this._stepPos);
 
       if (rawStep !== this._lastRawStep) {
         this._applyPendingPattern(rawStep, switchMode);
@@ -262,12 +286,14 @@ class SeqProcessor extends AudioWorkletProcessor {
         // a steady beat across pattern switches and odd pattern lengths.
         if (rawStep % beatSteps === 0) this._triggerClick(rawStep % barSteps === 0);
         this._lastRawStep = rawStep;
+        // The logical step is constant between step boundaries — resolve it
+        // once per step instead of every sample. (Runs AFTER the pattern
+        // switch so it sees the rebased origin.)
+        const steps = this._lengthsView[this._activePattern] || 1;
+        this._cachedLogicalStep = this._resolveStep(rawStep - this._stepOrigin, steps, direction, loop);
       }
 
-      const steps = this._lengthsView[this._activePattern] || 1;
-
-      // Determine current logical step, relative to the rebased grid origin
-      const logicalStep = this._resolveStep(rawStep - this._stepOrigin, steps, direction, loop);
+      const logicalStep = this._cachedLogicalStep;
 
       if (logicalStep === -1) {
         // End of a non-looping sequence. Tell the main thread, otherwise it
@@ -279,16 +305,15 @@ class SeqProcessor extends AudioWorkletProcessor {
         return true;
       }
 
-      // Apply swing: delay even-numbered steps
+      // Apply swing: delay even-numbered steps. The fractional part of
+      // _stepPos IS the position within the step, so the delay window is a
+      // simple phase comparison (and survives tempo changes).
       if (logicalStep !== this._currentStep) {
         const isSwungStep = (rawStep % 2) === 1;
-        if (isSwungStep && swing > 0) {
-          const swingDelay = samplesPerStep * swing * 0.5;
-          const stepStartSample = rawStep * samplesPerStep;
-          if (absoluteSample < stepStartSample + swingDelay) {
-            this._sampleCounter++;
-            continue;
-          }
+        if (isSwungStep && swing > 0 && (this._stepPos - rawStep) < swing * 0.5) {
+          this._sampleCounter++;
+          this._stepPos += stepInc;
+          continue;
         }
 
         this._currentStep = logicalStep;
@@ -318,8 +343,18 @@ class SeqProcessor extends AudioWorkletProcessor {
             this._slideNote = played;
           } else {
             this._slideNote = -1;
-            const gateLength = Math.round(samplesPerStep * gate);
-            this._pendingOffs.push({ note: played, offSample: absoluteSample + gateLength });
+            // Clamp the gate to land before the next step's onset: a swung
+            // high-gate step's off otherwise fires AFTER the next note-on and
+            // chokes a repeated pitch.
+            const samplesToNextStep = (1 + rawStep - this._stepPos) * samplesPerStep;
+            const nextIsSwung = ((rawStep + 1) % 2) === 1;
+            const nextOnsetIn = samplesToNextStep
+              + (nextIsSwung && swing > 0 ? samplesPerStep * swing * 0.5 : 0);
+            const gateLength = Math.min(
+              Math.round(samplesPerStep * gate),
+              Math.max(1, Math.floor(nextOnsetIn) - 1)
+            );
+            this._pushPendingOff(played, absoluteSample + gateLength);
           }
         } else if (heldSlide >= 0) {
           // Sliding into a rest just releases the held note at the step edge.
@@ -335,9 +370,25 @@ class SeqProcessor extends AudioWorkletProcessor {
       }
 
       this._sampleCounter++;
+      this._stepPos += stepInc;
     }
 
     return true;
+  }
+
+  _pushPendingOff(note, offSample) {
+    if (this._pendingOffCount >= this._pendingOffNote.length) {
+      // Never expected with clamped gates — release immediately rather than
+      // dropping the off and sticking the note.
+      const channel = this._configView
+        ? Math.round(this._configView[OUTPUT_CHANNEL]) & 0x0f
+        : 0;
+      this._enqueueNoteOff(note, channel);
+      return;
+    }
+    const i = this._pendingOffCount++;
+    this._pendingOffNote[i] = note;
+    this._pendingOffSample[i] = offSample;
   }
 
   /**
@@ -448,10 +499,10 @@ class SeqProcessor extends AudioWorkletProcessor {
     const channel = this._configView
       ? Math.round(this._configView[OUTPUT_CHANNEL]) & 0x0f
       : 0;
-    for (const pending of this._pendingOffs) {
-      this._enqueueNoteOff(pending.note, channel);
+    for (let i = 0; i < this._pendingOffCount; i++) {
+      this._enqueueNoteOff(this._pendingOffNote[i], channel);
     }
-    this._pendingOffs = [];
+    this._pendingOffCount = 0;
     // A slide note is held outside pendingOffs, so release it explicitly or it
     // stays stuck when the transport stops mid-tie.
     if (this._slideNote >= 0) {
