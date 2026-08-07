@@ -371,6 +371,17 @@ namespace Voice {
 			reset(0.f);
 		}
 
+		// Re-attack a voice that is still audibly sounding (same-note repress,
+		// mono retrigger, voice steal): the envelopes restart from their
+		// CURRENT level and every phase-carrying state (oscillators, filter,
+		// DC blockers) is left untouched, so the waveform stays continuous
+		// instead of clicking to zero. A full reset() is for silent voices.
+		void retrigger() {
+			amplitudeEnvelope.enterAttackStage();
+			cutoffEnvelope.enterAttackStage();
+			state = State::STARTED;
+		}
+
 		// drift scales how far every phase is randomised on note-on.
 		// At 0 each note starts from an identical state, which keeps transients
 		// repeatable and percussive; at 1 the voices of a chord no longer start

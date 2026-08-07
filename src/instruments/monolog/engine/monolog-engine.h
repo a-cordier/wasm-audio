@@ -83,11 +83,24 @@ namespace Monolog {
 			glidePhase = (wasSounding && glideTimeSec() > 0.f) ? 0.f : 1.f;
 
 			currentMidi = midi;
-			currentVelocity = zeroOneRange.map(velocity, midiRange);
 
-			if (!wasHeld || !isLegato()) {
-				voice.reset();
-				voice.noteOn();
+			bool retriggering = !wasHeld || !isLegato();
+			// Velocity is per retrigger, not per key: updating it mid-phrase in
+			// legato mode stepped the gain (and could flip accent) on a note
+			// that deliberately keeps its envelope running.
+			if (retriggering) {
+				currentVelocity = zeroOneRange.map(velocity, midiRange);
+			}
+
+			if (retriggering) {
+				// A voice that is still sounding re-attacks from its current
+				// level; only a silent voice gets the full state reset.
+				if (wasSounding) {
+					voice.retrigger();
+				} else {
+					voice.reset();
+					voice.noteOn();
+				}
 			}
 		}
 
@@ -113,8 +126,8 @@ namespace Monolog {
 				currentMidi = prevMidi;
 
 				if (!isLegato()) {
-					voice.reset();
-					voice.noteOn();
+					// Falling back to a held note: the voice is sounding.
+					voice.retrigger();
 				}
 			} else {
 				if (voice.isActive() && currentMidi == midi) {

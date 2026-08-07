@@ -65,7 +65,10 @@ namespace Monolog {
 			lfo(sampleRate),
 			dcBlocker(sampleRate),
 			ampEnv(sampleRate, 1.f, 0.f, 0.01f, 0.3f, 0.5f),
-			filterEnv(sampleRate, 1.f, 0.f, 0.01f, 0.5f, 0.f),
+			// 50 ms filter-env release: with 0 the cutoff modulation vanished in
+			// one sample at note-off — an audible timbre snap while the amp
+			// release was still sounding. (No FILTER RELEASE param exists.)
+			filterEnv(sampleRate, 1.f, 0.f, 0.01f, 0.5f, 0.05f),
 			state(VoiceState::DISPOSED) {
 			osc.setAmplitude(1.0f);
 			osc2.setAmplitude(1.0f);
@@ -157,6 +160,18 @@ namespace Monolog {
 			ampEnv.enterReleaseStage();
 			filterEnv.enterReleaseStage();
 			state = VoiceState::STOPPING;
+		}
+
+		// Re-attack while still audibly sounding (non-legato retrigger): the
+		// envelopes restart from their CURRENT level and the oscillator/filter
+		// state is left untouched, so the waveform stays continuous instead of
+		// clicking to zero. A full reset() is for a voice that is silent.
+		void retrigger() {
+			if (lfoKeySync) lfo.reset();
+			ampEnv.enterAttackStage();
+			filterEnv.enterAttackStage();
+			lfoFade = 0.0f;
+			state = VoiceState::STARTED;
 		}
 
 		bool isStopped() const { return state == VoiceState::STOPPED; }

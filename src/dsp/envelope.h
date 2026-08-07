@@ -16,6 +16,7 @@
 #pragma once
 
 #include "constants.h"
+#include <algorithm>
 #include <cmath>
 
 namespace wasm_audio {
@@ -44,7 +45,10 @@ namespace Envelope {
 	}
 
 	inline float computeLinearMultiplier(float ya, float yb, unsigned long sampleCount, unsigned long sample) {
-		return ya + sample * (yb - ya) / epsilonIfZero(sampleCount);
+		// Clamped: shortening a time mid-stage leaves sample > sampleCount for
+		// one call, which would otherwise overshoot past the target level.
+		float level = ya + sample * (yb - ya) / epsilonIfZero(sampleCount);
+		return std::clamp(level, std::min(ya, yb), std::max(ya, yb));
 	}
 
 	class TimeLine {
@@ -154,17 +158,22 @@ namespace Envelope {
 			}
 		}
 
-		// Retrigger from any stage, starting from the current level to avoid clicks.
+		// Retrigger from any stage, starting from the current level to avoid
+		// clicks. Resets the later timelines too, so it is safe to call
+		// mid-note without a preceding Kernel::reset().
 		void enterAttackStage() {
 			attackTimeLine.setStartLevel(level);
 			attackTimeLine.reset();
+			decayTimeLine.reset();
+			releaseTimeLine.reset();
 			stage = Stage::ATTACK;
 		}
 
 		void enterReleaseStage() {
-			if (stage != Stage::SUSTAIN) {
-				releaseTimeLine.setStartLevel(level);
-			}
+			// Anchor at the level the note actually has (during SUSTAIN this
+			// equals the sustain param, kept in sync by setSustainLevel).
+			releaseTimeLine.setStartLevel(level);
+			releaseTimeLine.reset();
 			stage = Stage::RELEASE;
 		}
 
@@ -184,9 +193,20 @@ namespace Envelope {
 			releaseTimeLine.setSampleCount(seconds * sampleRate);
 		}
 
-		void setSustainLevel(float level) {
-			decayTimeLine.setEndLevel(level);
-			releaseTimeLine.setStartLevel(level);
+		void setSustainLevel(float newLevel) {
+			decayTimeLine.setEndLevel(newLevel);
+			// Never re-anchor a running release: enterReleaseStage captured the
+			// level the note actually had, and stomping it back to the sustain
+			// param mid-release is an audible step (with sustain 0 it cut the
+			// whole tail in one sample).
+			if (stage != Stage::RELEASE) {
+				releaseTimeLine.setStartLevel(newLevel);
+			}
+			// A note parked in SUSTAIN reads `level` directly — track the knob
+			// so sustain is live on held notes instead of jumping at note-off.
+			if (stage == Stage::SUSTAIN) {
+				level = newLevel;
+			}
 		}
 
 		void setPeakLevel(float level) {

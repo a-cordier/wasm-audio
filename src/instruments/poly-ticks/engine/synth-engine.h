@@ -298,7 +298,8 @@ private:
 		for (auto &slot : voices) {
 			if (slot.active && slot.midiNote == midi) {
 				if (slot.releasing) {
-					slot.kernel.reset(driftAmount());
+					// Still sounding: re-attack from the current level, no reset click.
+					slot.kernel.retrigger();
 					slot.releasing = false;
 					slot.frequency = frequency;
 					slot.velocity = velocity;
@@ -308,11 +309,18 @@ private:
 			}
 		}
 
+		bool free = true;
 		VoiceSlot *target = findFreeSlot();
-		if (!target) target = stealVoice();
+		if (!target) {
+			target = stealVoice();
+			free = false;
+		}
 		if (!target) return;
 
-		target->kernel.reset(driftAmount());
+		// A stolen voice is still audible — retrigger keeps it continuous. A
+		// free slot gets the full reset (repeatable phase-locked transients).
+		if (free) target->kernel.reset(driftAmount());
+		else target->kernel.retrigger();
 		target->midiNote = midi;
 		target->active = true;
 		target->releasing = false;
@@ -365,6 +373,8 @@ private:
 		glideTo = frequency;
 		glidePhase = (wasActive && glideTimeSec() > 0.f) ? 0.f : 1.f;
 
+		bool wasSounding = monoSlot().active;
+
 		monoSlot().midiNote = midi;
 		monoSlot().active = true;
 		monoSlot().releasing = false;
@@ -372,7 +382,10 @@ private:
 		monoSlot().age = ++noteCounter;
 
 		if (!wasActive || isRetrigger()) {
-			monoSlot().kernel.reset(driftAmount());
+			// Includes the release-tail case (active but releasing): the voice
+			// is still audible, so re-attack instead of resetting to zero.
+			if (wasSounding) monoSlot().kernel.retrigger();
+			else monoSlot().kernel.reset(driftAmount());
 		}
 	}
 
@@ -390,7 +403,8 @@ private:
 			monoSlot().midiNote = prevMidi;
 
 			if (isRetrigger()) {
-				monoSlot().kernel.reset(driftAmount());
+				// The voice is sounding (we just fell back to a held note).
+				monoSlot().kernel.retrigger();
 			}
 		} else {
 			if (monoSlot().active && monoSlot().midiNote == midi && !monoSlot().releasing) {
