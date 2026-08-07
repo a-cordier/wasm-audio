@@ -27,8 +27,13 @@ const BYTES_PER_SAMPLE = Float32Array.BYTES_PER_ELEMENT;
  * @param {string} config.destroyExport   – C export that frees the engine
  * @param {string} config.processExport   – C export: (engine, outputPtr, channelCount)
  * @param {number} config.channelCount    – max output channels (default 2)
- * @param {(wasm: object, engine: number, msg: any) => void} config.onMessage
- * @param {(wasm: object, engine: number) => void} [config.onProcess] – called each quantum before processExport
+ * @param {(wasm: object, engine: number, msg: any, state: object) => void} config.onMessage
+ * @param {(wasm: object, engine: number, state: object) => void} [config.onProcess] – called each quantum before processExport
+ *
+ * `state` is a per-processor-instance bag ({} at construction). Hooks must keep
+ * all mutable references (SAB views, MIDI drains, caches) there — module-scope
+ * variables in a processor file are shared across every instance of that
+ * processor in the AudioWorkletGlobalScope and cross-wire multiple instances.
  */
 export function createWasmProcessor(wasm, config) {
   const {
@@ -47,6 +52,7 @@ export function createWasmProcessor(wasm, config) {
 
       this._wasm = wasm;
       this._engine = wasm[createExport](sampleRate, RENDER_QUANTUM_FRAMES);
+      this._state = {};
 
       const bufferSize = channelCount * RENDER_QUANTUM_FRAMES * BYTES_PER_SAMPLE;
       this._outputPtr = wasm._malloc(bufferSize);
@@ -57,14 +63,14 @@ export function createWasmProcessor(wasm, config) {
           this._destroy();
           return;
         }
-        onMessage(wasm, this._engine, e.data);
+        onMessage(wasm, this._engine, e.data, this._state);
       };
     }
 
     process(_inputs, outputs) {
       if (!this._alive) return false;
 
-      if (onProcess) onProcess(wasm, this._engine);
+      if (onProcess) onProcess(wasm, this._engine, this._state);
 
       const output = outputs[0];
       const outChannels = output.length;

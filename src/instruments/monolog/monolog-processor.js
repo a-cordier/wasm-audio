@@ -4,9 +4,6 @@ import createModule from "./monolog-kernel.wasmmodule.js";
 
 const PARAM_COUNT = 29;
 
-let paramView = null;
-let midi = null;
-
 const wasm = await createModule();
 
 createWasmProcessor(wasm, {
@@ -16,17 +13,20 @@ createWasmProcessor(wasm, {
   processExport: "_monolog_process",
   channelCount: 2,
 
-  onMessage(wasm, engine, msg) {
+  onMessage(wasm, engine, msg, state) {
     if (msg.type === "__init_sab") {
-      paramView = new Float32Array(msg.paramBuffer);
-      midi = createMidiDrain(msg.midiBuffer);
+      state.params = new Float32Array(msg.paramBuffer);
+      state.midi = createMidiDrain(msg.midiBuffer);
+      // NaN sentinels: NaN !== NaN, so the first block pushes every param.
+      state.last = new Float32Array(PARAM_COUNT).fill(NaN);
       return;
     }
   },
 
-  onProcess(wasm, engine) {
-    if (!paramView) return;
+  onProcess(wasm, engine, state) {
+    if (!state.params) return;
 
+    const midi = state.midi;
     while (midi.dequeue()) {
       if (midi.status === midi.NOTE_ON && midi.data2 > 0) {
         wasm._monolog_note_on(engine, midi.data1, midi.frequency, midi.data2);
@@ -35,8 +35,13 @@ createWasmProcessor(wasm, {
       }
     }
 
+    const { params, last } = state;
     for (let i = 0; i < PARAM_COUNT; i++) {
-      wasm._monolog_set_param(engine, i, paramView[i]);
+      const v = params[i];
+      if (v !== last[i]) {
+        last[i] = v;
+        wasm._monolog_set_param(engine, i, v);
+      }
     }
   },
 });
