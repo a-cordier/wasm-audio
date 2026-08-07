@@ -149,7 +149,7 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
   dispose(): void {
     this.stop();
     this.flushAutosave();
-    this.node?.disconnect();
+    this.node?.dispose();
     this.node = null;
     this.bus = null;
   }

@@ -43,15 +43,21 @@ class TemplateProcessor extends AudioWorkletProcessor {
     this._env = 0;
     this._gate = 0;
     this._freq = 440;
+    this._alive = true;
     this.port.onmessage = (e) => {
       if (e.data && e.data.type === "__init_sab") {
         this._params = new Float32Array(e.data.paramBuffer);
         this._midi = createMidiDrain(e.data.midiBuffer);
+      } else if (e.data && e.data.type === "__dispose") {
+        // Returning false from process() lets the node be garbage collected.
+        this._alive = false;
       }
     };
   }
 
   process(_inputs, outputs) {
+    if (!this._alive) return false;
+
     const out = outputs[0];
     if (!this._params || !this._midi || !out) return true;
 

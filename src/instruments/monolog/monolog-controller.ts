@@ -58,8 +58,9 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
   }
 
   dispose(): void {
-    this.output.disconnect();
+    this.node?.dispose();
     this.node = null;
+    this.output.disconnect();
   }
 
   receive(event: MidiEvent): void {

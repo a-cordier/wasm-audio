@@ -78,8 +78,9 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
   }
 
   dispose(): void {
-    this.output.disconnect();
+    this.synthNode?.dispose();
     this.synthNode = null;
+    this.output.disconnect();
   }
 
   receive(event: MidiEvent): void {

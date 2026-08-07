@@ -87,4 +87,14 @@ export class SequencerNode extends AudioWorkletNode {
   resume(): void {
     this.port.postMessage({ type: "__resume" });
   }
+
+  dispose(): void {
+    // Post first: the processor must receive __dispose before the port closes.
+    this.port.postMessage({ type: "__dispose" });
+    this.port.onmessage = null;
+    this.port.close();
+    this.positionCallback = null;
+    this.stoppedCallback = null;
+    this.disconnect();
+  }
 }

@@ -28,7 +28,10 @@ export class WasmProcessorNode extends AudioWorkletNode {
   }
 
   dispose(): void {
+    // Post first: the processor must receive __dispose before the port closes.
     this.send({ type: "__dispose" });
+    this.port.onmessage = null;
+    this.port.close();
     this.disconnect();
   }
 }

@@ -83,6 +83,7 @@ class SeqProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
 
+    this._alive = true;
     this._running = false;
     this._sampleCounter = 0;
     this._currentStep = -1;
@@ -177,10 +178,18 @@ class SeqProcessor extends AudioWorkletProcessor {
         this._lastReportedStep = -1;
         this.port.postMessage({ type: "__position", step: -1 });
         break;
+      case "__dispose":
+        // Returning false from process() lets the node be garbage collected.
+        this._running = false;
+        this._flushPendingOffs();
+        this._alive = false;
+        break;
     }
   }
 
   process(inputs, outputs) {
+    if (!this._alive) return false;
+
     const out = outputs[0] && outputs[0][0];
 
     if (!this._running || !this._configView || !this._lengthsView) return true;
