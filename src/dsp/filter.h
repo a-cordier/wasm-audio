@@ -64,7 +64,7 @@ namespace Filter {
 			sampleRate(sampleRate) {}
 
 		float nextSample(float sample, float cutoff, float resonance) override {
-			float cutoffHz = 20.0f * std::pow(1000.0f, cutoff);
+			float cutoffHz = 20.0f * std::exp2(cutoff * 9.96578428f) /* == pow(1000, c) */;
 			cutoffHz = std::min(cutoffHz, sampleRate * 0.49f);
 
 			float g = std::tan(Constants::pi * cutoffHz / sampleRate);
@@ -142,7 +142,7 @@ namespace Filter {
 
 		void nextSample(float inLeft, float inRight, float cutoff, float resonance,
 		                float &outLeft, float &outRight) {
-			float cutoffHz = 20.0f * std::pow(1000.0f, cutoff);
+			float cutoffHz = 20.0f * std::exp2(cutoff * 9.96578428f) /* == pow(1000, c) */;
 			cutoffHz = std::min(cutoffHz, sampleRate * 0.49f);
 
 			float g = std::tan(Constants::pi * cutoffHz / sampleRate);
@@ -175,8 +175,8 @@ namespace Filter {
 			float v3 = sample - s.ic2eq;
 			float v1 = a1 * s.ic1eq + a2 * v3;
 			float v2 = s.ic2eq + a2 * s.ic1eq + a3 * v3;
-			s.ic1eq = 2.0f * v1 - s.ic1eq;
-			s.ic2eq = 2.0f * v2 - s.ic2eq;
+			s.ic1eq = flushDenormal(2.0f * v1 - s.ic1eq);
+			s.ic2eq = flushDenormal(2.0f * v2 - s.ic2eq);
 
 			switch (mode) {
 				case Mode::LOWPASS:
@@ -201,8 +201,8 @@ namespace Filter {
 			float v3 = input - s.ic2eq2;
 			float v1 = a1 * s.ic1eq2 + a2 * v3;
 			float v2 = s.ic2eq2 + a2 * s.ic1eq2 + a3 * v3;
-			s.ic1eq2 = 2.0f * v1 - s.ic1eq2;
-			s.ic2eq2 = 2.0f * v2 - s.ic2eq2;
+			s.ic1eq2 = flushDenormal(2.0f * v1 - s.ic1eq2);
+			s.ic2eq2 = flushDenormal(2.0f * v2 - s.ic2eq2);
 
 			return v2;
 		}
@@ -288,7 +288,7 @@ namespace Filter {
 			void setDrive(float d) { drive = d; }
 
 			float nextSample(float sample, float cutoff, float resonance) override {
-				float cutoffHz = 20.0f * std::pow(800.0f, cutoff);
+				float cutoffHz = 20.0f * std::exp2(cutoff * 9.64385619f) /* == pow(800, c) */;
 				// 0.25*SR, not 0.45: with the clamped-tanh feedback, driving the
 				// poles much past a quarter of the sample rate period-doubles
 				// into a sustained ~fc/2 limit-cycle whistle riding every bright
@@ -322,7 +322,7 @@ namespace Filter {
 				for (int i = 0; i < 4; ++i) {
 					float v = G * (y - state[i]);
 					y = v + state[i];
-					state[i] = y + v;
+					state[i] = flushDenormal(y + v);
 				}
 
 				float lp4 = y;
@@ -371,7 +371,7 @@ namespace Filter {
 			void setDrive(float d) { drive = d; }
 
 			float nextSample(float sample, float cutoff, float resonance) override {
-				float cutoffHz = 30.0f * std::pow(530.0f, cutoff);
+				float cutoffHz = 30.0f * std::exp2(cutoff * 9.04985442f) /* == pow(530, c) */;
 				cutoffHz = std::min(cutoffHz, sampleRate * 0.45f);
 
 				float g = std::tan(Constants::pi * cutoffHz / sampleRate);
@@ -411,10 +411,10 @@ namespace Filter {
 				float y3 = fastTanh(g23 * y2 + s23);
 				float y4 = g34 * y3 + s34;
 
-				s[0] = 2.0f * y1 - s[0];
-				s[1] = 2.0f * y2 - s[1];
-				s[2] = 2.0f * y3 - s[2];
-				s[3] = 2.0f * y4 - s[3];
+				s[0] = flushDenormal(2.0f * y1 - s[0]);
+				s[1] = flushDenormal(2.0f * y2 - s[1]);
+				s[2] = flushDenormal(2.0f * y3 - s[2]);
+				s[3] = flushDenormal(2.0f * y4 - s[3]);
 
 				float bp = y1 - y3;
 				float acidMix = 0.2f + resonance * 0.3f;
@@ -478,7 +478,7 @@ namespace Filter {
 			void setDrive(float d) { drive = d; }
 
 			float nextSample(float sample, float cutoff, float resonance) override {
-				float cutoffHz = 20.0f * std::pow(900.0f, cutoff);
+				float cutoffHz = 20.0f * std::exp2(cutoff * 9.81378119f) /* == pow(900, c) */;
 				cutoffHz = std::min(cutoffHz, sampleRate * 0.45f);
 
 				float g = std::tan(Constants::pi * cutoffHz / sampleRate);
@@ -489,7 +489,7 @@ namespace Filter {
 				// LPF1 sits outside the loop.
 				float v1 = G * (sample - s1);
 				float y1 = v1 + s1;
-				s1 = y1 + v1;
+				s1 = flushDenormal(y1 + v1);
 
 				// Zero-delay resolution of u = y1 + K*HPF1(LPF2(u)) with
 				// one-pole TPT forms y = G*x + (1-G)*state:
@@ -514,12 +514,12 @@ namespace Filter {
 				// LPF2 (in the loop)
 				float v2 = G * (u - s2);
 				float y2 = v2 + s2;
-				s2 = y2 + v2;
+				s2 = flushDenormal(y2 + v2);
 
 				// HPF1 (in the loop): advance its state with y2.
 				float vh = G * (y2 - sh);
 				float ylph = vh + sh;
-				sh = ylph + vh;
+				sh = flushDenormal(ylph + vh);
 
 				float bp = y1 - y2;
 				float hp = u - y1;
@@ -574,7 +574,7 @@ namespace Filter {
 			void setDrive(float d) { drive = d; }
 
 			float nextSample(float sample, float cutoff, float resonance) override {
-				float cutoffHz = 100.0f * std::pow(200.0f, cutoff);
+				float cutoffHz = 100.0f * std::exp2(cutoff * 7.64385619f) /* == pow(200, c) */;
 				cutoffHz = std::min(cutoffHz, sampleRate * 0.45f);
 
 				float g = std::tan(Constants::pi * cutoffHz / sampleRate);
@@ -614,7 +614,7 @@ namespace Filter {
 				for (int i = 0; i < 4; ++i) {
 					float v = G * (y - state[i]);
 					float lin = v + state[i];
-					state[i] = lin + v;
+					state[i] = flushDenormal(lin + v);
 					float sat = (i >= 2) ? stageDrive * 1.2f : stageDrive;
 					y = std::tanh(sat * lin);
 				}

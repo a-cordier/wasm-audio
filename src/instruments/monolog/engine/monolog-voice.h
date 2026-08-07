@@ -101,14 +101,14 @@ namespace Monolog {
 				sVelocity = velocity;
 				snapSmoothing = false;
 			}
-			sCutoff += smoothAlpha * (cutoffBase - sCutoff);
-			sResonance += smoothAlpha * (resonance - sResonance);
-			sDrive += smoothAlpha * (drive - sDrive);
-			sSubLevel += smoothAlpha * (subLevel - sSubLevel);
-			sNoiseLevel += smoothAlpha * (noiseLevel - sNoiseLevel);
-			sPulseWidth += smoothAlpha * (pulseWidthBase - sPulseWidth);
-			sLfoAmount += smoothAlpha * (lfoAmount - sLfoAmount);
-			sVelocity += smoothAlpha * (velocity - sVelocity);
+			sCutoff = smoothStep(sCutoff, cutoffBase, smoothAlpha);
+			sResonance = smoothStep(sResonance, resonance, smoothAlpha);
+			sDrive = smoothStep(sDrive, drive, smoothAlpha);
+			sSubLevel = smoothStep(sSubLevel, subLevel, smoothAlpha);
+			sNoiseLevel = smoothStep(sNoiseLevel, noiseLevel, smoothAlpha);
+			sPulseWidth = smoothStep(sPulseWidth, pulseWidthBase, smoothAlpha);
+			sLfoAmount = smoothStep(sLfoAmount, lfoAmount, smoothAlpha);
+			sVelocity = smoothStep(sVelocity, velocity, smoothAlpha);
 
 			// LFO with per-note fade-in (delay): lfoFade ramps 0 -> 1 over the
 			// delay time so the modulation blooms in after the note starts.
@@ -119,10 +119,13 @@ namespace Monolog {
 			osc.setDutyCycle(pulseWidth);
 			osc2.setDutyCycle(pulseWidth);
 			// Detuned unison: a second main oscillator offset by a few cents. At
-			// detune 0 the two are identical, so this collapses to a single osc at
-			// the same level; as detune opens they beat and thicken.
-			float oscOut = 0.5f * (osc.nextSample(frequency) + osc2.nextSample(frequency));
-			float subOut = subOsc.nextSample(frequency) * sSubLevel;
+			// detune 0 the two are bit-identical, so osc2 is skipped outright —
+			// same output, half the oscillator cost (they are detuned anyway
+			// when it re-enters, so its stale phase is irrelevant).
+			float oscOut = (detuneCents == 0.f)
+				? osc.nextSample(frequency)
+				: 0.5f * (osc.nextSample(frequency) + osc2.nextSample(frequency));
+			float subOut = (sSubLevel > 0.f) ? subOsc.nextSample(frequency) * sSubLevel : 0.f;
 			float noiseOut = noise.nextSample() * sNoiseLevel;
 			// Deliberately unnormalised. The sum can exceed unity and push the
 			// filter models into their own input saturators, and that overload
@@ -250,7 +253,10 @@ namespace Monolog {
 		void setSubOctave(float semi) { subOsc.setSemiShift(semi); }
 		void setSubMode(Oscillator::Mode mode) { subOsc.setMode(mode); }
 		// Unison detune: offsets the second main oscillator (osc2) in cents.
-		void setDetune(float cents) { osc2.setCentShift(cents); }
+		void setDetune(float cents) {
+			detuneCents = cents;
+			osc2.setCentShift(cents);
+		}
 		void setAccentAmount(float a) { accentAmount = a; }
 		void setDirt(float d) { dirtAmount = d; }
 
@@ -292,6 +298,13 @@ namespace Monolog {
 		void setLfoKeySync(bool on) { lfoKeySync = on; }
 
 	private:
+		// One-pole step that snaps once converged, so zero-tests downstream
+		// (sub/noise early-outs) actually reach zero.
+		static float smoothStep(float current, float target, float alpha) {
+			current += alpha * (target - current);
+			return std::fabs(target - current) < 1e-4f ? target : current;
+		}
+
 		void startIfNecessary() {
 			if (state == VoiceState::DISPOSED) {
 				ampEnv.enterAttackStage();
@@ -377,6 +390,7 @@ namespace Monolog {
 
 		float accentAmount = 0.0f;
 		float dirtAmount = 0.0f;
+		float detuneCents = 0.0f;
 		static constexpr float ACCENT_CUTOFF = 0.30f;    // cutoff add at full accent
 		static constexpr float ACCENT_AMP = 0.30f;       // amp boost at full accent
 		// 0.75 so the default keyboard/sequencer velocity of 100 (curved:

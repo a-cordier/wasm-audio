@@ -39,6 +39,14 @@ namespace Constants {
 	constexpr float oneOverTwoPi = 1.f / twoPi;
 } // namespace Constants
 
+// Denormal guard: wasm has no flush-to-zero mode, and a feedback state that
+// decays into the subnormal range makes every subsequent operation on it
+// orders of magnitude slower. Snap tiny magnitudes to true zero at state
+// writes (filter integrators, DC-blocker memory).
+inline float flushDenormal(float x) {
+	return (x > -1e-25f && x < 1e-25f) ? 0.f : x;
+}
+
 // Poly-ticks-specific constants (kept here temporarily for backward compatibility)
 namespace PolyTicksConstants {
 	constexpr float subOscPresence = 0.25f;

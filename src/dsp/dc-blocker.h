@@ -33,7 +33,9 @@ class DCBlocker {
 	float process(float input) {
 		float output = input - prevInput + R * prevOutput;
 		prevInput = input;
-		prevOutput = output;
+		// With a constant input the state decays as R^n and reaches the
+		// subnormal range after ~2.8 s, then burns CPU there indefinitely.
+		prevOutput = flushDenormal(output);
 		return output;
 	}
 

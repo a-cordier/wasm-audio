@@ -386,6 +386,8 @@ namespace Voice {
 		void retrigger() {
 			amplitudeEnvelope.enterAttackStage();
 			cutoffEnvelope.enterAttackStage();
+			lastEnvLevel = 1.f;
+			silentSamples = 0;
 			state = State::STARTED;
 		}
 
@@ -407,6 +409,8 @@ namespace Voice {
 			dcBlockerRight.reset();
 			amplitudeEnvelope.reset();
 			cutoffEnvelope.reset();
+			lastEnvLevel = 1.f;
+			silentSamples = 0;
 			state = State::DISPOSED;
 		}
 
@@ -464,7 +468,9 @@ namespace Voice {
 			// voiceGain: 16 voices sum with no other attenuation, so dense
 			// chords clipped the output stage hard at drive 0. -6 dB per voice
 			// keeps an 8-note chord inside the rails.
-			float gain = velocity * amplitudeEnvelope.nextLevel() * PolyTicksConstants::voiceGain;
+			float envLevel = amplitudeEnvelope.nextLevel();
+			lastEnvLevel = envLevel;
+			float gain = velocity * envLevel * PolyTicksConstants::voiceGain;
 			return StereoSample{
 				cleanLeft * gain * voicePan.left,
 				cleanRight * gain * voicePan.right,
@@ -479,8 +485,14 @@ namespace Voice {
 			// Sub and noise stay centred: a mono low end is what makes the
 			// stereo field read as wide rather than smeared.
 			float noiseSample = noise.nextSample() * sampleParameters.noiseLevel;
-			subOsc.setOsc2Amplitude(sampleParameters.osc2Amplitude);
-			float subOscSample = subOsc.nextSample(sampleParameters.frequency) * subLevel;
+			// The sub is two full band-limited oscillators — skip them entirely
+			// while it is silent (phase continuity is irrelevant to a crossfaded
+			// sub that re-enters against already-free-running mains).
+			float subOscSample = 0.f;
+			if (subLevel > 0.f) {
+				subOsc.setOsc2Amplitude(sampleParameters.osc2Amplitude);
+				subOscSample = subOsc.nextSample(sampleParameters.frequency) * subLevel;
+			}
 			float centre = subOscSample + noiseSample;
 
 			float headroom = 1.f - subLevel;
@@ -607,6 +619,17 @@ namespace Voice {
 			if (state == State::STOPPING && amplitudeEnvelope.isDone()) {
 				state = State::STOPPED;
 			}
+			// A held note whose envelope has decayed to effective silence
+			// (sustain ~0) otherwise renders at full cost forever. 50 ms of
+			// sustained silence retires the voice; the engine's normal
+			// allocation paths take over from there.
+			if (state == State::STARTED && lastEnvLevel < 1e-5f) {
+				if (++silentSamples > static_cast<int>(sampleRate * 0.05f)) {
+					state = State::STOPPED;
+				}
+			} else {
+				silentSamples = 0;
+			}
 		}
 
 		Oscillator::Kernel osc1;
@@ -632,6 +655,8 @@ namespace Voice {
 		Envelope::Kernel cutoffEnvelope;
 
 		State state;
+		float lastEnvLevel = 1.f;
+		int silentSamples = 0;
 
 		SampleParameters sampleParameters;
 

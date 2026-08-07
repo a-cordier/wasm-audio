@@ -161,6 +161,7 @@ namespace Monolog {
 			}
 
 			applyParams();
+			refreshGlideCache();
 
 			for (unsigned s = 0; s < renderFrames; ++s) {
 				updateGlide();
@@ -184,18 +185,24 @@ namespace Monolog {
 			return t * t * 0.75f;
 		}
 
+		// The log endpoints and phase increment are constant for a whole block
+		// (they only move on note events and GLIDE_TIME changes), so they are
+		// cached per block instead of paying 2 logs + a division per sample.
+		void refreshGlideCache() {
+			glideLogFrom = std::log(glideFrom);
+			glideLogTo = std::log(glideTo);
+			float glideTime = glideTimeSec();
+			glidePhaseInc = (glideTime > 0.f) ? 1.f / (glideTime * sampleRate) : 1.f;
+		}
+
 		float currentGlideFreq() const {
 			if (glidePhase >= 1.f) return glideTo;
-			float logFrom = std::log(glideFrom);
-			float logTo = std::log(glideTo);
-			return std::exp(logFrom + (logTo - logFrom) * glidePhase);
+			return std::exp(glideLogFrom + (glideLogTo - glideLogFrom) * glidePhase);
 		}
 
 		void updateGlide() {
 			if (glidePhase >= 1.f) return;
-			float glideTime = glideTimeSec();
-			float phaseInc = (glideTime > 0.f) ? 1.f / (glideTime * sampleRate) : 1.f;
-			glidePhase = std::min(glidePhase + phaseInc, 1.f);
+			glidePhase = std::min(glidePhase + glidePhaseInc, 1.f);
 		}
 
 		void applyParams() {
@@ -282,6 +289,9 @@ namespace Monolog {
 		float glideFrom = 440.f;
 		float glideTo = 440.f;
 		float glidePhase = 1.f;
+		float glideLogFrom = 0.f;
+		float glideLogTo = 0.f;
+		float glidePhaseInc = 1.f;
 	};
 
 } // namespace Monolog
