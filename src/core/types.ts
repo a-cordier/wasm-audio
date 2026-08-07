@@ -108,3 +108,11 @@ export function hasPresets(plugin: Plugin): plugin is Plugin & HasPresets {
 export function isSlotAware(plugin: Plugin): plugin is Plugin & SlotAware {
   return "setSlotId" in plugin;
 }
+
+/**
+ * Duck-typed like isMidiConsumer: descriptor.type cannot express a MIDI source
+ * that also produces audio (the sequencer's metronome click).
+ */
+export function isAudioProducer(plugin: Plugin): plugin is Plugin & AudioProducer {
+  return "getOutputNode" in plugin;
+}

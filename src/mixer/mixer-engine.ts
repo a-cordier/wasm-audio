@@ -138,6 +138,15 @@ export class MixerEngine {
     return [...(this.routingTable.get(sourceId)?.channels ?? [])];
   }
 
+  /** Channels with at least one routed source — the only ones worth metering. */
+  getActiveChannels(): Set<number> {
+    const active = new Set<number>();
+    for (const { channels } of this.routingTable.values()) {
+      for (const ch of channels) active.add(ch);
+    }
+    return active;
+  }
+
   private applyChannelGain(index: number): void {
     const s = this.state.channels[index];
     const ch = this.channels[index];

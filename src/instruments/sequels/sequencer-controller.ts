@@ -59,6 +59,7 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
   };
 
   private audioContext: AudioContext;
+  private output: GainNode;
   private node: SequencerNode | null = null;
   private bus: MidiBus | null = null;
   private drainTimer: ReturnType<typeof setInterval> | null = null;
@@ -78,6 +79,7 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
   constructor(audioContext: AudioContext) {
     super();
     this.audioContext = audioContext;
+    this.output = new GainNode(audioContext);
   }
 
   /** Must be called before init(): state loads under the slot-scoped key. */
@@ -87,7 +89,9 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
 
   init(): void {
     this.node = new SequencerNode(this.audioContext);
-    this.node.connect(this.audioContext.destination);
+    // Through the mixer, not straight to destination: the metronome click must
+    // obey the SEQUELS channel fader/mute like any other device output.
+    this.node.connect(this.output);
 
     // The worklet stops itself at the end of a non-looping sequence; without
     // this the controller would keep reporting PLAYING, which lies to the UI
@@ -111,6 +115,18 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
 
   connectMidiOutput(bus: MidiBus): void {
     this.bus = bus;
+  }
+
+  connectAudio(destination: AudioNode): void {
+    this.output.connect(destination);
+  }
+
+  disconnectAudio(): void {
+    this.output.disconnect();
+  }
+
+  getOutputNode(): AudioNode {
+    return this.output;
   }
 
   setOutputChannel(ch: Channel): void {
@@ -158,6 +174,7 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     this.flushAutosave();
     this.node?.dispose();
     this.node = null;
+    this.output.disconnect();
     this.bus = null;
   }
 

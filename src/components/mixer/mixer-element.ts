@@ -14,25 +14,38 @@ export class MixerElement extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback();
+    document.addEventListener("visibilitychange", this.onVisibilityChange);
     this.startMetering();
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
+    document.removeEventListener("visibilitychange", this.onVisibilityChange);
     cancelAnimationFrame(this.rafId);
   }
+
+  private onVisibilityChange = () => {
+    cancelAnimationFrame(this.rafId);
+    if (!document.hidden) this.startMetering();
+  };
 
   private startMetering(): void {
     const update = () => {
       if (this.engine) {
-        const levels = new Array(CHANNEL_COUNT + 1);
-        for (let i = 0; i < CHANNEL_COUNT; i++) {
+        // Only routed channels carry signal, so the rest report 0 without an
+        // analyser read; and when no level moved, skip the state write so a
+        // silent mixer does not re-render its strips every frame.
+        const active = this.engine.getActiveChannels();
+        const levels = new Array(CHANNEL_COUNT + 1).fill(0);
+        for (const i of active) {
           const [l, r] = this.engine.getMeterLevel(i);
           levels[i] = Math.max(l, r);
         }
         const [ml, mr] = this.engine.getMasterMeterLevel();
         levels[CHANNEL_COUNT] = Math.max(ml, mr);
-        this.meterLevels = levels;
+        if (levels.some((v, i) => v !== this.meterLevels[i])) {
+          this.meterLevels = levels;
+        }
       }
       this.rafId = requestAnimationFrame(update);
     };

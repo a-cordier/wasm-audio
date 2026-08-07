@@ -24,7 +24,7 @@ import { Channel } from "../midi/types";
 import { SlotConfig, createBranchSlot, createLeafSlot, collectLeafSlots } from "../core/slot";
 import { pluginRegistry } from "../core/plugin-registry";
 import type { Plugin, InstrumentPlugin } from "../core/types";
-import { isInstrumentPlugin, isSlotAware } from "../core/types";
+import { isInstrumentPlugin, isSlotAware, isAudioProducer } from "../core/types";
 import { getBindingManager } from "../control/binding-manager";
 import { MidiControlAdapter } from "../control/adapters/midi-adapter";
 
@@ -141,6 +141,10 @@ export class Root extends LitElement {
     const monolog = this.plugins.get("slot-monolog");
     if (monolog && isInstrumentPlugin(monolog)) {
       this.mixerEngine.setRouting("slot-monolog", (monolog as InstrumentPlugin).getOutputNode(), [1]);
+    }
+    const sequels = this.plugins.get("slot-seq");
+    if (sequels && isAudioProducer(sequels)) {
+      this.mixerEngine.setRouting("slot-seq", sequels.getOutputNode(), [2]);
     }
 
     const defaultReg = pluginRegistry.get("poly-ticks");
