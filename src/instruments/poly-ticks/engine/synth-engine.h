@@ -17,6 +17,7 @@
 
 #include "voice-kernel.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -118,6 +119,15 @@ class SynthEngine {
 	float smoothedSpread = 0.f;
 	float smoothedWidth = 0.f;
 
+	// Polyphony compensation: the voice sum is scaled by 1/sqrt(active
+	// voices), so chords grow roughly equal-power (+~4 dB for six notes)
+	// instead of linearly (+13 dB measured) and stop towering over the mono
+	// instruments. One-pole smoothed (~20 ms) so notes joining or leaving
+	// never step the level of already-sounding voices.
+	float compGain = 1.f;
+	float compAlpha = 0.001f;
+	float compBuf[MAX_FRAMES] = {};
+
 	static constexpr int NOTE_STACK_SIZE = 16;
 	int noteStack[NOTE_STACK_SIZE] = {};
 	float noteStackFreq[NOTE_STACK_SIZE] = {};
@@ -129,6 +139,7 @@ class SynthEngine {
 public:
 	SynthEngine(float sr, float rf)
 		: renderFrames(std::min(static_cast<unsigned>(rf), MAX_FRAMES)), sampleRate(sr) {
+		compAlpha = 1.f - std::exp(-1.f / (0.020f * sr));
 		voices.reserve(MAX_VOICES);
 		for (int i = 0; i < MAX_VOICES; ++i) {
 			// Must be the clamped count: the voice writes its stereo pair at a
@@ -194,6 +205,17 @@ public:
 		smoothedSpread += 0.3f * (params[pi(ParamId::STEREO_SPREAD)] - smoothedSpread);
 		smoothedWidth += 0.3f * (params[pi(ParamId::STEREO_WIDTH)] - smoothedWidth);
 
+		// Releasing tails count too — they still carry energy into the sum.
+		int activeVoices = 0;
+		for (auto &slot : voices) {
+			if (slot.active) ++activeVoices;
+		}
+		float compTarget = 1.f / std::sqrt(static_cast<float>(std::max(1, activeVoices)));
+		for (unsigned s = 0; s < renderFrames; ++s) {
+			compGain += compAlpha * (compTarget - compGain);
+			compBuf[s] = compGain;
+		}
+
 		for (auto &slot : voices) {
 			if (!slot.active) continue;
 
@@ -257,6 +279,13 @@ public:
 				slot.active = false;
 				slot.releasing = false;
 				slot.midiNote = -1;
+			}
+		}
+
+		for (unsigned ch = 0; ch < stereoChannels; ++ch) {
+			float *outputChannel = output + ch * renderFrames;
+			for (unsigned s = 0; s < renderFrames; ++s) {
+				outputChannel[s] *= compBuf[s];
 			}
 		}
 

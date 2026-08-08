@@ -465,9 +465,10 @@ namespace Voice {
 			float cleanLeft = dcBlockerLeft.process(shapedLeft);
 			float cleanRight = dcBlockerRight.process(shapedRight);
 
-			// voiceGain: 16 voices sum with no other attenuation, so dense
-			// chords clipped the output stage hard at drive 0. -6 dB per voice
-			// keeps an 8-note chord inside the rails.
+			// voiceGain: per-voice headroom, working with the ENGINE's
+			// 1/sqrt(N) polyphony compensation on the sum (synth-engine.h) —
+			// together they keep dense chords inside the rails without
+			// starving single notes.
 			float envLevel = amplitudeEnvelope.nextLevel();
 			lastEnvLevel = envLevel;
 			float gain = velocity * envLevel * PolyTicksConstants::voiceGain;

@@ -20,6 +20,7 @@ before acting on old line numbers.
 | No denormal guards (wasm has no FTZ; DC-blocker tail reaches subnormals in ~2.8 s); sustain-0 held voices rendered forever; `pow` per sample in every cutoff map; monolog rendered a bit-identical osc2 at detune 0; glide paid 2 logs + a division per sample | perf/denormals (`fc1d713`) |
 | Sequencer step index teleported on tempo changes (position re-derived from the whole sample history); swung high-gate offs choked repeated pitches; click truncated on stop; per-step object allocation on the render thread | sequencer clock (`2eed3f2`) |
 | Template (the living reference) taught naive aliasing waveforms, ignored velocity, stepped its level | template DSP (this commit) |
+| Poly-ticks voices summed linearly (+13.3 dB for six notes, single notes 10 dB under monolog — the cut-only mixer couldn't bridge it) | 1/sqrt(N) polyphony compensation on the voice sum, ~20 ms smoothed, voiceGain 0.5 → 1.0 (this commit) |
 
 ## Deferred — owned by a roadmap item
 

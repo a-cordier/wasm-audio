@@ -50,6 +50,9 @@ inline float flushDenormal(float x) {
 // Poly-ticks-specific constants (kept here temporarily for backward compatibility)
 namespace PolyTicksConstants {
 	constexpr float subOscPresence = 0.25f;
-	constexpr float voiceGain = 0.5f;
+	// Sized with the engine's 1/sqrt(N) polyphony compensation in play: a
+	// single note sits closer to the mono instruments, and an 8-note chord
+	// (sqrt(8) * this * max velocity) still clears the rails.
+	constexpr float voiceGain = 1.0f;
 } // namespace PolyTicksConstants
 } // namespace wasm_audio
