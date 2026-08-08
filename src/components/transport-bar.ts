@@ -27,9 +27,8 @@ const BEATS_PER_BAR = 4;
 
 /**
  * The master transport bar (the mother clock's face): PLAY/STOP, BPM, and a
- * bar.beat position readout. Minimal chrome for now — its final home lands
- * with the workspace layout (roadmap item 4b). Devices follow it only when
- * their slot's SYNC is on.
+ * bar.beat position readout — the workspace's full-width top chrome. Devices
+ * follow it only when their slot's SYNC is on.
  */
 @customElement("transport-bar")
 export class TransportBar extends LitElement {
@@ -153,20 +152,23 @@ export class TransportBar extends LitElement {
   static styles = css`
     :host {
       display: block;
-      width: calc(650px + 3em);
-      max-width: 100%;
-      margin: 0 auto;
+      width: 100%;
+      background: var(--transport-bar-bg, #181818);
+      border-bottom: 1px solid var(--medium, #2b3844);
       --lcd-screen-width: 52px;
       --lcd-font-size: 11px;
     }
 
+    /* Full-width header chrome: flush bar, controls kept to a readable
+     * measure and centred like the rack below. */
     .bar {
       display: flex;
       align-items: center;
       gap: 14px;
       padding: 8px 1.5em;
-      background: var(--transport-bar-bg, #181818);
-      border-radius: 0.5rem;
+      max-width: var(--rack-slot-width, calc(650px + 3em));
+      margin: 0 auto;
+      box-sizing: border-box;
     }
 
     .label {

@@ -127,11 +127,11 @@ export class MixerElement extends LitElement {
   }
 
   static styles = css`
+    /* Bottom dock: full-bleed chrome pinned under the rack viewport. */
     :host {
       display: block;
-      width: calc(650px + 3em);
-      max-width: 100%;
-      margin: 0 auto;
+      width: 100%;
+      border-top: 1px solid var(--medium, #2b3844);
     }
 
     .mixer-panel {
@@ -142,9 +142,8 @@ export class MixerElement extends LitElement {
     .mixer-header {
       display: flex;
       align-items: center;
-      padding: 8px 1.5em;
+      padding: 6px 1.5em;
       background: var(--main-panel-color, #181818);
-      border-radius: 0.5rem 0.5rem 0 0;
     }
 
     .mixer-label {
@@ -160,8 +159,12 @@ export class MixerElement extends LitElement {
       background: var(--mixer-bg, #141414);
       padding: 8px;
       gap: 6px;
-      border-radius: 0 0 0.5rem 0.5rem;
       overflow: hidden;
+    }
+
+    /* Centre the strip row when the dock is wider than 16 strips + master. */
+    .channels-scroll {
+      justify-content: safe center;
     }
 
     .channels-scroll {

@@ -511,24 +511,27 @@ export class Daw extends LitElement {
         .transport=${this.transport}
         .audioContext=${this.audioContext}
       ></transport-bar>
-      <device-slot
-        .config=${this.slotTree}
-        .plugins=${this.plugins}
-        .bus=${this.midiBus}
-        .midi=${this.midi}
-        .audioContext=${this.audioContext}
-        .mixerEngine=${this.mixerEngine}
-        .selectedSlotIds=${this.selectedSlotIds}
-        @slot-selected=${this.onSlotSelected}
-        @slot-deselected=${this.onSlotDeselected}
-        @slot-config-changed=${this.onSlotConfigChanged}
-        @slot-eject=${this.onSlotEject}
-        @slot-sync-changed=${this.onSlotSyncChanged}
-      ></device-slot>
-      <device-browser
-        .emptyRack=${(this.slotTree.children ?? []).length === 0}
-        @device-mount=${this.onDeviceMount}
-      ></device-browser>
+      <div class="rack-viewport">
+        <device-slot
+          root
+          .config=${this.slotTree}
+          .plugins=${this.plugins}
+          .bus=${this.midiBus}
+          .midi=${this.midi}
+          .audioContext=${this.audioContext}
+          .mixerEngine=${this.mixerEngine}
+          .selectedSlotIds=${this.selectedSlotIds}
+          @slot-selected=${this.onSlotSelected}
+          @slot-deselected=${this.onSlotDeselected}
+          @slot-config-changed=${this.onSlotConfigChanged}
+          @slot-eject=${this.onSlotEject}
+          @slot-sync-changed=${this.onSlotSyncChanged}
+        ></device-slot>
+        <device-browser
+          .emptyRack=${(this.slotTree.children ?? []).length === 0}
+          @device-mount=${this.onDeviceMount}
+        ></device-browser>
+      </div>
       <mixer-element
         .engine=${this.mixerEngine}
       ></mixer-element>
@@ -545,17 +548,26 @@ export class Daw extends LitElement {
 
   static get styles() {
     return css`
+      /* The workspace grid: fixed chrome (transport header, mixer dock)
+       * around an independently scrolling rack. Item 7's timeline will
+       * insert a row between header and rack. */
       :host {
-        display: block;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        height: 100%;
         width: 100%;
       }
 
-      device-browser {
-        margin: 24px auto;
+      .rack-viewport {
+        overflow-y: auto;
+        min-height: 0;
+        padding: 24px;
+        box-sizing: border-box;
+        scrollbar-width: thin;
       }
 
-      transport-bar {
-        margin: 0 auto 24px;
+      device-browser {
+        margin: 24px auto 0;
       }
 
       .power-overlay {

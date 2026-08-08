@@ -96,6 +96,7 @@ export const darkTheme = `
     --control-size-md: 40px;
     --control-size-sm: 30px;
     --lcd-width-default: min(120px, 100%);
+    --rack-slot-width: calc(650px + 3em);
 
     --row-toggle-bg: var(--medium);
     --row-toggle-icon-color: var(--light-secondary);
@@ -212,6 +213,7 @@ export const retroTheme = `
     --control-size-md: 40px;
     --control-size-sm: 30px;
     --lcd-width-default: min(120px, 100%);
+    --rack-slot-width: calc(650px + 3em);
 
     --row-toggle-bg: var(--medium);
     --row-toggle-icon-color: var(--light-secondary);

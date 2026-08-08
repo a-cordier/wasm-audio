@@ -697,7 +697,7 @@ export class DeviceSlot extends LitElement {
     .leaf {
       display: flex;
       flex-direction: column;
-      width: calc(650px + 3em);
+      width: var(--rack-slot-width, calc(650px + 3em));
       max-width: 100%;
       margin: 0 auto;
     }
