@@ -120,6 +120,11 @@ export const darkTheme = `
     --mixer-btn-color: var(--light-secondary);
     --mixer-db-color: var(--light-secondary);
 
+    /* Master transport bar */
+    --transport-bar-bg: var(--main-panel-color);
+    --transport-label-color: var(--moonbeam);
+    --transport-active-color: var(--lcd-led-on-color);
+
     /* DAW shell chrome: device browser rail + hold-to-eject */
     --browser-rail-bg: var(--main-panel-color);
     --browser-rail-border: var(--medium);
@@ -230,6 +235,11 @@ export const retroTheme = `
     --mixer-btn-bg: var(--medium);
     --mixer-btn-color: var(--light-secondary);
     --mixer-db-color: var(--light-secondary);
+
+    /* Master transport bar */
+    --transport-bar-bg: var(--main-panel-color);
+    --transport-label-color: var(--moonbeam);
+    --transport-active-color: var(--lcd-led-on-color);
 
     /* DAW shell chrome: device browser rail + hold-to-eject */
     --browser-rail-bg: var(--main-panel-color);

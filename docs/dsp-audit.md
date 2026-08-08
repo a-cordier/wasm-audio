@@ -23,13 +23,21 @@ before acting on old line numbers.
 
 ## Deferred — owned by a roadmap item
 
-- **Item 4 (transport/clock)** — *the dominant remaining timing artifact*:
-  sequencer events reach instruments via a 10 ms main-thread `setInterval`
-  drain, re-emitted on the MidiBus, then block-quantised in the receiving
-  worklet (timestamps are carried in the ring but never used to schedule).
-  ~0–13 ms of jitter; will matter much more once drums land. Fix shape:
-  sample-offset scheduling inside the receiving worklet, or sequencer clocks
-  inside instrument worklets.
+- **Item 4 (transport/clock)** — **RESOLVED 2026-08-07**: events are
+  frame-stamped (mod 2^24, ring slot +3) and emitted from a 24 ms-lookahead
+  scheduling clock; instrument processors apply only events due in their
+  block. Measured: 91/91 note-ons arrive with 13.5–23.5 ms margin (median
+  18.4), zero late — every event lands in its exact scheduled block. Residual
+  error is the constant ≤2.9 ms block quantum. **Sample-exact sub-block
+  rendering was evaluated and deliberately NOT built**: it would require
+  variable-length renders in all three engines to shave a constant ≤2.9 ms,
+  and the measured result is jitter-free. Revisit only if drums make the
+  block quantum audible. **Play-press latency**: the transport lead is 25 ms
+  and the sequencer pre-rolls its scheduling clock through it, stamping the
+  BOUNDARY's grid frame (not the tick's position time) — first notes land
+  exactly ON the anchor (measured 0.00 ms, 3/3 runs; two synced children
+  stamp the identical downbeat frame regardless of `__start` arrival
+  jitter).
 - **Item 5 (mixer)**: fader is a linear-amplitude taper with a dB readout
   (top half of the fader spans 6 dB); per-filter-model level trim
   (MOOG/ACID/SCREAM/KORG differ audibly at high res); a master limiter.

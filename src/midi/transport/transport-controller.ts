@@ -29,8 +29,13 @@ import { TransportAnchor, TransportChild } from "../../core/types";
  * tell the difference, by design.
  */
 export class TransportController extends EventTarget {
-  /** Lead time before the shared start frame, so every child can arm it. */
-  private static readonly START_DELAY_S = 0.05;
+  /**
+   * Lead time before the shared start frame — just enough for the __start
+   * port messages to reach every child worklet (~1-2 ms in practice). The
+   * sequencer pre-rolls its scheduler through this window, so the first
+   * notes sound exactly ON the anchor frame: total play latency ≈ this.
+   */
+  private static readonly START_DELAY_S = 0.025;
 
   private ctx: AudioContext;
   private _bpm = 120;
@@ -80,14 +85,26 @@ export class TransportController extends EventTarget {
 
   start(): void {
     if (this._playing) return;
-    if (this.ctx.state === "suspended") void this.ctx.resume();
+    this._playing = true;
+    this.dispatchEvent(new CustomEvent("transport-state", { detail: { playing: true } }));
+    if (this.ctx.state === "suspended") {
+      // The first resume spins up the audio hardware (seconds on Bluetooth).
+      // Anchoring on the frozen clock would park every child on a stale
+      // frame — wait for the clock to actually run, then place the downbeat.
+      void this.ctx.resume().then(() => {
+        if (this._playing) this.beginPlayback();
+      });
+      return;
+    }
+    this.beginPlayback();
+  }
+
+  private beginPlayback(): void {
     // Anchor slightly ahead so every child arms the SAME future frame —
     // a sample-aligned common downbeat.
     this._anchorTime = this.ctx.currentTime + TransportController.START_DELAY_S;
-    this._playing = true;
     const anchor = this.anchor();
     for (const child of this.children) child.onMasterStart(anchor);
-    this.dispatchEvent(new CustomEvent("transport-state", { detail: { playing: true } }));
   }
 
   stop(): void {

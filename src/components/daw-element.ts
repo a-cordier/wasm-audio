@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LitElement, html, css } from "lit";
+import { LitElement, html, css, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
 import { createMidi, Midi } from "../midi/api";
@@ -35,6 +35,7 @@ import { addWorkletModuleOnce } from "../runtime/worklet-modules";
 
 import "./device-slot/device-slot";
 import "./device-browser";
+import "./transport-bar";
 import "./mixer/mixer-element";
 import "../instruments/poly-ticks/register";
 import "../instruments/monolog/register";
@@ -70,6 +71,25 @@ export class Daw extends LitElement {
   @state()
   private ready = false;
 
+  // The audio hardware is only allowed to spin up on a user gesture
+  // (autoplay policy) — until then a power-on overlay covers the app, so
+  // the spin-up cost is paid at the door, never on a downbeat.
+  @state()
+  private audioReady = false;
+
+  private onAudioStateChange = () => {
+    this.audioReady = this.audioContext.state === "running";
+  };
+
+  private powerOn = async () => {
+    try {
+      await this.audioContext.resume();
+    } catch {
+      // resume can only fail without a gesture; the click IS the gesture.
+    }
+    this.audioReady = this.audioContext.state === "running";
+  };
+
   @state()
   private selectedSlotIds: Set<string> = new Set();
 
@@ -78,6 +98,16 @@ export class Daw extends LitElement {
   private slotCounter = 0;
   private mixerAssignments = new Map<string, number>();
   private sessionSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // First-gesture audio unlock: the context is born suspended (autoplay
+  // policy) and the FIRST resume spins up the audio hardware — up to seconds
+  // on Bluetooth. Warming it on the first interaction anywhere means the
+  // spin-up never lands on a downbeat.
+  private unlockAudio = () => {
+    if (this.audioContext.state === "suspended") void this.audioContext.resume();
+    window.removeEventListener("pointerdown", this.unlockAudio);
+    window.removeEventListener("keydown", this.unlockAudio);
+  };
 
   // The reload backstop: whatever in-session triggers missed, the session is
   // snapshotted synchronously before the page goes away.
@@ -148,8 +178,14 @@ export class Daw extends LitElement {
     }
     this.syncKeyboardTargets();
 
+    this.audioReady = this.audioContext.state === "running";
+    this.audioContext.addEventListener("statechange", this.onAudioStateChange);
+
     window.addEventListener("pagehide", this.onPageHide);
+    window.addEventListener("pointerdown", this.unlockAudio);
+    window.addEventListener("keydown", this.unlockAudio);
     this.addEventListener("change", this.onAnyControlChange);
+    this.transport.addEventListener("transport-tempo", this.onAnyControlChange);
 
     // Dev-only console handle: `daw.transport.start()`, `daw.mountDevice(...)`.
     if ((import.meta as any).env?.DEV) {
@@ -161,8 +197,12 @@ export class Daw extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this.audioContext.removeEventListener("statechange", this.onAudioStateChange);
     window.removeEventListener("pagehide", this.onPageHide);
+    window.removeEventListener("pointerdown", this.unlockAudio);
+    window.removeEventListener("keydown", this.unlockAudio);
     this.removeEventListener("change", this.onAnyControlChange);
+    this.transport.removeEventListener("transport-tempo", this.onAnyControlChange);
     getBindingManager().removeEventListener("control-change", this.onAnyControlChange);
     if (this.midiAdapter) {
       getBindingManager().unregisterSource(this.midiAdapter);
@@ -458,6 +498,19 @@ export class Daw extends LitElement {
   render() {
     if (!this.ready || !this.slotTree) return html``;
     return html`
+      ${!this.audioReady
+        ? html`
+          <div class="power-overlay" @click=${this.powerOn}>
+            <div class="power-box">
+              <span class="power-title">WASM AUDIO</span>
+              <span class="power-hint">click to power on</span>
+            </div>
+          </div>`
+        : nothing}
+      <transport-bar
+        .transport=${this.transport}
+        .audioContext=${this.audioContext}
+      ></transport-bar>
       <device-slot
         .config=${this.slotTree}
         .plugins=${this.plugins}
@@ -499,6 +552,52 @@ export class Daw extends LitElement {
 
       device-browser {
         margin: 24px auto;
+      }
+
+      transport-bar {
+        margin: 0 auto 24px;
+      }
+
+      .power-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: color-mix(in srgb, var(--body-background, #121212) 96%, transparent);
+        cursor: pointer;
+      }
+
+      .power-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 32px 48px;
+        background: var(--main-panel-color, #181818);
+        border: 1px solid var(--medium, #2b3844);
+        border-radius: 0.5rem;
+      }
+
+      .power-title {
+        font-family: var(--main-panel-label-font-family, "Bungee Outline", cursive);
+        font-size: 1.6em;
+        color: var(--main-panel-label-color, #fff);
+        letter-spacing: 0.1em;
+      }
+
+      .power-hint {
+        font-size: 0.7em;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: var(--lcd-led-on-color, #b4d455);
+        animation: power-pulse 1.6s ease-in-out infinite alternate;
+      }
+
+      @keyframes power-pulse {
+        from { opacity: 1; }
+        to { opacity: 0.35; }
       }
     `;
   }

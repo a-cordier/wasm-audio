@@ -279,14 +279,27 @@ class SeqProcessor extends AudioWorkletProcessor {
     const barSteps = beatSteps * BEATS_PER_BAR;
 
     for (let frame = 0; frame < RENDER_QUANTUM_FRAMES; frame++) {
-      // Parked start: silence until the armed frame arrives, then the clock
-      // begins exactly there (signed mod-2^24 window, same as the drain).
+      // Parked start: the audible clock waits for the armed frame, but the
+      // SCHEDULING clock pre-rolls through the countdown (schedPos runs from
+      // -lookahead up to 0), so the first notes and the downbeat click are
+      // already in flight, stamped exactly ON the start frame — the lookahead
+      // overlaps the start lead instead of adding to it.
       if (this._pendingStartFrame !== 0) {
         let d = (this._pendingStartFrame - ((currentFrame + frame) % FRAME_WRAP)) % FRAME_WRAP;
         if (d < -(1 << 23)) d += FRAME_WRAP;
         if (d > (1 << 23)) d -= FRAME_WRAP;
         if (d > 0) {
-          if (out) out[frame] = 0;
+          this._serviceClickQueue(currentFrame + frame);
+          if (out) out[frame] = this._clickSample();
+          const preRollPos = (LOOKAHEAD_FRAMES - d) * stepInc;
+          if (preRollPos >= 0) {
+            this._runScheduler(
+              preRollPos,
+              currentFrame + frame + LOOKAHEAD_FRAMES,
+              samplesPerStep, swing, gate, channel, transpose,
+              direction, loop, switchMode, beatSteps, barSteps
+            );
+          }
           continue;
         }
         this._pendingStartFrame = 0;
@@ -318,76 +331,12 @@ class SeqProcessor extends AudioWorkletProcessor {
       // Runs the exact firing logic the audible clock used to run, but early:
       // events are enqueued frame-stamped with their audible onset, so the
       // main-thread drain hop adds a constant delay instead of jitter.
-      const schedPos = this._stepPos + LOOKAHEAD_FRAMES * stepInc;
-      const schedRaw = Math.floor(schedPos);
-      const onsetFrame = currentFrame + frame + LOOKAHEAD_FRAMES;
-
-      if (schedRaw !== this._schedLastRawStep) {
-        this._applyPendingPattern(schedRaw, switchMode);
-        // Metronome follows the SCHEDULED beat so click and notes stay
-        // aligned; the click itself fires when its stamped frame arrives.
-        if (schedRaw % beatSteps === 0) {
-          this._scheduleClick(onsetFrame, schedRaw % barSteps === 0);
-        }
-        this._schedLastRawStep = schedRaw;
-        const schedSteps = this._lengthsView[this._activePattern] || 1;
-        this._schedLogicalStep = this._resolveStep(schedRaw - this._stepOrigin, schedSteps, direction, loop);
-      }
-
-      const schedLogical = this._schedLogicalStep;
-
-      // Swing on the scheduling clock: same phase comparison as before.
-      if (schedLogical !== -1 && schedLogical !== this._schedCurrentStep) {
-        const isSwungStep = (schedRaw % 2) === 1;
-        if (!(isSwungStep && swing > 0 && (schedPos - schedRaw) < swing * 0.5)) {
-          this._schedCurrentStep = schedLogical;
-
-          // Read the active pattern at this step. The velocity byte packs the
-          // slide flag in its high bit.
-          const offset = this._activePattern * PATTERN_BYTES + schedLogical * STEP_SLOT_SIZE;
-          const note = this._patternView[offset];
-          const velByte = this._patternView[offset + 1];
-          const velocity = velByte & 0x7f;
-          const slide = (velByte & SLIDE_BIT) !== 0;
-
-          // Transpose is applied on the way out; the pattern itself is
-          // untouched, and the off is stamped for the note actually sent so
-          // changing transpose mid-gate can never strand a note-off.
-          const played = note + transpose;
-          const heldSlide = this._slideNote;
-
-          if (note > 0 && velocity > 0 && played > 0 && played < 128) {
-            // Fire the new note ON first. If the previous step slid, its note
-            // is still held, so this overlap makes a legato monolog glide.
-            this._enqueueNoteOn(played, velocity, channel, onsetFrame);
-            if (heldSlide >= 0) this._enqueueNoteOff(heldSlide, channel, onsetFrame);
-
-            if (slide) {
-              // Tie: hold this note open (no gated off) until the next note-on.
-              this._slideNote = played;
-            } else {
-              this._slideNote = -1;
-              // The gated off is stamped NOW (no pending queue needed — the
-              // ring holds it until its frame), clamped to land before the
-              // next step's onset so a swung high-gate step can never choke
-              // a repeated pitch.
-              const samplesToNextStep = (1 + schedRaw - schedPos) * samplesPerStep;
-              const nextIsSwung = ((schedRaw + 1) % 2) === 1;
-              const nextOnsetIn = samplesToNextStep
-                + (nextIsSwung && swing > 0 ? samplesPerStep * swing * 0.5 : 0);
-              const gateLength = Math.min(
-                Math.round(samplesPerStep * gate),
-                Math.max(1, Math.floor(nextOnsetIn) - 1)
-              );
-              this._enqueueNoteOff(played, channel, onsetFrame + gateLength);
-            }
-          } else if (heldSlide >= 0) {
-            // Sliding into a rest releases the held note at the step edge.
-            this._enqueueNoteOff(heldSlide, channel, onsetFrame);
-            this._slideNote = -1;
-          }
-        }
-      }
+      this._runScheduler(
+        this._stepPos + LOOKAHEAD_FRAMES * stepInc,
+        currentFrame + frame + LOOKAHEAD_FRAMES,
+        samplesPerStep, swing, gate, channel, transpose,
+        direction, loop, switchMode, beatSteps, barSteps
+      );
 
       // ---- The AUDIBLE clock: position reports + end-of-sequence ----
       const rawStep = Math.floor(this._stepPos);
@@ -427,6 +376,94 @@ class SeqProcessor extends AudioWorkletProcessor {
     }
 
     return true;
+  }
+
+  /**
+   * One tick of the scheduling clock at grid position `schedPos`, whose
+   * crossing (if any) is audible at `onsetFrame`. Shared by the running loop
+   * (schedPos = stepPos + lookahead) and the PARKED pre-roll before an armed
+   * start frame (schedPos derived from the countdown), so the first notes of
+   * a synced start are already in flight and sound exactly ON the downbeat.
+   */
+  _runScheduler(schedPos, onsetFrame, samplesPerStep, swing, gate, channel, transpose, direction, loop, switchMode, beatSteps, barSteps) {
+    const schedRaw = Math.floor(schedPos);
+
+    // Stamp the BOUNDARY's grid time, not this tick's position time: when a
+    // crossing is detected late (an armed start arriving mid-window), the
+    // grid stays exact — every synced child stamps the identical downbeat
+    // frame regardless of message arrival jitter.
+    const boundaryOnset = Math.round(onsetFrame - (schedPos - schedRaw) * samplesPerStep);
+
+    if (schedRaw !== this._schedLastRawStep) {
+      this._applyPendingPattern(schedRaw, switchMode);
+      // Metronome follows the SCHEDULED beat so click and notes stay
+      // aligned; the click itself fires when its stamped frame arrives.
+      if (schedRaw % beatSteps === 0) {
+        this._scheduleClick(boundaryOnset, schedRaw % barSteps === 0);
+      }
+      this._schedLastRawStep = schedRaw;
+      const schedSteps = this._lengthsView[this._activePattern] || 1;
+      this._schedLogicalStep = this._resolveStep(schedRaw - this._stepOrigin, schedSteps, direction, loop);
+    }
+
+    const schedLogical = this._schedLogicalStep;
+
+    // Swing on the scheduling clock: same phase comparison as before.
+    if (schedLogical !== -1 && schedLogical !== this._schedCurrentStep) {
+      const isSwungStep = (schedRaw % 2) === 1;
+      if (!(isSwungStep && swing > 0 && (schedPos - schedRaw) < swing * 0.5)) {
+        this._schedCurrentStep = schedLogical;
+        // A swung step's audible onset sits swing/2 into the step.
+        const emitOnset = isSwungStep && swing > 0
+          ? boundaryOnset + Math.round(swing * 0.5 * samplesPerStep)
+          : boundaryOnset;
+
+        // Read the active pattern at this step. The velocity byte packs the
+        // slide flag in its high bit.
+        const offset = this._activePattern * PATTERN_BYTES + schedLogical * STEP_SLOT_SIZE;
+        const note = this._patternView[offset];
+        const velByte = this._patternView[offset + 1];
+        const velocity = velByte & 0x7f;
+        const slide = (velByte & SLIDE_BIT) !== 0;
+
+        // Transpose is applied on the way out; the pattern itself is
+        // untouched, and the off is stamped for the note actually sent so
+        // changing transpose mid-gate can never strand a note-off.
+        const played = note + transpose;
+        const heldSlide = this._slideNote;
+
+        if (note > 0 && velocity > 0 && played > 0 && played < 128) {
+          // Fire the new note ON first. If the previous step slid, its note
+          // is still held, so this overlap makes a legato monolog glide.
+          this._enqueueNoteOn(played, velocity, channel, emitOnset);
+          if (heldSlide >= 0) this._enqueueNoteOff(heldSlide, channel, emitOnset);
+
+          if (slide) {
+            // Tie: hold this note open (no gated off) until the next note-on.
+            this._slideNote = played;
+          } else {
+            this._slideNote = -1;
+            // The gated off is stamped NOW (no pending queue needed — the
+            // ring holds it until its frame), clamped to land before the
+            // next step's onset so a swung high-gate step can never choke
+            // a repeated pitch.
+            const samplesToNextStep = (1 + schedRaw - schedPos) * samplesPerStep;
+            const nextIsSwung = ((schedRaw + 1) % 2) === 1;
+            const nextOnsetIn = samplesToNextStep
+              + (nextIsSwung && swing > 0 ? samplesPerStep * swing * 0.5 : 0);
+            const gateLength = Math.min(
+              Math.round(samplesPerStep * gate),
+              Math.max(1, Math.floor(nextOnsetIn) - 1)
+            );
+            this._enqueueNoteOff(played, channel, emitOnset + gateLength);
+          }
+        } else if (heldSlide >= 0) {
+          // Sliding into a rest releases the held note at the step edge.
+          this._enqueueNoteOff(heldSlide, channel, emitOnset);
+          this._slideNote = -1;
+        }
+      }
+    }
   }
 
   /**

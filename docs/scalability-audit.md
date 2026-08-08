@@ -21,8 +21,12 @@ Done by the shell work: dynamic mount/unmount with shell-owned lifecycle
 - **Element ↔ plugin rebinding**: elements read state/subscribe in
   `connectedCallback` only; a same-tag `.plugin` swap on a connected element
   keeps the old controller. Matters if slots ever swap devices in place.
-- **AudioContext unlock UX**: resume is opportunistic; a first-gesture unlock
-  belongs in the workspace chrome (layout roadmap item).
+- ~~AudioContext unlock UX~~ — RESOLVED with item 4: a power-on overlay
+  covers the app while the context is suspended (click = the autoplay-policy
+  gesture → resume → reveal), backed by a first-gesture resume anywhere
+  (pointerdown/keydown), so the hardware spin-up (seconds on Bluetooth)
+  never lands on a downbeat, and the transport anchors only after resume
+  completes.
 - **`unsafeStatic(elementTag)` template cache** grows per distinct tag —
   bounded by device-type count.
 

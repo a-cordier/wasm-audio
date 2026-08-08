@@ -53,21 +53,19 @@ identity follow slot identity. Remaining shell-adjacent items live in
 [docs/scalability-audit.md](docs/scalability-audit.md). The device-vs-module
 contract is reserved in the `kind` enum; modules land with items 6/7.
 
-### 4. [ ] Transport & clock sync (live mode)
-- DAW master transport: play/stop, tempo, bar/beat position.
-- Devices keep their **independent clocks by default** (live mode as it
-  works today); per-device opt-in sync to the master clock.
-- **Clock sources must be pluggable**: the internal master OR external MIDI
-  clock in — children subscribe identically either way. MIDI out (devices
-  driving hardware) is a future additive MidiBus→output-port bridge. Neither
-  is built now (no hardware to test), but the design must not preclude them.
-- Armed-keyboard transport (item 3) becomes one per-device command source;
-  the master transport is another, for opted-in children.
-- Builds on the existing sample-accurate MIDI transport
-  (src/midi/transport) — likely clock events on the bus.
-- Prerequisite for song mode, automation timelines, and LFO sync.
-- The dominant remaining timing artifact lands here: sample-accurate event
-  scheduling (see docs/dsp-audit.md deferred list).
+### 4. [x] Transport & clock sync (live mode) — done 2026-08-07
+The jitter is gone and the mother clock exists. Frame-stamped events
+(mod 2^24, ring slot +3) emitted from a 24 ms-lookahead scheduling clock,
+applied by instruments in their exact block — measured 91/91 events on time
+with 13.5–23.5 ms margin; sample-exact sub-block rendering evaluated and
+deliberately skipped (constant ≤2.9 ms residual, jitter-free; see
+docs/dsp-audit.md). TransportController (shell-owned, AudioContext-anchored,
+pluggable sources — MIDI clock in later drives the same calls): SYNC per
+slot, shared sample-anchored downbeats, beat-quantized local launches, ghosted
+child BPM, persisted with the session, plus a minimal transport bar (final
+chrome home: item 4b). Stop releases exactly the sounding notes (tracked in
+the drain) instead of 128-note bursts; instrument rings 64 → 256. **MIDI
+clock in/out remain future work by design** (no hardware to test).
 
 ### 4b. [ ] DAW workspace layout
 The rack stops being a plain vertical page: docked mixer (bottom or side),

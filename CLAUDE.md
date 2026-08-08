@@ -12,6 +12,17 @@ and imported once in `src/components/daw-element.ts`. The descriptor carries
 `kind` ("instrument" | "sequencer" | future "effect"/"module") and `accent`
 (a CSS var) — that's what the device browser displays.
 
+**Transport (mother/child clocks)**: `TransportController` (shell-owned) is
+the master — start/stop/tempo anchored on the AudioContext clock; devices opt
+in per slot (SYNC toggle, persisted). Master start = shared sample-anchored
+downbeat; a synced device's own play quantizes to the master's next beat;
+tempo follows the master (local BPM ghosted). Sources are pluggable: external
+MIDI clock in later maps onto the same start/stop/setBpm calls. **Scheduled
+MIDI events carry their audible AudioContext frame (mod 2^24) in ring slot
++3** — the sequencer emits from a 24 ms-lookahead scheduling clock and
+instrument processors take only events due in the current block
+(`dequeueBefore`); live sources stamp frame 0 = play now, zero added latency.
+
 **The shell owns the rack**: daw-element mounts/unmounts devices at runtime
 (`mountDevice`/`unmountSlot` — instantiate → route on a free mixer channel;
 ramp silent → dispose → unroute), and the whole session persists
