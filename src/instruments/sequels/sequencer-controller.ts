@@ -38,7 +38,8 @@ import {
   SwitchMode,
   TransportState,
 } from "./types";
-import { MidiSourcePlugin, MidiConsumer, PluginDescriptor, Learnable, LearnableParam, PresetEntry, HasPresets } from "../../core/types";
+import { MidiSourcePlugin, MidiConsumer, PluginDescriptor, Learnable, LearnableParam, PresetEntry, HasPresets, TransportAnchor, TransportChild } from "../../core/types";
+import { TransportController } from "../../midi/transport/transport-controller";
 import { ControlID } from "../../control/types";
 
 const DRAIN_INTERVAL_MS = 10;
@@ -50,7 +51,7 @@ const AUTOSAVE_DEBOUNCE_MS = 500;
  * Owns the worklet node, drains MIDI output from the worklet ring buffer,
  * and dispatches events into the MidiBus.
  */
-export class SequencerController extends EventTarget implements MidiSourcePlugin, MidiConsumer, Learnable, HasPresets {
+export class SequencerController extends EventTarget implements MidiSourcePlugin, MidiConsumer, Learnable, HasPresets, TransportChild {
   readonly descriptor: PluginDescriptor = {
     id: "sequels",
     name: "SEQUELS",
@@ -76,6 +77,11 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
   private _recording = false;
 
   private slotId: string | null = null;
+  // The master transport, wired by the shell while this slot's SYNC is on.
+  private masterTransport: TransportController | null = null;
+  // Notes forwarded as ON and not yet released, packed (channel << 8) | note —
+  // what allNotesOff() must release on stop.
+  private soundingNotes = new Set<number>();
 
   constructor(audioContext: AudioContext) {
     super();
@@ -216,18 +222,55 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
 
   // --- Transport ---
 
+  /** Wired by the shell alongside addChild/removeChild (SYNC toggle). */
+  setTransport(transport: TransportController | null): void {
+    this.masterTransport = transport;
+  }
+
   start(): void {
     if (!this.node) return;
+    // Local start while a running master is attached: join on the master's
+    // next beat (quantized launch). Otherwise start free, exactly as before.
+    const startAtFrame = this.masterTransport?.isPlaying
+      ? this.masterTransport.nextBeatFrame()
+      : 0;
+
     const config = this.node.config.getConfig();
     // One bar of clicks before the clock rolls, so you can come in on time.
-    // Pointless without an audible click, hence the metronome condition.
-    const countIn =
-      this._recording && config.metronome ? Math.round(config.subdivision) * BEATS_PER_BAR : 0;
+    // Pointless without an audible click, hence the metronome condition —
+    // and suppressed entirely for frame-aligned starts (the timeline is
+    // already running; a pre-roll would miss the downbeat).
+    const countIn = startAtFrame === 0 && this._recording && config.metronome
+      ? Math.round(config.subdivision) * BEATS_PER_BAR
+      : 0;
 
     this.transport = TransportState.PLAYING;
-    this.node.start(countIn);
+    this.node.start(countIn, startAtFrame);
     this.startDrain();
     this.emitTransport();
+  }
+
+  // --- TransportChild (master transport commands) ---
+
+  onMasterStart(anchor: TransportAnchor): void {
+    if (!this.node) return;
+    // Restart from step 0 on the shared downbeat; the master owns the
+    // timeline, so no count-in.
+    this.transport = TransportState.PLAYING;
+    this.node.start(0, anchor.startFrame);
+    this.startDrain();
+    this.emitTransport();
+  }
+
+  onMasterStop(): void {
+    this.stop();
+  }
+
+  onMasterTempo(bpm: number): void {
+    this.node?.config.setBpm(bpm);
+    this.scheduleAutosave();
+    // The (ghosted) BPM display follows the master.
+    this.dispatchEvent(new CustomEvent("config-change"));
   }
 
   stop(): void {
@@ -603,14 +646,18 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     saveState(this.getState(), this.slotId ?? undefined);
   }
 
+  // Releases exactly the notes this sequencer has forwarded and not yet
+  // released (tracked in the drain loop). The old 128-note broadcast
+  // overflowed the receiving instrument's MIDI ring in one synchronous
+  // burst — the worklet only drains between audio blocks.
   private allNotesOff(): void {
-    if (!this.bus || !this.node) return;
-    const ch = this.node.config.getConfig().outputChannel as Channel;
+    if (!this.bus) return;
     this._emitting = true;
     try {
-      for (let note = 0; note < 128; note++) {
-        this.bus.send(Status.NOTE_OFF, ch, note, 0);
+      for (const key of this.soundingNotes) {
+        this.bus.send(Status.NOTE_OFF, ((key >> 8) & 0x0f) as Channel, key & 0x7f, 0);
       }
+      this.soundingNotes.clear();
     } finally {
       this._emitting = false;
     }
@@ -667,6 +714,13 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
         const channel = ((packed >> 16) & 0x0f) as Channel;
         const d1 = (packed >> 8) & 0x7f;
         const d2 = packed & 0x7f;
+
+        // Track what is sounding so stop releases exactly these notes.
+        if (status === Status.NOTE_ON && d2 > 0) {
+          this.soundingNotes.add((channel << 8) | d1);
+        } else if (status === Status.NOTE_OFF || (status === Status.NOTE_ON && d2 === 0)) {
+          this.soundingNotes.delete((channel << 8) | d1);
+        }
 
         // The frame stamp travels intact to the receiving instrument — this
         // hop adds latency (covered by the worklet's lookahead), never jitter.

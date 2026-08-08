@@ -27,6 +27,8 @@ export interface SlotConfig {
   outputChannel?: Channel;
   /** Folded to its header strip; the device keeps running and stays wired. */
   collapsed?: boolean;
+  /** Follows the master transport (child clock mode). */
+  sync?: boolean;
 
   children?: SlotConfig[];
 }
@@ -35,7 +37,7 @@ export function createLeafSlot(
   id: string,
   name: string,
   pluginId: string,
-  options: Partial<Pick<SlotConfig, "inputDevice" | "midiChannel" | "outputChannel" | "collapsed">> = {}
+  options: Partial<Pick<SlotConfig, "inputDevice" | "midiChannel" | "outputChannel" | "collapsed" | "sync">> = {}
 ): SlotConfig {
   return {
     id,

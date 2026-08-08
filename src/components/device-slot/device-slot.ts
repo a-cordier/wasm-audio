@@ -20,7 +20,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { repeat } from "lit/directives/repeat.js";
 
-import { Plugin, InstrumentPlugin, MidiSourcePlugin, MidiConsumer, isInstrumentPlugin, isMidiSourcePlugin, isMidiConsumer, isLearnable, hasPresets, PresetEntry } from "../../core/types";
+import { Plugin, InstrumentPlugin, MidiSourcePlugin, MidiConsumer, isInstrumentPlugin, isMidiSourcePlugin, isMidiConsumer, isLearnable, isTransportChild, hasPresets, PresetEntry } from "../../core/types";
 import { pluginRegistry } from "../../core/plugin-registry";
 import { SlotConfig } from "../../core/slot";
 import { MidiBus } from "../../midi/bus/bus";
@@ -219,7 +219,7 @@ export class DeviceSlot extends LitElement {
   }
 
   private teardown() {
-    // Wiring-only cleanup: the SHELL (root-element) owns plugin lifecycle —
+    // Wiring-only cleanup: the SHELL (daw-element) owns plugin lifecycle —
     // it disposes the plugin and clears mixer routing in unmountSlot(). DOM
     // disconnect is NOT unmount: keyed repeat() moves elements on reorder
     // (disconnect + reconnect), so disposing here would kill live devices.
@@ -247,7 +247,7 @@ export class DeviceSlot extends LitElement {
     // Remove-then-add: this re-runs whenever the plugin or config changes, and
     // the listeners must close over the CURRENT plugin and slot id — the old
     // guard flag kept them bound to the first plugin forever. The MIDI adapter
-    // itself is app-level (registered once by root-element), not per slot.
+    // itself is app-level (registered once by daw-element), not per slot.
     this.teardownCoreFeatures();
     if (!this.plugin || !isLearnable(this.plugin)) return;
 
@@ -490,6 +490,7 @@ export class DeviceSlot extends LitElement {
             ${this.renderPresetBrowser()}
             ${this.renderKbButton()}
             ${this.renderLearnButton()}
+            ${this.renderSyncButton()}
             ${this.renderDeviceSelector()}
             ${this.renderChannelSelector()}
             ${this.renderEjectButton()}
@@ -517,6 +518,7 @@ export class DeviceSlot extends LitElement {
         .bus=${this.bus}
         .midiChannel=${this.midiChannel}
         .kbArmed=${this.kbActive}
+        .transportSynced=${this.config.sync === true}
       ></${tag}>
     `;
   }
@@ -580,6 +582,29 @@ export class DeviceSlot extends LitElement {
         class=${classMap({ "kb-btn": true, active: this.kbActive })}
         @click=${this.onKbToggle}
       >KB</button>
+    `;
+  }
+
+  // SYNC: this device follows the master transport (child clock mode).
+  private onSyncToggle = () => {
+    this.config.sync = this.config.sync !== true;
+    this.requestUpdate();
+    this.notifyConfigChanged();
+    this.dispatchEvent(new CustomEvent("slot-sync-changed", {
+      detail: { slotId: this.config.id, sync: this.config.sync },
+      bubbles: true,
+      composed: true,
+    }));
+  };
+
+  private renderSyncButton() {
+    if (!this.plugin || !isTransportChild(this.plugin)) return nothing;
+    return html`
+      <button
+        class=${classMap({ "sync-btn": true, active: this.config.sync === true })}
+        title="follow the master transport"
+        @click=${this.onSyncToggle}
+      >SYNC</button>
     `;
   }
 
@@ -760,6 +785,7 @@ export class DeviceSlot extends LitElement {
     }
 
     .learn-btn,
+    .sync-btn,
     .kb-btn {
       font-size: 0.55em;
       font-weight: 700;
@@ -775,6 +801,7 @@ export class DeviceSlot extends LitElement {
     }
 
     .learn-btn.active,
+    .sync-btn.active,
     .kb-btn.active {
       background: var(--button-active-background-color, #b4d455);
       color: var(--button-active-label-color, #15202b);

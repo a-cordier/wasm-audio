@@ -31,7 +31,7 @@ Done by the shell work: dynamic mount/unmount with shell-owned lifecycle
   boot; no add/remove path, `MixerEngine.dispose()` has no caller.
 - `ChannelState.slotId` is declared and never used — the slot↔channel
   association lives only in the routing-table keys; labels are hardcoded in
-  root-element. Channel assignment should follow mount/unmount.
+  daw-element. Channel assignment should follow mount/unmount.
 - Two slots routing the **same AudioNode** to overlapping channels confuses
   the routing diff (duplicate connections; one disconnect clears both). Cannot
   happen with per-slot instances today, but the effect-loop fan-out must not

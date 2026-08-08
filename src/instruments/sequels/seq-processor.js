@@ -139,6 +139,9 @@ class SeqProcessor extends AudioWorkletProcessor {
     this._clickQueueRead = 0;
     this._clickQueueWrite = 0;
 
+    // Armed start frame (mod 2^24); 0 = none.
+    this._pendingStartFrame = 0;
+
     // The note a slide step is holding open, deferred past the next note-on so
     // the two overlap and a legato monolog glides instead of retriggering.
     // -1 when no slide is tied through.
@@ -174,6 +177,10 @@ class SeqProcessor extends AudioWorkletProcessor {
           this._countInTotal = Math.round(msg.countInSteps * spb);
           this._countInLeft = this._countInTotal;
         }
+        // Park the clock until the requested frame (0 = start immediately):
+        // every synced sequencer receives the SAME frame from the master, so
+        // they share a sample-aligned downbeat.
+        this._pendingStartFrame = msg.startAtFrame > 0 ? msg.startAtFrame % FRAME_WRAP : 0;
         this._sampleCounter = 0;
         this._stepPos = 0;
         this._currentStep = -1;
@@ -203,6 +210,7 @@ class SeqProcessor extends AudioWorkletProcessor {
       case "__stop":
         this._running = false;
         this._countInLeft = 0;
+        this._pendingStartFrame = 0;
         // _clickLeft deliberately NOT zeroed: the burst rings out through the
         // stopped-transport path instead of truncating mid-sine (a pop).
         // Queued (not yet audible) clicks are dropped, though.
@@ -271,6 +279,19 @@ class SeqProcessor extends AudioWorkletProcessor {
     const barSteps = beatSteps * BEATS_PER_BAR;
 
     for (let frame = 0; frame < RENDER_QUANTUM_FRAMES; frame++) {
+      // Parked start: silence until the armed frame arrives, then the clock
+      // begins exactly there (signed mod-2^24 window, same as the drain).
+      if (this._pendingStartFrame !== 0) {
+        let d = (this._pendingStartFrame - ((currentFrame + frame) % FRAME_WRAP)) % FRAME_WRAP;
+        if (d < -(1 << 23)) d += FRAME_WRAP;
+        if (d > (1 << 23)) d -= FRAME_WRAP;
+        if (d > 0) {
+          if (out) out[frame] = 0;
+          continue;
+        }
+        this._pendingStartFrame = 0;
+      }
+
       // Count-in: clicks only, the pattern clock stays parked at zero.
       if (this._countInLeft > 0) {
         const elapsed = this._countInTotal - this._countInLeft;

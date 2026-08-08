@@ -64,7 +64,10 @@ export const ParamId = Object.freeze({
 });
 
 const PARAM_COUNT = 39;
-const MIDI_QUEUE_CAPACITY = 64;
+// 256: a stopped sequencer releases its sounding notes in one synchronous
+// burst, and lookahead-scheduled events occupy slots between blocks — 64
+// overflowed under dense sequences.
+const MIDI_QUEUE_CAPACITY = 256;
 
 // C++ Oscillator::Mode values (oscillator.h)
 // TS OscillatorMode: SINE=0, SAWTOOTH=1, SQUARE=2, TRIANGLE=3

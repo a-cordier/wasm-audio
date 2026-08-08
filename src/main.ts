@@ -15,6 +15,6 @@
  */
 import { initTheme } from "./theme/theme-controller";
 import "./components/registry";
-import "./components/root-element";
+import "./components/daw-element";
 
 initTheme();

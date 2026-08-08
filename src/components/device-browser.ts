@@ -22,7 +22,7 @@ import { pluginRegistry } from "../core/plugin-registry";
 /**
  * The rack's "+ ADD DEVICE" rail. Expands into a menu of every registered
  * device (name, kind, accent chip); clicking one dispatches `device-mount`
- * with the plugin id — the shell (root-element) does the actual mounting.
+ * with the plugin id — the shell (daw-element) does the actual mounting.
  */
 @customElement("device-browser")
 export class DeviceBrowser extends LitElement {

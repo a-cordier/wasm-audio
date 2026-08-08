@@ -24,12 +24,13 @@ import { Channel } from "../midi/types";
 import { SlotConfig, createBranchSlot, createLeafSlot, collectLeafSlots } from "../core/slot";
 import { pluginRegistry, PluginRegistration } from "../core/plugin-registry";
 import type { Plugin, InstrumentPlugin } from "../core/types";
-import { isInstrumentPlugin, isSlotAware, isAudioProducer, isMidiConsumer } from "../core/types";
+import { isInstrumentPlugin, isSlotAware, isAudioProducer, isMidiConsumer, isTransportChild } from "../core/types";
 import { RackSession, RackSlotEntry, loadRackSession, saveRackSession } from "../core/rack-storage";
 import { getBindingManager } from "../control/binding-manager";
 import { MidiControlAdapter } from "../control/adapters/midi-adapter";
 
 import { MixerEngine, CHANNEL_COUNT } from "../mixer";
+import { TransportController } from "../midi/transport/transport-controller";
 import { addWorkletModuleOnce } from "../runtime/worklet-modules";
 
 import "./device-slot/device-slot";
@@ -49,9 +50,12 @@ const SESSION_SAVE_DEBOUNCE_MS = 500;
  * their DOM disconnect is NOT unmount (keyed repeat moves elements on
  * reorder).
  */
-@customElement("root-element")
-export class Root extends LitElement {
+@customElement("daw-element")
+export class Daw extends LitElement {
   private audioContext = new AudioContext();
+  /** The master transport ("mother" clock) — public so the transport bar and
+   * console can drive it. */
+  readonly transport = new TransportController(this.audioContext);
   private midi: Midi;
   private midiBus: MidiBus;
   private keyboard: KeyboardController;
@@ -122,6 +126,7 @@ export class Root extends LitElement {
 
     const stored = loadRackSession();
     if (stored) {
+      this.transport.setBpm(stored.transport?.bpm ?? 120);
       await this.restoreSession(stored);
     } else {
       await this.buildDefaultRack(showTemplate);
@@ -145,6 +150,11 @@ export class Root extends LitElement {
 
     window.addEventListener("pagehide", this.onPageHide);
     this.addEventListener("change", this.onAnyControlChange);
+
+    // Dev-only console handle: `daw.transport.start()`, `daw.mountDevice(...)`.
+    if ((import.meta as any).env?.DEV) {
+      (window as any).daw = this;
+    }
 
     this.ready = true;
   }
@@ -211,6 +221,7 @@ export class Root extends LitElement {
           outputChannel: entry.outputChannel as Channel,
           inputDevice: entry.inputDevice,
           collapsed: entry.collapsed,
+          sync: entry.sync,
         })
       );
     }
@@ -240,6 +251,7 @@ export class Root extends LitElement {
         ? wanted
         : this.allocateMixerChannel();
       if (channel >= 0) this.routeSlot(slot, channel);
+      this.wireSync(slot.id, entry.sync);
     }
   }
 
@@ -334,6 +346,7 @@ export class Root extends LitElement {
       }
     }
 
+    if (isTransportChild(plugin)) this.wireSync(slotId, false);
     this.mixerEngine.clearRouting(slotId);
     const channel = this.mixerAssignments.get(slotId);
     if (channel !== undefined) this.mixerEngine.setLabel(channel, "");
@@ -380,14 +393,39 @@ export class Root extends LitElement {
         inputDevice: slot.inputDevice ?? "internal",
         mixerChannel: this.mixerAssignments.get(slot.id) ?? -1,
         collapsed: slot.collapsed === true,
+        sync: slot.sync === true,
         state: plugin && !isSlotAware(plugin) ? plugin.getState() : undefined,
       });
     }
-    saveRackSession({ version: 1, slotCounter: this.slotCounter, slots });
+    saveRackSession({
+      version: 1,
+      slotCounter: this.slotCounter,
+      slots,
+      transport: { bpm: this.transport.bpm },
+    });
   }
 
   private onSlotConfigChanged() {
     this.scheduleSessionSave();
+  }
+
+  // Attach/detach a slot's device to the master transport (SYNC toggle). The
+  // quantized-launch handle (setTransport) rides along only while synced.
+  private wireSync(slotId: string, sync: boolean) {
+    const plugin = this.plugins.get(slotId);
+    if (!plugin || !isTransportChild(plugin)) return;
+    const withHandle = plugin as unknown as { setTransport?: (t: TransportController | null) => void };
+    if (sync) {
+      withHandle.setTransport?.(this.transport);
+      this.transport.addChild(plugin);
+    } else {
+      this.transport.removeChild(plugin);
+      withHandle.setTransport?.(null);
+    }
+  }
+
+  private onSlotSyncChanged(e: CustomEvent<{ slotId: string; sync: boolean }>) {
+    this.wireSync(e.detail.slotId, e.detail.sync);
   }
 
   // --- Keyboard targeting ---
@@ -432,6 +470,7 @@ export class Root extends LitElement {
         @slot-deselected=${this.onSlotDeselected}
         @slot-config-changed=${this.onSlotConfigChanged}
         @slot-eject=${this.onSlotEject}
+        @slot-sync-changed=${this.onSlotSyncChanged}
       ></device-slot>
       <device-browser
         .emptyRack=${(this.slotTree.children ?? []).length === 0}

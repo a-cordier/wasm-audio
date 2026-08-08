@@ -54,6 +54,10 @@ export class SequencerElement extends LitElement {
   @property({ attribute: false })
   kbArmed = false;
 
+  // Set by device-slot from the slot's SYNC flag: tempo follows the master.
+  @property({ attribute: false })
+  transportSynced = false;
+
   private get sequencer(): SequencerController {
     return this.plugin as SequencerController;
   }
@@ -352,6 +356,7 @@ export class SequencerElement extends LitElement {
         <row-element label="Transport">
           <sequencer-toolbar
             .bpm=${this.bpm}
+            .synced=${this.transportSynced}
             .subdivision=${this.subdivision}
             .transport=${this.transport}
             .recording=${this.recording}

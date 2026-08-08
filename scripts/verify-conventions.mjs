@@ -100,14 +100,14 @@ for (const inst of readdirSync(INSTRUMENTS)) {
 
 // The template instrument must stay registered (dev-gated) so it keeps
 // compiling and rendering as the living reference.
-const rootEl = join(ROOT, "src/components/root-element.ts");
+const rootEl = join(ROOT, "src/components/daw-element.ts");
 const registerTs = join(INSTRUMENTS, "template/register.ts");
 if (!existsSync(registerTs) || !/id:\s*"template"/.test(readFileSync(registerTs, "utf-8"))) {
   failures.push(`template: register.ts missing or does not register id "template"`);
 } else if (!/instruments\/template\/register/.test(readFileSync(rootEl, "utf-8"))) {
-  failures.push(`template: not imported in root-element.ts (dev registration lost)`);
+  failures.push(`template: not imported in daw-element.ts (dev registration lost)`);
 } else {
-  notes.push(`  template: registered (dev-gated in root-element.ts)`);
+  notes.push(`  template: registered (dev-gated in daw-element.ts)`);
 }
 
 console.log("PARAM_COUNT alignment + template registration:");

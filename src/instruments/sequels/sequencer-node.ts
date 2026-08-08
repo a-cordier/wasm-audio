@@ -71,9 +71,13 @@ export class SequencerNode extends AudioWorkletNode {
     this.stoppedCallback = callback;
   }
 
-  /** `countInSteps` > 0 runs a click-only pre-roll before the clock starts. */
-  start(countInSteps = 0): void {
-    this.port.postMessage({ type: "__start", countInSteps });
+  /**
+   * `countInSteps` > 0 runs a click-only pre-roll before the clock starts.
+   * `startAtFrame` > 0 parks the clock until that AudioContext frame
+   * (mod 2^24) — how synced sequencers hit a sample-aligned common downbeat.
+   */
+  start(countInSteps = 0, startAtFrame = 0): void {
+    this.port.postMessage({ type: "__start", countInSteps, startAtFrame });
   }
 
   stop(): void {

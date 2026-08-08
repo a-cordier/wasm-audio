@@ -85,6 +85,31 @@ export interface SlotAware {
   setSlotId(slotId: string): void;
 }
 
+/**
+ * A shared timing reference from the master transport: beat 0 sits at
+ * `contextTime` on the AudioContext clock (`startFrame` is the same instant
+ * as a frame, for sample-aligned worklet starts). Children derive every beat
+ * from it — the master and all children share the audio clock, so there is
+ * no drift and no performance.now() mixing.
+ */
+export interface TransportAnchor {
+  contextTime: number;
+  bpm: number;
+  startFrame: number;
+}
+
+/**
+ * Devices that can follow the master transport ("child" clock mode). The
+ * master is one command source; a device's own controls remain another (the
+ * mother/child model — local starts quantize to the master's beat). Future
+ * external sources (MIDI clock in) drive the same interface.
+ */
+export interface TransportChild {
+  onMasterStart(anchor: TransportAnchor): void;
+  onMasterStop(): void;
+  onMasterTempo(bpm: number): void;
+}
+
 export interface PresetEntry {
   name: string;
   state: unknown;
@@ -122,4 +147,8 @@ export function isSlotAware(plugin: Plugin): plugin is Plugin & SlotAware {
  */
 export function isAudioProducer(plugin: Plugin): plugin is Plugin & AudioProducer {
   return "getOutputNode" in plugin;
+}
+
+export function isTransportChild(plugin: Plugin): plugin is Plugin & TransportChild {
+  return "onMasterStart" in plugin && "onMasterTempo" in plugin;
 }

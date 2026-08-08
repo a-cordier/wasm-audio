@@ -21,7 +21,10 @@ import { MidiEvent, MidiTarget, Status, Channel } from "../../midi/types";
 import { noteFrequency } from "../../midi/codec/notes";
 import { TemplateParamId } from "./types/template-params";
 
-const MIDI_QUEUE_CAPACITY = 64;
+// 256: a stopped sequencer releases its sounding notes in one synchronous
+// burst, and lookahead-scheduled events occupy slots between blocks — 64
+// overflowed under dense sequences.
+const MIDI_QUEUE_CAPACITY = 256;
 
 /**
  * Main-thread handle to the "template" AudioWorklet. Owns the two shared

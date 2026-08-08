@@ -33,6 +33,7 @@ export interface RackSlotEntry {
   inputDevice: string;
   mixerChannel: number;
   collapsed: boolean;
+  sync: boolean;
   /** Device state snapshot from plugin.getState(); absent for self-persisting devices. */
   state?: unknown;
 }
@@ -41,6 +42,8 @@ export interface RackSession {
   version: number;
   slotCounter: number;
   slots: RackSlotEntry[];
+  /** Master transport settings. */
+  transport?: { bpm: number };
 }
 
 const STORAGE_KEY = "rack.session.v1";
@@ -64,6 +67,7 @@ function sanitizeEntry(raw: unknown): RackSlotEntry | null {
     inputDevice: typeof e.inputDevice === "string" ? e.inputDevice : "internal",
     mixerChannel: clampChannel(e.mixerChannel, -1),
     collapsed: e.collapsed === true,
+    sync: e.sync === true,
     state: e.state,
   };
 }
@@ -86,6 +90,7 @@ export function loadRackSession(): RackSession | null {
       .map(sanitizeEntry)
       .filter((e): e is RackSlotEntry => e !== null);
     if (slots.length === 0) return null;
+    const rawBpm = (parsed.transport as { bpm?: unknown } | undefined)?.bpm;
     return {
       version: RACK_VERSION,
       slotCounter:
@@ -93,6 +98,11 @@ export function loadRackSession(): RackSession | null {
           ? Math.max(0, Math.round(parsed.slotCounter))
           : slots.length,
       slots,
+      transport: {
+        bpm: typeof rawBpm === "number" && Number.isFinite(rawBpm)
+          ? Math.max(20, Math.min(300, Math.round(rawBpm)))
+          : 120,
+      },
     };
   } catch {
     return null;

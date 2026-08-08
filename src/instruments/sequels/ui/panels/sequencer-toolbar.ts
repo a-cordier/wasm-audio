@@ -73,6 +73,10 @@ export class SequencerToolbar extends LitElement {
   @property({ type: Boolean })
   hasClipboard = false;
 
+  // Tempo follows the master transport; local BPM controls are ghosted.
+  @property({ attribute: false })
+  synced = false;
+
   private taps: number[] = [];
 
   private get playing(): boolean {
@@ -123,17 +127,18 @@ export class SequencerToolbar extends LitElement {
             CLICK
           </button>
         </div>
-        <div class="panel bpm-panel">
+        <div class=${classMap({ panel: true, "bpm-panel": true, ghosted: this.synced })}
+          title=${this.synced ? "tempo follows the master transport (SYNC on)" : ""}>
           <control-learn-wrapper .controlID=${ControlID.SEQ_BPM}>
             <div class="lcd-row">
-              <button class="inc-btn" @click=${() => this.emit(ToolbarEvent.BPM, Math.max(20, this.bpm - 1))}>-</button>
+              <button class="inc-btn" ?disabled=${this.synced} @click=${() => this.emit(ToolbarEvent.BPM, Math.max(20, this.bpm - 1))}>-</button>
               <lcd-element .text=${String(this.bpm)}></lcd-element>
-              <button class="inc-btn" @click=${() => this.emit(ToolbarEvent.BPM, Math.min(300, this.bpm + 1))}>+</button>
+              <button class="inc-btn" ?disabled=${this.synced} @click=${() => this.emit(ToolbarEvent.BPM, Math.min(300, this.bpm + 1))}>+</button>
             </div>
           </control-learn-wrapper>
-          <button class="toggle-btn tap-btn" title="Tap tempo" @click=${this.onTap}>TAP</button>
-          <button class="toggle-btn" title="Halve the tempo" @click=${() => this.setBpm(this.bpm / 2)}>÷2</button>
-          <button class="toggle-btn" title="Double the tempo" @click=${() => this.setBpm(this.bpm * 2)}>×2</button>
+          <button class="toggle-btn tap-btn" title="Tap tempo" ?disabled=${this.synced} @click=${this.onTap}>TAP</button>
+          <button class="toggle-btn" title="Halve the tempo" ?disabled=${this.synced} @click=${() => this.setBpm(this.bpm / 2)}>÷2</button>
+          <button class="toggle-btn" title="Double the tempo" ?disabled=${this.synced} @click=${() => this.setBpm(this.bpm * 2)}>×2</button>
         </div>
         </div>
         <div class="toolbar-row">
@@ -237,6 +242,10 @@ export class SequencerToolbar extends LitElement {
   }
 
   static styles = css`
+    .ghosted {
+      opacity: 0.45;
+    }
+
     :host {
       display: block;
       container-type: inline-size;

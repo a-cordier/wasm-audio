@@ -8,11 +8,11 @@ skill; design rationale lives in the memory files (see bottom).
 
 A synth is a **plugin** registered in `src/instruments/<synth>/register.ts` via
 `pluginRegistry.register({ descriptor, controllerFactory, elementTag, workletModules, keyboardOctaveShift })`,
-and imported once in `src/components/root-element.ts`. The descriptor carries
+and imported once in `src/components/daw-element.ts`. The descriptor carries
 `kind` ("instrument" | "sequencer" | future "effect"/"module") and `accent`
 (a CSS var) — that's what the device browser displays.
 
-**The shell owns the rack**: root-element mounts/unmounts devices at runtime
+**The shell owns the rack**: daw-element mounts/unmounts devices at runtime
 (`mountDevice`/`unmountSlot` — instantiate → route on a free mixer channel;
 ramp silent → dispose → unroute), and the whole session persists
 (`core/rack-storage.ts`: layout + per-device state snapshots; sequels
@@ -56,7 +56,7 @@ Any **new worklet file** (`*-processor.js`, `*.wasmmodule.js`) must be added to 
 
 ## Lifecycle — non-negotiables
 
-- **Plugins are instantiated per SLOT** (root-element walks the slot tree;
+- **Plugins are instantiated per SLOT** (daw-element walks the slot tree;
   the instance map is keyed by slot id). Never assume one instance per plugin
   id — the same device can be mounted twice.
 - **Worklet processors keep all mutable state per instance** (`this._*` or the
