@@ -15,7 +15,8 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
   readonly descriptor: PluginDescriptor = {
     id: "monolog",
     name: "MONOLOG",
-    tag: "monolog-element",
+    kind: "instrument",
+    accent: "var(--monolog-accent)",
     type: "instrument",
   };
 

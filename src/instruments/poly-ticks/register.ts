@@ -17,7 +17,8 @@ pluginRegistry.register({
   descriptor: {
     id: "poly-ticks",
     name: "POLY TICKS",
-    tag: "wasm-poly-element",
+    kind: "instrument",
+    accent: "var(--poly-accent)",
     type: "instrument",
   },
   controllerFactory: (ctx) => new SynthController(ctx),

@@ -17,10 +17,17 @@
 import { MidiEvent, Channel } from "../midi/types";
 import { MidiBus } from "../midi/bus/bus";
 
+/** Browser grouping; effect/module arrive with roadmap items 5-7. */
+export type DeviceKind = "instrument" | "sequencer" | "effect" | "module";
+
 export interface PluginDescriptor {
   readonly id: string;
   readonly name: string;
-  readonly tag: string;
+  /** How the device browser groups and labels this device. */
+  readonly kind: DeviceKind;
+  /** Accent for browser chips: a CSS color or var() reference. */
+  readonly accent?: string;
+  /** MIDI role (kept separate from kind: a sequencer is a midi-source). */
   readonly type: "instrument" | "midi-source";
 }
 

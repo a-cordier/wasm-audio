@@ -24,7 +24,8 @@ pluginRegistry.register({
   descriptor: {
     id: "template",
     name: "TEMPLATE",
-    tag: "template-element",
+    kind: "instrument",
+    accent: "var(--template-accent)",
     type: "instrument",
   },
   controllerFactory: (ctx) => new TemplateController(ctx),

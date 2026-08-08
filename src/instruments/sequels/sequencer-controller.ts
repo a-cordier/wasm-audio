@@ -54,7 +54,8 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
   readonly descriptor: PluginDescriptor = {
     id: "sequels",
     name: "SEQUELS",
-    tag: "sequencer-element",
+    kind: "sequencer",
+    accent: "var(--lcd-led-on-color)",
     type: "midi-source",
   };
 

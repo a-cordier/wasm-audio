@@ -18,6 +18,7 @@ import { LitElement, html, css, nothing } from "lit";
 import { html as staticHtml, unsafeStatic } from "lit/static-html.js";
 import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
+import { repeat } from "lit/directives/repeat.js";
 
 import { Plugin, InstrumentPlugin, MidiSourcePlugin, MidiConsumer, isInstrumentPlugin, isMidiSourcePlugin, isMidiConsumer, isLearnable, hasPresets, PresetEntry } from "../../core/types";
 import { pluginRegistry } from "../../core/plugin-registry";
@@ -217,19 +218,16 @@ export class DeviceSlot extends LitElement {
   }
 
   private teardown() {
+    // Wiring-only cleanup: the SHELL (root-element) owns plugin lifecycle —
+    // it disposes the plugin and clears mixer routing in unmountSlot(). DOM
+    // disconnect is NOT unmount: keyed repeat() moves elements on reorder
+    // (disconnect + reconnect), so disposing here would kill live devices.
     this.busSubscription?.dispose();
     this.busSubscription = null;
     this.activeNotes.clear();
     this.portChangeCleanup?.();
     this.portChangeCleanup = null;
     this.mixNode?.disconnect();
-    // DOM disconnect == unmount: release the mixer routing and the engine.
-    // Item 3 (dynamic mounting) must distinguish unmount from move before it
-    // starts reusing or reordering live slots.
-    if (this.config?.mode === "leaf" && this.plugin) {
-      this.mixerEngine?.clearRouting(this.config.id);
-      this.plugin.dispose();
-    }
     this.wiredPlugin = null;
     this.teardownCoreFeatures();
   }
@@ -363,7 +361,9 @@ export class DeviceSlot extends LitElement {
     if (isMidiConsumer(this.plugin)) {
       this.flushNotesOff(this.plugin as Plugin & MidiConsumer);
     }
+    this.config.midiChannel = this.midiChannel;
     this.wireRouting();
+    this.notifyConfigChanged();
 
     if (this.kbActive) {
       const channel = this.midiChannel === "omni" ? (0 as Channel) : this.midiChannel;
@@ -381,12 +381,26 @@ export class DeviceSlot extends LitElement {
 
     this.outputChannel = Math.max(0, Math.min(15, this.outputChannel + delta)) as Channel;
     (this.plugin as MidiSourcePlugin).setOutputChannel(this.outputChannel);
+    this.config.outputChannel = this.outputChannel;
+    this.notifyConfigChanged();
   }
 
   private onDeviceChange(e: Event) {
     const select = e.target as HTMLSelectElement;
     this.inputDevice = select.value;
+    this.config.inputDevice = this.inputDevice;
     this.wireRouting();
+    this.notifyConfigChanged();
+  }
+
+  // Header edits mutate the shared SlotConfig (the rack's source of truth);
+  // the shell listens for this to persist the session.
+  private notifyConfigChanged() {
+    this.dispatchEvent(new CustomEvent("slot-config-changed", {
+      detail: { slotId: this.config.id },
+      bubbles: true,
+      composed: true,
+    }));
   }
 
   private get inChannelDisplay(): string {
@@ -431,23 +445,30 @@ export class DeviceSlot extends LitElement {
     const children = this.config.children ?? [];
     return html`
       <div class="branch">
-        ${children.map((childConfig) => {
-          // Instances are keyed by SLOT id: two slots can host the same device.
-          const childPlugin = this.plugins?.get(childConfig.id);
-          return html`
-            <device-slot
-              .config=${childConfig}
-              .plugin=${childPlugin}
-              .plugins=${this.plugins}
-              .bus=${this.bus}
-              .midi=${this.midi}
-              .audioContext=${this.audioContext}
-              .mixerEngine=${this.mixerEngine}
-              .parentOutput=${this.mixNode}
-              .selectedSlotIds=${this.selectedSlotIds}
-            ></device-slot>
-          `;
-        })}
+        ${repeat(
+          children,
+          (childConfig) => childConfig.id,
+          (childConfig) => {
+            // Instances are keyed by SLOT id: two slots can host the same
+            // device. repeat() keys element identity to slot identity, so
+            // unmounting slot k tears down slot k's element — an unkeyed map
+            // would recycle elements by index and detach the wrong one.
+            const childPlugin = this.plugins?.get(childConfig.id);
+            return html`
+              <device-slot
+                .config=${childConfig}
+                .plugin=${childPlugin}
+                .plugins=${this.plugins}
+                .bus=${this.bus}
+                .midi=${this.midi}
+                .audioContext=${this.audioContext}
+                .mixerEngine=${this.mixerEngine}
+                .parentOutput=${this.mixNode}
+                .selectedSlotIds=${this.selectedSlotIds}
+              ></device-slot>
+            `;
+          }
+        )}
       </div>
     `;
   }

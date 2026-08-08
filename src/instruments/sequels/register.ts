@@ -8,7 +8,8 @@ pluginRegistry.register({
   descriptor: {
     id: "sequels",
     name: "SEQUELS",
-    tag: "sequencer-element",
+    kind: "sequencer",
+    accent: "var(--lcd-led-on-color)",
     type: "midi-source",
   },
   controllerFactory: (ctx) => new SequencerController(ctx),

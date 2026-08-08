@@ -6,7 +6,8 @@ pluginRegistry.register({
   descriptor: {
     id: "monolog",
     name: "MONOLOG",
-    tag: "monolog-element",
+    kind: "instrument",
+    accent: "var(--monolog-accent)",
     type: "instrument",
   },
   controllerFactory: (ctx) => new MonologController(ctx),

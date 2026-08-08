@@ -42,7 +42,8 @@ export class TemplateController extends EventTarget implements InstrumentPlugin,
   readonly descriptor: PluginDescriptor = {
     id: "template",
     name: "TEMPLATE",
-    tag: "template-element",
+    kind: "instrument",
+    accent: "var(--template-accent)",
     type: "instrument",
   };
 

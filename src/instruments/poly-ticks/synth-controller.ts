@@ -34,7 +34,8 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
   readonly descriptor: PluginDescriptor = {
     id: "poly-ticks",
     name: "POLY TICKS",
-    tag: "wasm-poly-element",
+    kind: "instrument",
+    accent: "var(--poly-accent)",
     type: "instrument",
   };
 
