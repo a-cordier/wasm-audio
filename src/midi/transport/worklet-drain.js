@@ -22,7 +22,7 @@
  *   [0] = packed: (status << 20) | (channel << 16) | (data1 << 8) | data2
  *   [1] = timestamp (ms)
  *   [2] = frequency hint (for note events)
- *   [3] = reserved
+ *   [3] = scheduled frame (AudioContext frame mod 2^24; 0 = play immediately)
  */
 
 const MIDI_EVENT_SIZE = 4;
@@ -35,11 +35,17 @@ const NOTE_ON = 0x09;
 const CONTROL_CHANGE = 0x0b;
 const PITCH_BEND = 0x0e;
 
+// Frame stamps wrap mod 2^24 (Float32-exact integers). The signed window
+// puts a stamp within ±2^23 frames (~±2.9 min at 48 kHz) of "now".
+const FRAME_WRAP = 1 << 24;
+const HALF_WRAP = 1 << 23;
+
 /**
  * Create a drain context for a MidiRingBuffer SharedArrayBuffer.
  *
  * @param {SharedArrayBuffer} buffer - The SAB backing a MidiRingBuffer
- * @returns {object} drain API: { dequeue, status, channel, data1, data2, timestamp, frequency }
+ * @returns {object} drain API:
+ *   { dequeue, dequeueBefore, status, channel, data1, data2, timestamp, frequency, frame }
  */
 export function createMidiDrain(buffer) {
   const capacity = (buffer.byteLength - HEADER_BYTES) / (MIDI_EVENT_SIZE * Float32Array.BYTES_PER_ELEMENT);
@@ -52,33 +58,64 @@ export function createMidiDrain(buffer) {
   let _data2 = 0;
   let _timestamp = 0;
   let _frequency = 0;
+  let _frame = 0;
 
-  function dequeue() {
-    const read = Atomics.load(heads, 0);
-    if (read === Atomics.load(heads, 1)) return false;
-
+  function decodeAt(read) {
     const offset = read * MIDI_EVENT_SIZE;
     const packed = data[offset];
     _timestamp = data[offset + 1];
     _frequency = data[offset + 2];
+    _frame = data[offset + 3];
 
     _status = (packed >> 20) & 0x0f;
     _channel = (packed >> 16) & 0x0f;
     _data1 = (packed >> 8) & 0x7f;
     _data2 = packed & 0x7f;
+  }
 
+  function dequeue() {
+    const read = Atomics.load(heads, 0);
+    if (read === Atomics.load(heads, 1)) return false;
+    decodeAt(read);
+    Atomics.store(heads, 0, (read + 1) % capacity);
+    return true;
+  }
+
+  /**
+   * Dequeue only if the head event is due before `frameLimit` (exclusive).
+   * frame 0 = immediate, always due. A future-stamped head stays in the ring
+   * (and blocks anything behind it — the ring is a FIFO), so processors call
+   * this once per block with their block-end frame: every event lands in the
+   * block it was scheduled for.
+   */
+  function dequeueBefore(frameLimit) {
+    const read = Atomics.load(heads, 0);
+    if (read === Atomics.load(heads, 1)) return false;
+
+    const stamp = data[read * MIDI_EVENT_SIZE + 3];
+    if (stamp !== 0) {
+      // Signed wrap distance: positive = the stamp is in the future.
+      let dist = (stamp - (frameLimit % FRAME_WRAP)) % FRAME_WRAP;
+      if (dist < -HALF_WRAP) dist += FRAME_WRAP;
+      if (dist > HALF_WRAP) dist -= FRAME_WRAP;
+      if (dist >= 0) return false;
+    }
+
+    decodeAt(read);
     Atomics.store(heads, 0, (read + 1) % capacity);
     return true;
   }
 
   return {
     dequeue,
+    dequeueBefore,
     get status() { return _status; },
     get channel() { return _channel; },
     get data1() { return _data1; },
     get data2() { return _data2; },
     get timestamp() { return _timestamp; },
     get frequency() { return _frequency; },
+    get frame() { return _frame; },
     NOTE_ON,
     NOTE_OFF,
     CONTROL_CHANGE,

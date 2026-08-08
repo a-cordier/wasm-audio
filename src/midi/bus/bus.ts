@@ -44,10 +44,12 @@ export class MidiBus implements MidiTarget {
   }
 
   /**
-   * Programmatically send an event into this bus.
+   * Programmatically send an event into this bus. `frame` (context frame,
+   * mod 2^24) schedules the event; 0 means play immediately — only lookahead
+   * schedulers like the sequencer stamp real frames.
    */
-  send(status: Status, channel: Channel, data1: number, data2: number, timestamp = performance.now(), source: string = INTERNAL_SOURCE): void {
-    const event: MidiEvent = { status, channel, data1, data2, timestamp, source };
+  send(status: Status, channel: Channel, data1: number, data2: number, timestamp = performance.now(), source: string = INTERNAL_SOURCE, frame = 0): void {
+    const event: MidiEvent = { status, channel, data1, data2, timestamp, source, frame };
     this.receive(event);
   }
 

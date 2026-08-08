@@ -78,8 +78,11 @@ class TemplateProcessor extends AudioWorkletProcessor {
     const out = outputs[0];
     if (!this._params || !this._midi || !out) return true;
 
-    // Drain note events. Monophonic: last note wins, envelope re-gates.
-    while (this._midi.dequeue()) {
+    // Drain note events due within THIS block (frame-stamped events from
+    // the sequencer's lookahead wait in the ring until their block).
+    // Monophonic: last note wins, envelope re-gates.
+    const blockEnd = currentFrame + 128;
+    while (this._midi.dequeueBefore(blockEnd)) {
       const on = this._midi.status === this._midi.NOTE_ON && this._midi.data2 > 0;
       const off = this._midi.status === this._midi.NOTE_OFF ||
         (this._midi.status === this._midi.NOTE_ON && this._midi.data2 === 0);

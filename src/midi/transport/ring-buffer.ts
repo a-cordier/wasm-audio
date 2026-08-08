@@ -92,7 +92,7 @@ export class MidiRingBuffer {
     this.data[offset] = packEvent(event);
     this.data[offset + 1] = event.timestamp;
     this.data[offset + 2] = frequencyHint;
-    this.data[offset + 3] = 0;
+    this.data[offset + 3] = event.frame ?? 0;
 
     Atomics.store(this.heads, 1, nextWrite);
     return true;
@@ -127,6 +127,7 @@ export class MidiRingBuffer {
     data2: number,
     timestamp: number,
     frequencyHint = 0,
+    frame = 0,
   ): boolean {
     const write = Atomics.load(this.heads, 1);
     const nextWrite = (write + 1) % this.capacity;
@@ -141,7 +142,7 @@ export class MidiRingBuffer {
     this.data[offset] = packed;
     this.data[offset + 1] = timestamp;
     this.data[offset + 2] = frequencyHint;
-    this.data[offset + 3] = 0;
+    this.data[offset + 3] = frame;
 
     Atomics.store(this.heads, 1, nextWrite);
     return true;

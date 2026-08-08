@@ -95,10 +95,10 @@ export class TemplateController extends EventTarget implements InstrumentPlugin,
     }
     if (isNoteOn(event)) {
       const frequency = noteFrequency(event.data1);
-      this.node?.noteOn(event.data1, frequency, event.data2);
+      this.node?.noteOn(event.data1, frequency, event.data2, event.frame ?? 0);
       this.dispatch(TemplateEvent.NOTE_ON, { midiValue: event.data1, frequency, velocity: event.data2 });
     } else if (isNoteOff(event)) {
-      this.node?.noteOff(event.data1);
+      this.node?.noteOff(event.data1, event.frame ?? 0);
       this.dispatch(TemplateEvent.NOTE_OFF, { midiValue: event.data1 });
     }
   }

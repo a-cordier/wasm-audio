@@ -111,14 +111,14 @@ export class SynthNode extends WasmProcessorNode implements MidiTarget {
     this.midiRing.enqueue(event, freqHint);
   }
 
-  noteOn(midi: number, frequency: number, velocity: number) {
-    if (!this.midiRing.enqueueRaw(Status.NOTE_ON, 0 as Channel, midi, velocity, performance.now(), frequency)) {
+  noteOn(midi: number, frequency: number, velocity: number, frame = 0) {
+    if (!this.midiRing.enqueueRaw(Status.NOTE_ON, 0 as Channel, midi, velocity, performance.now(), frequency, frame)) {
       console.warn("MIDI ring buffer overflow: noteOn dropped (note=%d)", midi);
     }
   }
 
-  noteOff(midi: number) {
-    if (!this.midiRing.enqueueRaw(Status.NOTE_OFF, 0 as Channel, midi, 0, performance.now(), 0)) {
+  noteOff(midi: number, frame = 0) {
+    if (!this.midiRing.enqueueRaw(Status.NOTE_OFF, 0 as Channel, midi, 0, performance.now(), 0, frame)) {
       console.warn("MIDI ring buffer overflow: noteOff dropped (note=%d)", midi);
     }
   }

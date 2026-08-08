@@ -93,14 +93,14 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
 
     if (isNoteOn(event)) {
       const frequency = noteFrequency(event.data1);
-      this.synthNode?.noteOn(event.data1, frequency, event.data2);
+      this.synthNode?.noteOn(event.data1, frequency, event.data2, event.frame ?? 0);
       this.dispatch(VoiceEvent.NOTE_ON, {
         midiValue: event.data1,
         frequency,
         velocity: event.data2,
       });
     } else if (isNoteOff(event)) {
-      this.synthNode?.noteOff(event.data1);
+      this.synthNode?.noteOff(event.data1, event.frame ?? 0);
       this.dispatch(VoiceEvent.NOTE_OFF, { midiValue: event.data1 });
     }
   }

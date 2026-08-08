@@ -31,6 +31,16 @@
 
 const RENDER_QUANTUM_FRAMES = 128;
 
+// Lookahead for frame-stamped emission: enough to cover the 10 ms main-thread
+// drain hop plus scheduling slack, so every event reaches the instrument ring
+// BEFORE its audible frame. The whole sequence therefore sounds a constant
+// LOOKAHEAD after "start" (imperceptible) instead of each note jittering by
+// whatever the drain happened to add.
+const LOOKAHEAD_FRAMES = Math.round(sampleRate * 0.024);
+
+// Frame stamps wrap mod 2^24 so they survive the ring's Float32 slot exactly.
+const FRAME_WRAP = 1 << 24;
+
 // ConfigParam indices (mirrors types.ts ConfigParam enum)
 const BPM = 0;
 const SUBDIVISION = 1;
@@ -110,14 +120,24 @@ class SeqProcessor extends AudioWorkletProcessor {
     this._countInTotal = 0;
     this._countInLastStep = -1;
 
-    // Preallocated pending note-off queue (audio thread — no per-step object
-    // allocation): parallel arrays with _pendingOffCount live entries.
-    this._pendingOffNote = new Int32Array(64);
-    this._pendingOffSample = new Float64Array(64);
-    this._pendingOffCount = 0;
     // Fractional grid position, advanced per sample by the current step rate.
     this._stepPos = 0;
     this._cachedLogicalStep = 0;
+
+    // The SCHEDULING clock: the same grid position, LOOKAHEAD_FRAMES ahead.
+    // Note events are emitted when IT crosses a boundary, frame-stamped with
+    // the audible onset, so the main-thread drain hop adds latency but never
+    // jitter. Pattern switches, swing and gate offs ride this clock; the
+    // metronome click and position reports stay on the audible clock.
+    this._schedLastRawStep = -1;
+    this._schedCurrentStep = -1;
+    this._schedLogicalStep = 0;
+
+    // Scheduled metronome clicks (tiny ring: beat period >> lookahead).
+    this._clickQueueFrame = new Float64Array(4);
+    this._clickQueueAccent = new Uint8Array(4);
+    this._clickQueueRead = 0;
+    this._clickQueueWrite = 0;
 
     // The note a slide step is holding open, deferred past the next note-on so
     // the two overlap and a legato monolog glides instead of retriggering.
@@ -159,19 +179,23 @@ class SeqProcessor extends AudioWorkletProcessor {
         this._currentStep = -1;
         this._lastReportedStep = -1;
         this._pingPongForward = true;
-        this._pendingOffCount = 0;
         this._slideNote = -1;
         this._stepOrigin = 0;
         this._lastRawStep = -1;
+        this._schedLastRawStep = -1;
+        this._schedCurrentStep = -1;
+        this._clickQueueRead = 0;
+        this._clickQueueWrite = 0;
         this._pendingPattern = -1;
         this._activePattern = this._configView ? Math.round(this._configView[ACTIVE_PATTERN]) : 0;
         this._running = true;
         break;
       case "__pause":
         // Freeze the clock but keep the sample counter and current step, so
-        // __resume picks up exactly where playback left off.
+        // __resume picks up exactly where playback left off. Gated note-offs
+        // are already frame-stamped in the ring — they release on their own.
         this._running = false;
-        this._flushPendingOffs();
+        this._releaseSlide();
         break;
       case "__resume":
         this._running = true;
@@ -181,7 +205,9 @@ class SeqProcessor extends AudioWorkletProcessor {
         this._countInLeft = 0;
         // _clickLeft deliberately NOT zeroed: the burst rings out through the
         // stopped-transport path instead of truncating mid-sine (a pop).
-        this._flushPendingOffs();
+        // Queued (not yet audible) clicks are dropped, though.
+        this._clickQueueRead = this._clickQueueWrite;
+        this._releaseSlide();
         this._currentStep = -1;
         this._lastReportedStep = -1;
         this.port.postMessage({ type: "__position", step: -1 });
@@ -189,7 +215,7 @@ class SeqProcessor extends AudioWorkletProcessor {
       case "__dispose":
         // Returning false from process() lets the node be garbage collected.
         this._running = false;
-        this._flushPendingOffs();
+        this._releaseSlide();
         this._alive = false;
         break;
     }
@@ -264,31 +290,89 @@ class SeqProcessor extends AudioWorkletProcessor {
         continue;
       }
 
+      this._serviceClickQueue(currentFrame + frame);
       if (out) out[frame] = this._clickSample();
 
-      const absoluteSample = this._sampleCounter;
+      // ---- The SCHEDULING clock (audible clock + LOOKAHEAD_FRAMES) ----
+      // Runs the exact firing logic the audible clock used to run, but early:
+      // events are enqueued frame-stamped with their audible onset, so the
+      // main-thread drain hop adds a constant delay instead of jitter.
+      const schedPos = this._stepPos + LOOKAHEAD_FRAMES * stepInc;
+      const schedRaw = Math.floor(schedPos);
+      const onsetFrame = currentFrame + frame + LOOKAHEAD_FRAMES;
 
-      // Process pending note-offs (preallocated parallel arrays)
-      for (let i = this._pendingOffCount - 1; i >= 0; i--) {
-        if (absoluteSample >= this._pendingOffSample[i]) {
-          this._enqueueNoteOff(this._pendingOffNote[i], channel);
-          const last = --this._pendingOffCount;
-          this._pendingOffNote[i] = this._pendingOffNote[last];
-          this._pendingOffSample[i] = this._pendingOffSample[last];
+      if (schedRaw !== this._schedLastRawStep) {
+        this._applyPendingPattern(schedRaw, switchMode);
+        // Metronome follows the SCHEDULED beat so click and notes stay
+        // aligned; the click itself fires when its stamped frame arrives.
+        if (schedRaw % beatSteps === 0) {
+          this._scheduleClick(onsetFrame, schedRaw % barSteps === 0);
+        }
+        this._schedLastRawStep = schedRaw;
+        const schedSteps = this._lengthsView[this._activePattern] || 1;
+        this._schedLogicalStep = this._resolveStep(schedRaw - this._stepOrigin, schedSteps, direction, loop);
+      }
+
+      const schedLogical = this._schedLogicalStep;
+
+      // Swing on the scheduling clock: same phase comparison as before.
+      if (schedLogical !== -1 && schedLogical !== this._schedCurrentStep) {
+        const isSwungStep = (schedRaw % 2) === 1;
+        if (!(isSwungStep && swing > 0 && (schedPos - schedRaw) < swing * 0.5)) {
+          this._schedCurrentStep = schedLogical;
+
+          // Read the active pattern at this step. The velocity byte packs the
+          // slide flag in its high bit.
+          const offset = this._activePattern * PATTERN_BYTES + schedLogical * STEP_SLOT_SIZE;
+          const note = this._patternView[offset];
+          const velByte = this._patternView[offset + 1];
+          const velocity = velByte & 0x7f;
+          const slide = (velByte & SLIDE_BIT) !== 0;
+
+          // Transpose is applied on the way out; the pattern itself is
+          // untouched, and the off is stamped for the note actually sent so
+          // changing transpose mid-gate can never strand a note-off.
+          const played = note + transpose;
+          const heldSlide = this._slideNote;
+
+          if (note > 0 && velocity > 0 && played > 0 && played < 128) {
+            // Fire the new note ON first. If the previous step slid, its note
+            // is still held, so this overlap makes a legato monolog glide.
+            this._enqueueNoteOn(played, velocity, channel, onsetFrame);
+            if (heldSlide >= 0) this._enqueueNoteOff(heldSlide, channel, onsetFrame);
+
+            if (slide) {
+              // Tie: hold this note open (no gated off) until the next note-on.
+              this._slideNote = played;
+            } else {
+              this._slideNote = -1;
+              // The gated off is stamped NOW (no pending queue needed — the
+              // ring holds it until its frame), clamped to land before the
+              // next step's onset so a swung high-gate step can never choke
+              // a repeated pitch.
+              const samplesToNextStep = (1 + schedRaw - schedPos) * samplesPerStep;
+              const nextIsSwung = ((schedRaw + 1) % 2) === 1;
+              const nextOnsetIn = samplesToNextStep
+                + (nextIsSwung && swing > 0 ? samplesPerStep * swing * 0.5 : 0);
+              const gateLength = Math.min(
+                Math.round(samplesPerStep * gate),
+                Math.max(1, Math.floor(nextOnsetIn) - 1)
+              );
+              this._enqueueNoteOff(played, channel, onsetFrame + gateLength);
+            }
+          } else if (heldSlide >= 0) {
+            // Sliding into a rest releases the held note at the step edge.
+            this._enqueueNoteOff(heldSlide, channel, onsetFrame);
+            this._slideNote = -1;
+          }
         }
       }
 
+      // ---- The AUDIBLE clock: position reports + end-of-sequence ----
       const rawStep = Math.floor(this._stepPos);
 
       if (rawStep !== this._lastRawStep) {
-        this._applyPendingPattern(rawStep, switchMode);
-        // Driven by the absolute step, not the rebased grid, so the click keeps
-        // a steady beat across pattern switches and odd pattern lengths.
-        if (rawStep % beatSteps === 0) this._triggerClick(rawStep % barSteps === 0);
         this._lastRawStep = rawStep;
-        // The logical step is constant between step boundaries — resolve it
-        // once per step instead of every sample. (Runs AFTER the pattern
-        // switch so it sees the rebased origin.)
         const steps = this._lengthsView[this._activePattern] || 1;
         this._cachedLogicalStep = this._resolveStep(rawStep - this._stepOrigin, steps, direction, loop);
       }
@@ -296,76 +380,24 @@ class SeqProcessor extends AudioWorkletProcessor {
       const logicalStep = this._cachedLogicalStep;
 
       if (logicalStep === -1) {
-        // End of a non-looping sequence. Tell the main thread, otherwise it
-        // keeps believing the transport is running.
+        // End of a non-looping sequence (the scheduler stopped emitting one
+        // lookahead earlier). Tell the main thread, otherwise it keeps
+        // believing the transport is running.
         this._running = false;
-        this._flushPendingOffs();
+        this._releaseSlide();
         this.port.postMessage({ type: "__position", step: -1 });
         this.port.postMessage({ type: "__stopped" });
         return true;
       }
 
-      // Apply swing: delay even-numbered steps. The fractional part of
-      // _stepPos IS the position within the step, so the delay window is a
-      // simple phase comparison (and survives tempo changes).
       if (logicalStep !== this._currentStep) {
         const isSwungStep = (rawStep % 2) === 1;
-        if (isSwungStep && swing > 0 && (this._stepPos - rawStep) < swing * 0.5) {
-          this._sampleCounter++;
-          this._stepPos += stepInc;
-          continue;
-        }
-
-        this._currentStep = logicalStep;
-
-        // Read the active pattern at this step. The velocity byte packs the
-        // slide flag in its high bit.
-        const offset = this._activePattern * PATTERN_BYTES + logicalStep * STEP_SLOT_SIZE;
-        const note = this._patternView[offset];
-        const velByte = this._patternView[offset + 1];
-        const velocity = velByte & 0x7f;
-        const slide = (velByte & SLIDE_BIT) !== 0;
-
-        // Transpose is applied on the way out; the pattern itself is untouched,
-        // and pendingOffs tracks the note actually sent so changing transpose
-        // mid-gate can never strand a note-off.
-        const played = note + transpose;
-        const heldSlide = this._slideNote;
-
-        if (note > 0 && velocity > 0 && played > 0 && played < 128) {
-          // Fire the new note ON first. If the previous step slid, its note is
-          // still held, so this overlap makes a legato monolog glide across.
-          this._enqueueNoteOn(played, velocity, channel);
-          if (heldSlide >= 0) this._enqueueNoteOff(heldSlide, channel);
-
-          if (slide) {
-            // Tie: hold this note open (no gated off) until the next note-on.
-            this._slideNote = played;
-          } else {
-            this._slideNote = -1;
-            // Clamp the gate to land before the next step's onset: a swung
-            // high-gate step's off otherwise fires AFTER the next note-on and
-            // chokes a repeated pitch.
-            const samplesToNextStep = (1 + rawStep - this._stepPos) * samplesPerStep;
-            const nextIsSwung = ((rawStep + 1) % 2) === 1;
-            const nextOnsetIn = samplesToNextStep
-              + (nextIsSwung && swing > 0 ? samplesPerStep * swing * 0.5 : 0);
-            const gateLength = Math.min(
-              Math.round(samplesPerStep * gate),
-              Math.max(1, Math.floor(nextOnsetIn) - 1)
-            );
-            this._pushPendingOff(played, absoluteSample + gateLength);
+        if (!(isSwungStep && swing > 0 && (this._stepPos - rawStep) < swing * 0.5)) {
+          this._currentStep = logicalStep;
+          if (logicalStep !== this._lastReportedStep) {
+            this._lastReportedStep = logicalStep;
+            this.port.postMessage({ type: "__position", step: logicalStep });
           }
-        } else if (heldSlide >= 0) {
-          // Sliding into a rest just releases the held note at the step edge.
-          this._enqueueNoteOff(heldSlide, channel);
-          this._slideNote = -1;
-        }
-
-        // Report position to main thread
-        if (logicalStep !== this._lastReportedStep) {
-          this._lastReportedStep = logicalStep;
-          this.port.postMessage({ type: "__position", step: logicalStep });
         }
       }
 
@@ -374,21 +406,6 @@ class SeqProcessor extends AudioWorkletProcessor {
     }
 
     return true;
-  }
-
-  _pushPendingOff(note, offSample) {
-    if (this._pendingOffCount >= this._pendingOffNote.length) {
-      // Never expected with clamped gates — release immediately rather than
-      // dropping the off and sticking the note.
-      const channel = this._configView
-        ? Math.round(this._configView[OUTPUT_CHANNEL]) & 0x0f
-        : 0;
-      this._enqueueNoteOff(note, channel);
-      return;
-    }
-    const i = this._pendingOffCount++;
-    this._pendingOffNote[i] = note;
-    this._pendingOffSample[i] = offSample;
   }
 
   /**
@@ -466,15 +483,33 @@ class SeqProcessor extends AudioWorkletProcessor {
     return sample;
   }
 
-  _enqueueNoteOn(note, velocity, channel) {
-    this._enqueueMidi(NOTE_ON, channel, note, velocity);
+  // The scheduling clock runs LOOKAHEAD ahead, so its beat crossings queue
+  // the click for the audible frame instead of triggering it immediately.
+  _scheduleClick(frame, accent) {
+    const next = (this._clickQueueWrite + 1) % this._clickQueueFrame.length;
+    if (next === this._clickQueueRead) return; // full — never at musical rates
+    this._clickQueueFrame[this._clickQueueWrite] = frame;
+    this._clickQueueAccent[this._clickQueueWrite] = accent ? 1 : 0;
+    this._clickQueueWrite = next;
   }
 
-  _enqueueNoteOff(note, channel) {
-    this._enqueueMidi(NOTE_OFF, channel, note, 0);
+  _serviceClickQueue(nowFrame) {
+    while (this._clickQueueRead !== this._clickQueueWrite) {
+      if (nowFrame < this._clickQueueFrame[this._clickQueueRead]) return;
+      this._triggerClick(this._clickQueueAccent[this._clickQueueRead] === 1);
+      this._clickQueueRead = (this._clickQueueRead + 1) % this._clickQueueFrame.length;
+    }
   }
 
-  _enqueueMidi(status, channel, data1, data2) {
+  _enqueueNoteOn(note, velocity, channel, frame = 0) {
+    this._enqueueMidi(NOTE_ON, channel, note, velocity, frame);
+  }
+
+  _enqueueNoteOff(note, channel, frame = 0) {
+    this._enqueueMidi(NOTE_OFF, channel, note, 0, frame);
+  }
+
+  _enqueueMidi(status, channel, data1, data2, frame = 0) {
     if (!this._ringHeads || !this._ringData) return;
 
     const write = Atomics.load(this._ringHeads, 1);
@@ -490,25 +525,22 @@ class SeqProcessor extends AudioWorkletProcessor {
     this._ringData[offset] = packed;
     this._ringData[offset + 1] = currentTime * 1000; // ms
     this._ringData[offset + 2] = 0; // freq hint (not needed for sequencer)
-    this._ringData[offset + 3] = 0;
+    // Audible onset as an AudioContext frame, mod 2^24 (Float32-exact);
+    // 0 = immediate (the flush/panic paths).
+    this._ringData[offset + 3] = frame > 0 ? frame % FRAME_WRAP : 0;
 
     Atomics.store(this._ringHeads, 1, nextWrite);
   }
 
-  _flushPendingOffs() {
+  // Gated note-offs are frame-stamped into the ring at schedule time, so the
+  // only thing to release on stop/pause is an open slide tie.
+  _releaseSlide() {
+    if (this._slideNote < 0) return;
     const channel = this._configView
       ? Math.round(this._configView[OUTPUT_CHANNEL]) & 0x0f
       : 0;
-    for (let i = 0; i < this._pendingOffCount; i++) {
-      this._enqueueNoteOff(this._pendingOffNote[i], channel);
-    }
-    this._pendingOffCount = 0;
-    // A slide note is held outside pendingOffs, so release it explicitly or it
-    // stays stuck when the transport stops mid-tie.
-    if (this._slideNote >= 0) {
-      this._enqueueNoteOff(this._slideNote, channel);
-      this._slideNote = -1;
-    }
+    this._enqueueNoteOff(this._slideNote, channel);
+    this._slideNote = -1;
   }
 }
 

@@ -41,8 +41,11 @@ createWasmProcessor(wasm, {
   onProcess(wasm, engine, state) {
     if (!state.params) return;
 
+    // Only events due within THIS block are taken; frame-stamped events
+    // from the sequencer's lookahead stay in the ring until their block.
     const midi = state.midi;
-    while (midi.dequeue()) {
+    const blockEnd = currentFrame + 128;
+    while (midi.dequeueBefore(blockEnd)) {
       if (midi.status === midi.NOTE_ON && midi.data2 > 0) {
         wasm._synth_engine_note_on(engine, midi.data1, midi.frequency, midi.data2);
       } else if (midi.status === midi.NOTE_OFF || (midi.status === midi.NOTE_ON && midi.data2 === 0)) {

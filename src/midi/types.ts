@@ -53,7 +53,18 @@ export interface MidiEvent {
   data2: number;
   timestamp: number;
   source: string;
+  /**
+   * Scheduled play time as an AudioContext frame, wrapped mod 2^24 so it
+   * stays exact in the ring's Float32 slot (signed-window compare on the
+   * consumer side; ±2.9 min window at 48 kHz). 0/absent = play immediately —
+   * every LIVE source (keyboard, MIDI in) uses that and gains no latency.
+   * Only lookahead schedulers (the sequencer) stamp real frames.
+   */
+  frame?: number;
 }
+
+/** Wrap for frame stamps: 24-bit so the value survives a Float32 exactly. */
+export const FRAME_WRAP = 1 << 24;
 
 export interface NoteData {
   note: number;

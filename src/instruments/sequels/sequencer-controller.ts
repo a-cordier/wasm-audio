@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Channel, MidiEvent, Status } from "../../midi/types";
+import { Channel, INTERNAL_SOURCE, MidiEvent, Status } from "../../midi/types";
 import { isNoteOff, isNoteOn } from "../../midi/codec/decode";
 import { MidiBus } from "../../midi/bus/bus";
 import { MIDI_EVENT_SIZE } from "../../midi/transport/ring-buffer";
@@ -102,6 +102,10 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     this.node.onPosition((step) => {
       this._currentStep = step;
       this._lastPositionTime = performance.now();
+      // Piggyback a drain: port messages are NOT throttled in hidden tabs,
+      // while the 10 ms interval clamps to ~1 s there — without this, a
+      // backgrounded tab delivered sequenced notes in one-second batches.
+      this.drain();
       this.dispatchEvent(new CustomEvent("position", { detail: { step } }));
     });
 
@@ -628,13 +632,23 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     this.drain();
   }
 
+  // Ring views, created once (the drain used to re-allocate three typed
+  // arrays every 10 ms tick).
+  private drainHeads: Int32Array | null = null;
+  private drainData: Float32Array | null = null;
+  private drainCapacity = 0;
+
   private drain(): void {
     if (!this.node || !this.bus) return;
 
-    const ring = this.node.outputRing;
-    const heads = new Int32Array(ring.buffer, 0, 2);
-    const data = new Float32Array(ring.buffer, HEADER_BYTES);
-    const capacity = (ring.buffer.byteLength - HEADER_BYTES) / (MIDI_EVENT_SIZE * Float32Array.BYTES_PER_ELEMENT);
+    if (this.drainHeads === null) {
+      const ring = this.node.outputRing;
+      this.drainHeads = new Int32Array(ring.buffer, 0, 2);
+      this.drainData = new Float32Array(ring.buffer, HEADER_BYTES);
+      this.drainCapacity = (ring.buffer.byteLength - HEADER_BYTES) / (MIDI_EVENT_SIZE * Float32Array.BYTES_PER_ELEMENT);
+    }
+    const heads = this.drainHeads;
+    const data = this.drainData!;
 
     let read = Atomics.load(heads, 0);
     const write = Atomics.load(heads, 1);
@@ -647,15 +661,18 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
         const offset = read * MIDI_EVENT_SIZE;
         const packed = data[offset];
         const timestamp = data[offset + 1];
+        const frame = data[offset + 3];
 
         const status = ((packed >> 20) & 0x0f) as Status;
         const channel = ((packed >> 16) & 0x0f) as Channel;
         const d1 = (packed >> 8) & 0x7f;
         const d2 = packed & 0x7f;
 
-        this.bus.send(status, channel, d1, d2, timestamp);
+        // The frame stamp travels intact to the receiving instrument — this
+        // hop adds latency (covered by the worklet's lookahead), never jitter.
+        this.bus.send(status, channel, d1, d2, timestamp, INTERNAL_SOURCE, frame);
 
-        read = (read + 1) % capacity;
+        read = (read + 1) % this.drainCapacity;
         Atomics.store(heads, 0, read);
       }
     } finally {

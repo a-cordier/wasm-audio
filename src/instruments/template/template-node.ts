@@ -54,12 +54,12 @@ export class TemplateNode extends WasmProcessorNode implements MidiTarget {
     this.midiRing.enqueue(event, freqHint);
   }
 
-  noteOn(midi: number, frequency: number, velocity: number) {
-    this.midiRing.enqueueRaw(Status.NOTE_ON, 0 as Channel, midi, velocity, performance.now(), frequency);
+  noteOn(midi: number, frequency: number, velocity: number, frame = 0) {
+    this.midiRing.enqueueRaw(Status.NOTE_ON, 0 as Channel, midi, velocity, performance.now(), frequency, frame);
   }
 
-  noteOff(midi: number) {
-    this.midiRing.enqueueRaw(Status.NOTE_OFF, 0 as Channel, midi, 0, performance.now(), 0);
+  noteOff(midi: number, frame = 0) {
+    this.midiRing.enqueueRaw(Status.NOTE_OFF, 0 as Channel, midi, 0, performance.now(), 0, frame);
   }
 
   setParam(id: number, value: number) {
