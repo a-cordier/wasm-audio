@@ -40,26 +40,44 @@ deferred items (notably sample-accurate event scheduling → item 4) live in
 
 ## Phase 1 — DAW foundations
 
-### 3. [ ] Dynamic device mounting (the shell)
-The core DAW move: the slot tree stops being hardcoded.
-- Device browser: menu of registered devices/effects, mount into a slot,
-  unmount, swap.
-- Registry descriptor grows what the browser needs (name, kind:
-  instrument | effect | module, icon/accent).
-- Slot-scoped lifecycle: instantiate on mount, dispose on unmount
-  (depends on item 1's lifecycle work).
-- Settle the **device vs module** distinction here: devices produce/process
-  audio and mount into mixer-routed slots; modules (song mode, automation)
-  are DAW-level features that operate *on* other devices and get DAW
-  services (transport, param registry) instead of audio I/O.
+### 3. [x] Dynamic device mounting (the shell) — done 2026-08-07
+The shell owns the rack: mountDevice/unmountSlot with full lifecycle
+(instantiate → route on a free mixer channel; ramp silent → dispose →
+unroute), a device browser rail fed by descriptors (kind + accent added,
+dead `tag` dropped), hold-to-eject, collapsible slots (folded devices keep
+playing), full-session persistence (layout + per-device state,
+`core/rack-storage.ts`), and **KB arming gates ALL computer-keyboard input**
+(unarmed sequencers ignore transport keys; N armed respond — groundwork for
+item 4's per-device transport commands). Keyed slot rendering makes element
+identity follow slot identity. Remaining shell-adjacent items live in
+[docs/scalability-audit.md](docs/scalability-audit.md). The device-vs-module
+contract is reserved in the `kind` enum; modules land with items 6/7.
 
 ### 4. [ ] Transport & clock sync (live mode)
 - DAW master transport: play/stop, tempo, bar/beat position.
 - Devices keep their **independent clocks by default** (live mode as it
   works today); per-device opt-in sync to the master clock.
+- **Clock sources must be pluggable**: the internal master OR external MIDI
+  clock in — children subscribe identically either way. MIDI out (devices
+  driving hardware) is a future additive MidiBus→output-port bridge. Neither
+  is built now (no hardware to test), but the design must not preclude them.
+- Armed-keyboard transport (item 3) becomes one per-device command source;
+  the master transport is another, for opted-in children.
 - Builds on the existing sample-accurate MIDI transport
   (src/midi/transport) — likely clock events on the bus.
 - Prerequisite for song mode, automation timelines, and LFO sync.
+- The dominant remaining timing artifact lands here: sample-accurate event
+  scheduling (see docs/dsp-audit.md deferred list).
+
+### 4b. [ ] DAW workspace layout
+The rack stops being a plain vertical page: docked mixer (bottom or side),
+independently scrolling rack, reserved chrome zones for the transport bar
+(item 4) and the song-mode timeline (item 7), the device browser's final
+home, **multi-column rack flow at wide viewports**, and the first-gesture
+AudioContext unlock. Deliberately placed right before the mixer rework so
+item 5 lands into its docked home instead of being styled twice.
+(Collapsible slots already shipped with item 3 and carry the growing-rack
+problem until this lands.)
 
 ### 5. [ ] Mixer: dynamic routing & effect loops
 - Channel assignment follows mount/unmount (routing is already slot-keyed

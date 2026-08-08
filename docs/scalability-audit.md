@@ -7,32 +7,24 @@ metronome routing, wasm heap growth, workletFiles conventions guard). The
 findings below were **deliberately deferred** to the roadmap item that owns
 them. Pointers, not specs — re-verify line numbers before acting.
 
-## For item 3 — DAW shell / dynamic mounting
-- **Lazy loading & code-splitting**: all instruments are statically imported in
-  `root-element.ts` (one ~260 KB chunk + all worklets fetched at boot).
-  `addWorkletModuleOnce` (src/runtime/worklet-modules.ts) already makes
-  per-mount loading idempotent; the missing piece is dynamic `import()` of
-  `register.ts` per device and a generated (not hand-listed) `workletFiles` map.
-- **Worklet URLs are document-relative bare filenames** (`addModule("x.js")`).
-  Works only because the app lives at the `/wasm-audio/` root; any nested
-  route breaks every load. Resolve against `import.meta.env.BASE_URL`.
-- **Unmount vs move**: `device-slot` disposes its plugin on DOM disconnect
-  (teardown). Lit disconnects on reorder too — the shell must distinguish
-  unmount from move before reusing/reordering live slots.
-- **Element ↔ plugin rebinding**: instrument elements read state and subscribe
-  in `connectedCallback` only; a `.plugin` property swap on a connected element
-  keeps rendering the old controller. Swapping today replaces the element tag
-  (new element), but same-device swap reuses it.
-- **`descriptor.tag` vs `elementTag`** duplicate each other in the registry;
-  only `elementTag` is used. Fold into one when the descriptor grows
-  `kind: instrument | effect | module` for the device browser.
-- **KeyboardController dedupes targets by channel** (`keyboard.ts` setTargets):
-  unmounting one of two slots sharing a channel does not flush its held notes.
-- **AudioContext unlock UX**: context is created at construction; resume is
-  opportunistic (on receive/transport). A proper first-gesture unlock belongs
-  in the shell.
-- **`unsafeStatic(elementTag)` template cache** grows per distinct tag under
-  swapping — bounded by device-type count, but worth knowing.
+## Item 3 (DAW shell) — RESOLVED 2026-08, except:
+Done by the shell work: dynamic mount/unmount with shell-owned lifecycle
+(unmount-vs-move settled — DOM disconnect is wiring-only, keyed `repeat`),
+`descriptor.tag` removed (kind/accent added), KeyboardController flushes by
+(channel, octaveShift) pair, session persistence. Still open, no owner:
+- **Lazy loading & code-splitting**: all instruments statically imported
+  (~260 KB chunk + all worklets at boot). The browser needs descriptors
+  eagerly, so true laziness means a manifest/registration split plus a
+  generated `workletFiles` map. Revisit when the bundle grows.
+- **Worklet URLs are document-relative bare filenames** — any nested route
+  breaks every load. Resolve against `import.meta.env.BASE_URL`.
+- **Element ↔ plugin rebinding**: elements read state/subscribe in
+  `connectedCallback` only; a same-tag `.plugin` swap on a connected element
+  keeps the old controller. Matters if slots ever swap devices in place.
+- **AudioContext unlock UX**: resume is opportunistic; a first-gesture unlock
+  belongs in the workspace chrome (layout roadmap item).
+- **`unsafeStatic(elementTag)` template cache** grows per distinct tag —
+  bounded by device-type count.
 
 ## For item 5 — mixer rework
 - `CHANNEL_COUNT = 16` channel strips (4 nodes each) are eagerly allocated at

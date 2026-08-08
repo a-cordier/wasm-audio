@@ -76,8 +76,12 @@ export class KeyboardController implements MidiSource {
   }
 
   setTargets(targets: KbTarget[]): void {
-    const newChannels = new Set(targets.map(t => t.channel));
-    const removed = this.targets.filter(t => !newChannels.has(t.channel));
+    // Removal is keyed by (channel, octaveShift) pair, not channel alone:
+    // unmounting a slot whose channel survives through another slot at a
+    // DIFFERENT octave must still flush ITS held notes (they were emitted
+    // with its shift, and nothing else will ever release them).
+    const newKeys = new Set(targets.map(t => `${t.channel}:${t.octaveShift}`));
+    const removed = this.targets.filter(t => !newKeys.has(`${t.channel}:${t.octaveShift}`));
 
     if (removed.length > 0 && this.pressedKeys.size > 0) {
       this.event.status = Status.NOTE_OFF;

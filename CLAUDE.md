@@ -8,7 +8,18 @@ skill; design rationale lives in the memory files (see bottom).
 
 A synth is a **plugin** registered in `src/instruments/<synth>/register.ts` via
 `pluginRegistry.register({ descriptor, controllerFactory, elementTag, workletModules, keyboardOctaveShift })`,
-and imported once in `src/components/root-element.ts`.
+and imported once in `src/components/root-element.ts`. The descriptor carries
+`kind` ("instrument" | "sequencer" | future "effect"/"module") and `accent`
+(a CSS var) — that's what the device browser displays.
+
+**The shell owns the rack**: root-element mounts/unmounts devices at runtime
+(`mountDevice`/`unmountSlot` — instantiate → route on a free mixer channel;
+ramp silent → dispose → unroute), and the whole session persists
+(`core/rack-storage.ts`: layout + per-device state snapshots; sequels
+self-persists). Slots fold to their header strip (device keeps running) and
+hold-to-eject unmounts. **KB arming gates ALL computer-keyboard input** to a
+device — notes and document-level shortcuts alike (sequels' transport keys
+check the armed flag); N armed devices all respond.
 
 Parameter signal path (one direction, lock-free):
 
