@@ -79,10 +79,18 @@ item 5 lands into its docked home instead of being styled twice.
 (Collapsible slots already shipped with item 3 and carry the growing-rack
 problem until this lands.)
 
-### 5. [ ] Mixer: dynamic routing & effect loops
+### 5. [ ] Mixer: dynamic routing, EQ, effect loops, audio input
 - Channel assignment follows mount/unmount (routing is already slot-keyed
   in [mixer-engine.ts](src/mixer/mixer-engine.ts); it must become dynamic).
+- **Per-track EQ**: 3-band (low shelf / mid peak / high shelf) as chained
+  BiquadFilterNodes between channel input and fader — the first resident of
+  the per-channel insert chain, native nodes, smoothly ramped AudioParams.
 - Effect sends/returns (loops) and insert chains per channel.
+- **Audio input as a DEVICE**: an "AUDIO IN" browser entry (descriptor kind
+  "input") wrapping getUserMedia → MediaStreamAudioSourceNode behind the
+  standard getOutputNode() — mounts/routes/folds/persists like any device.
+  Handle: permission flow, input selection (enumerateDevices), mono→stereo,
+  and feedback protection (per-channel monitor mute). Opens recording later.
 - Prove the plumbing with one minimal effect device (e.g. a delay) — the
   full effects suite is item 8.
 
