@@ -116,6 +116,7 @@ export class DeviceSlot extends LitElement {
     this.midiChannel = this.config?.midiChannel ?? "omni";
     this.outputChannel = this.config?.outputChannel ?? (0 as Channel);
     this.inputDevice = this.config?.inputDevice ?? "all";
+    this.collapsed = this.config?.collapsed === true;
     this.setupCoreFeatures();
   }
 
@@ -478,7 +479,12 @@ export class DeviceSlot extends LitElement {
 
     return html`
       <div class="leaf">
-        <div class="slot-header">
+        <div class=${classMap({ "slot-header": true, folded: this.collapsed })}>
+          <button
+            class="fold-btn"
+            title=${this.collapsed ? "unfold" : "fold"}
+            @click=${this.onFoldToggle}
+          >${this.collapsed ? "▸" : "▾"}</button>
           <span class="slot-label">${this.config.name}</span>
           <div class="slot-controls">
             ${this.renderPresetBrowser()}
@@ -486,9 +492,10 @@ export class DeviceSlot extends LitElement {
             ${this.renderLearnButton()}
             ${this.renderDeviceSelector()}
             ${this.renderChannelSelector()}
+            ${this.renderEjectButton()}
           </div>
         </div>
-        <div class=${classMap({ "slot-body": true, "learn-active": this.learning })}>
+        <div class=${classMap({ "slot-body": true, "learn-active": this.learning, hidden: this.collapsed })}>
           ${this.renderPluginElement()}
         </div>
       </div>
@@ -500,13 +507,68 @@ export class DeviceSlot extends LitElement {
     const reg = pluginRegistry.get(this.plugin.descriptor.id);
     if (!reg) return nothing;
     const tag = unsafeStatic(reg.elementTag);
+    // kbArmed: arming gates ALL computer-keyboard input to a device — notes
+    // (via KeyboardController targets) and any document-level shortcuts the
+    // device claims (sequels' transport/pattern keys check this).
     return staticHtml`
       <${tag}
         .plugin=${this.plugin}
         .audioContext=${this.audioContext}
         .bus=${this.bus}
         .midiChannel=${this.midiChannel}
+        .kbArmed=${this.kbActive}
       ></${tag}>
+    `;
+  }
+
+  private ejectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  @state()
+  private ejecting = false;
+
+  // Folded to the header strip: the device keeps running and stays wired
+  // (hidden via CSS, never unmounted), so a collapsed synth still plays.
+  @state()
+  private collapsed = false;
+
+  private onFoldToggle = () => {
+    this.collapsed = !this.collapsed;
+    this.config.collapsed = this.collapsed;
+    this.notifyConfigChanged();
+  };
+
+  // Hold-to-eject: ~600 ms press with a visual fill; releasing early cancels.
+  private onEjectDown = () => {
+    this.ejecting = true;
+    this.ejectTimer = setTimeout(() => {
+      this.ejectTimer = null;
+      this.ejecting = false;
+      this.dispatchEvent(new CustomEvent("slot-eject", {
+        detail: { slotId: this.config.id },
+        bubbles: true,
+        composed: true,
+      }));
+    }, 600);
+  };
+
+  private onEjectCancel = () => {
+    if (this.ejectTimer !== null) {
+      clearTimeout(this.ejectTimer);
+      this.ejectTimer = null;
+    }
+    this.ejecting = false;
+  };
+
+  private renderEjectButton() {
+    if (!this.plugin) return nothing;
+    return html`
+      <button
+        class=${classMap({ "eject-btn": true, holding: this.ejecting })}
+        title="hold to eject"
+        @pointerdown=${this.onEjectDown}
+        @pointerup=${this.onEjectCancel}
+        @pointerleave=${this.onEjectCancel}
+      >EJECT</button>
     `;
   }
 
@@ -720,6 +782,72 @@ export class DeviceSlot extends LitElement {
 
     .learn-btn.active {
       animation: learn-blink 0.8s ease-in-out infinite alternate;
+    }
+
+    .fold-btn {
+      width: 20px;
+      height: 24px;
+      padding: 0;
+      background: transparent;
+      color: var(--main-panel-label-color, #fff);
+      border: none;
+      cursor: pointer;
+      font-size: 0.7em;
+      opacity: 0.7;
+      transition: opacity 0.15s;
+    }
+
+    .fold-btn:hover {
+      opacity: 1;
+    }
+
+    /* A folded slot is just its header strip: round all corners. */
+    .slot-header.folded {
+      border-radius: 0.5rem;
+    }
+
+    .slot-body.hidden {
+      display: none;
+    }
+
+    .eject-btn {
+      position: relative;
+      overflow: hidden;
+      font-size: 0.55em;
+      font-weight: 700;
+      padding: 4px 10px;
+      height: 24px;
+      background: var(--button-disposed-background-color, #cbe2f3);
+      color: var(--button-disposed-label-color, #15202b);
+      border: var(--button-border, 1px solid #cbe2f3);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    /* Hold-to-eject fill: sweeps left to right over the hold duration. */
+    .eject-btn::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: var(--eject-fill-color, #d4554e);
+      transform: scaleX(0);
+      transform-origin: left;
+      opacity: 0.85;
+      mix-blend-mode: multiply;
+      pointer-events: none;
+    }
+
+    .eject-btn.holding::after {
+      animation: eject-fill 600ms linear forwards;
+    }
+
+    @keyframes eject-fill {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
     }
 
     @keyframes learn-blink {

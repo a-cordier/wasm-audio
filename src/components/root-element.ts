@@ -33,6 +33,7 @@ import { MixerEngine, CHANNEL_COUNT } from "../mixer";
 import { addWorkletModuleOnce } from "../runtime/worklet-modules";
 
 import "./device-slot/device-slot";
+import "./device-browser";
 import "./mixer/mixer-element";
 import "../instruments/poly-ticks/register";
 import "../instruments/monolog/register";
@@ -209,6 +210,7 @@ export class Root extends LitElement {
           midiChannel: entry.midiChannel as Channel | "omni",
           outputChannel: entry.outputChannel as Channel,
           inputDevice: entry.inputDevice,
+          collapsed: entry.collapsed,
         })
       );
     }
@@ -377,6 +379,7 @@ export class Root extends LitElement {
         outputChannel: slot.outputChannel ?? 0,
         inputDevice: slot.inputDevice ?? "internal",
         mixerChannel: this.mixerAssignments.get(slot.id) ?? -1,
+        collapsed: slot.collapsed === true,
         state: plugin && !isSlotAware(plugin) ? plugin.getState() : undefined,
       });
     }
@@ -428,11 +431,24 @@ export class Root extends LitElement {
         @slot-selected=${this.onSlotSelected}
         @slot-deselected=${this.onSlotDeselected}
         @slot-config-changed=${this.onSlotConfigChanged}
+        @slot-eject=${this.onSlotEject}
       ></device-slot>
+      <device-browser
+        .emptyRack=${(this.slotTree.children ?? []).length === 0}
+        @device-mount=${this.onDeviceMount}
+      ></device-browser>
       <mixer-element
         .engine=${this.mixerEngine}
       ></mixer-element>
     `;
+  }
+
+  private onDeviceMount(e: CustomEvent<{ pluginId: string }>) {
+    void this.mountDevice(e.detail.pluginId);
+  }
+
+  private onSlotEject(e: CustomEvent<{ slotId: string }>) {
+    void this.unmountSlot(e.detail.slotId);
   }
 
   static get styles() {
@@ -440,6 +456,10 @@ export class Root extends LitElement {
       :host {
         display: block;
         width: 100%;
+      }
+
+      device-browser {
+        margin: 24px auto;
       }
     `;
   }

@@ -119,6 +119,14 @@ export const darkTheme = `
     --mixer-btn-bg: var(--medium);
     --mixer-btn-color: var(--light-secondary);
     --mixer-db-color: var(--light-secondary);
+
+    /* DAW shell chrome: device browser rail + hold-to-eject */
+    --browser-rail-bg: var(--main-panel-color);
+    --browser-rail-border: var(--medium);
+    --browser-rail-label-color: var(--moonbeam);
+    --browser-menu-bg: #141414;
+    --browser-kind-color: var(--light-secondary);
+    --eject-fill-color: #c44a3a;
   }
 `;
 
@@ -222,6 +230,14 @@ export const retroTheme = `
     --mixer-btn-bg: var(--medium);
     --mixer-btn-color: var(--light-secondary);
     --mixer-db-color: var(--light-secondary);
+
+    /* DAW shell chrome: device browser rail + hold-to-eject */
+    --browser-rail-bg: var(--main-panel-color);
+    --browser-rail-border: var(--medium);
+    --browser-rail-label-color: var(--moonbeam);
+    --browser-menu-bg: #1a0a00;
+    --browser-kind-color: var(--light-secondary);
+    --eject-fill-color: #c44a3a;
   }
 `;
 

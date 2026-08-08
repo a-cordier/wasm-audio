@@ -25,6 +25,8 @@ export interface SlotConfig {
   inputDevice?: string | "all" | "internal";
   midiChannel?: Channel | "omni";
   outputChannel?: Channel;
+  /** Folded to its header strip; the device keeps running and stays wired. */
+  collapsed?: boolean;
 
   children?: SlotConfig[];
 }
@@ -33,7 +35,7 @@ export function createLeafSlot(
   id: string,
   name: string,
   pluginId: string,
-  options: Partial<Pick<SlotConfig, "inputDevice" | "midiChannel" | "outputChannel">> = {}
+  options: Partial<Pick<SlotConfig, "inputDevice" | "midiChannel" | "outputChannel" | "collapsed">> = {}
 ): SlotConfig {
   return {
     id,

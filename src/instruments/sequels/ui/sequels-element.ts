@@ -49,6 +49,11 @@ export class SequencerElement extends LitElement {
   @property({ attribute: false })
   audioContext!: AudioContext;
 
+  // Set by device-slot from the KB arming state: the computer keyboard only
+  // addresses armed devices, transport/pattern shortcuts included.
+  @property({ attribute: false })
+  kbArmed = false;
+
   private get sequencer(): SequencerController {
     return this.plugin as SequencerController;
   }
@@ -224,7 +229,7 @@ export class SequencerElement extends LitElement {
       moveCursor: (delta) => this.moveCursor(delta),
       copyPattern: () => this.copyPattern(),
       pastePattern: () => this.pastePattern(),
-    });
+    }, () => this.kbArmed);
   }
 
   disconnectedCallback() {

@@ -48,20 +48,30 @@ export interface TransportKeyHandlers {
  */
 export class TransportKeys {
   private handlers: TransportKeyHandlers | null = null;
+  private isEnabled: (() => boolean) | null = null;
 
-  attach(handlers: TransportKeyHandlers): void {
+  /**
+   * The optional predicate gates every shortcut: KB arming decides which
+   * device(s) the computer keyboard addresses, so an unarmed sequencer must
+   * ignore transport keys entirely (and not preventDefault them either).
+   * Several armed sequencers all respond — that is the point.
+   */
+  attach(handlers: TransportKeyHandlers, isEnabled?: () => boolean): void {
     this.handlers = handlers;
+    this.isEnabled = isEnabled ?? null;
     document.addEventListener("keydown", this.onKeyDown);
   }
 
   detach(): void {
     document.removeEventListener("keydown", this.onKeyDown);
     this.handlers = null;
+    this.isEnabled = null;
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
     const handlers = this.handlers;
     if (!handlers || e.repeat || e.altKey) return;
+    if (this.isEnabled && !this.isEnabled()) return;
     if (isEditable(e.composedPath()[0] ?? e.target)) return;
 
     const accel = e.ctrlKey || e.metaKey;

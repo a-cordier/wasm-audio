@@ -32,6 +32,7 @@ export interface RackSlotEntry {
   outputChannel: number;
   inputDevice: string;
   mixerChannel: number;
+  collapsed: boolean;
   /** Device state snapshot from plugin.getState(); absent for self-persisting devices. */
   state?: unknown;
 }
@@ -62,6 +63,7 @@ function sanitizeEntry(raw: unknown): RackSlotEntry | null {
     outputChannel: clampChannel(e.outputChannel, 0),
     inputDevice: typeof e.inputDevice === "string" ? e.inputDevice : "internal",
     mixerChannel: clampChannel(e.mixerChannel, -1),
+    collapsed: e.collapsed === true,
     state: e.state,
   };
 }
