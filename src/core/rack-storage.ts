@@ -44,6 +44,8 @@ export interface RackSession {
   slots: RackSlotEntry[];
   /** Master transport settings. */
   transport?: { bpm: number };
+  /** Workspace chrome state (docked panels). */
+  ui?: { mixerCollapsed: boolean; browserOpen: boolean };
 }
 
 const STORAGE_KEY = "rack.session.v1";
@@ -91,6 +93,7 @@ export function loadRackSession(): RackSession | null {
       .filter((e): e is RackSlotEntry => e !== null);
     if (slots.length === 0) return null;
     const rawBpm = (parsed.transport as { bpm?: unknown } | undefined)?.bpm;
+    const rawUi = parsed.ui as { mixerCollapsed?: unknown; browserOpen?: unknown } | undefined;
     return {
       version: RACK_VERSION,
       slotCounter:
@@ -102,6 +105,11 @@ export function loadRackSession(): RackSession | null {
         bpm: typeof rawBpm === "number" && Number.isFinite(rawBpm)
           ? Math.max(20, Math.min(300, Math.round(rawBpm)))
           : 120,
+      },
+      ui: {
+        mixerCollapsed: rawUi?.mixerCollapsed === true,
+        // The browser rail defaults to open — absent means legacy session.
+        browserOpen: rawUi?.browserOpen !== false,
       },
     };
   } catch {

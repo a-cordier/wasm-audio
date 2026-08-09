@@ -20,9 +20,11 @@ import { styleMap } from "lit/directives/style-map.js";
 import { pluginRegistry } from "../core/plugin-registry";
 
 /**
- * The rack's "+ ADD DEVICE" rail. Expands into a menu of every registered
- * device (name, kind, accent chip); clicking one dispatches `device-mount`
- * with the plugin id — the shell (daw-element) does the actual mounting.
+ * The device browser rail — the workspace's left dock. Lists every
+ * registered device (name, kind, accent chip); clicking one dispatches
+ * `device-mount` with the plugin id — the shell (daw-element) does the
+ * actual mounting. Collapses to a slim vertical tab; the open state is
+ * owned by the shell and persisted with the session.
  */
 @customElement("device-browser")
 export class DeviceBrowser extends LitElement {
@@ -30,11 +32,16 @@ export class DeviceBrowser extends LitElement {
   @property({ type: Boolean })
   emptyRack = false;
 
-  @state()
-  private open = false;
+  /** Rail open/collapsed — owned by the shell (persisted). */
+  @property({ type: Boolean })
+  open = true;
 
   private toggle() {
-    this.open = !this.open;
+    this.dispatchEvent(new CustomEvent("browser-toggle", {
+      detail: { open: !this.open },
+      bubbles: true,
+      composed: true,
+    }));
   }
 
   private mount(pluginId: string) {
@@ -43,33 +50,37 @@ export class DeviceBrowser extends LitElement {
       bubbles: true,
       composed: true,
     }));
-    this.open = false;
   }
 
   render() {
+    if (!this.open) {
+      return html`
+        <button class="tab" title="open the device browser" @click=${this.toggle}>
+          DEVICES
+        </button>
+      `;
+    }
     const devices = pluginRegistry.getAll();
     return html`
       <div class="rail">
-        <button class="add-btn" @click=${this.toggle}>
-          ${this.open ? "CLOSE" : "+ ADD DEVICE"}
-        </button>
-        ${this.emptyRack && !this.open
+        <div class="rail-header">
+          <span class="rail-title">DEVICES</span>
+          <button class="collapse-btn" title="collapse" @click=${this.toggle}>◂</button>
+        </div>
+        <div class="menu">
+          ${devices.map((reg) => html`
+            <button
+              class="device-btn"
+              style=${styleMap({ "--device-accent": reg.descriptor.accent ?? "var(--lighter)" })}
+              @click=${() => this.mount(reg.descriptor.id)}
+            >
+              <span class="device-name">${reg.descriptor.name}</span>
+              <span class="device-kind">${reg.descriptor.kind}</span>
+            </button>
+          `)}
+        </div>
+        ${this.emptyRack
           ? html`<div class="hint">the rack is empty — add a device</div>`
-          : nothing}
-        ${this.open
-          ? html`
-            <div class="menu">
-              ${devices.map((reg) => html`
-                <button
-                  class="device-btn"
-                  style=${styleMap({ "--device-accent": reg.descriptor.accent ?? "var(--lighter)" })}
-                  @click=${() => this.mount(reg.descriptor.id)}
-                >
-                  <span class="device-name">${reg.descriptor.name}</span>
-                  <span class="device-kind">${reg.descriptor.kind}</span>
-                </button>
-              `)}
-            </div>`
           : nothing}
       </div>
     `;
@@ -78,37 +89,75 @@ export class DeviceBrowser extends LitElement {
   static styles = css`
     :host {
       display: block;
-      width: calc(650px + 3em);
-      max-width: 100%;
-      margin: 0 auto;
+      height: 100%;
+      background: var(--browser-rail-bg, #181818);
+      border-right: 1px solid var(--browser-rail-border, #2b3844);
+      box-sizing: border-box;
+    }
+
+    /* Collapsed: a slim full-height tab with a vertical label. */
+    .tab {
+      width: 28px;
+      height: 100%;
+      padding: 12px 0;
+      writing-mode: vertical-rl;
+      font-size: 0.6em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      background: transparent;
+      color: var(--browser-rail-label-color, #e8eef2);
+      border: none;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.15s;
+    }
+
+    .tab:hover {
+      opacity: 1;
+      color: var(--lcd-led-on-color, #b4d455);
     }
 
     .rail {
       display: flex;
       flex-direction: column;
       gap: 6px;
+      width: 190px;
+      height: 100%;
       padding: 8px;
-      background: var(--browser-rail-bg, #181818);
-      border: 1px dashed var(--browser-rail-border, #2b3844);
-      border-radius: 0.5rem;
+      box-sizing: border-box;
+      overflow-y: auto;
+      scrollbar-width: thin;
     }
 
-    .add-btn {
-      width: 100%;
-      height: 28px;
+    .rail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .rail-title {
       font-size: 0.6em;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.1em;
+      color: var(--browser-rail-label-color, #e8eef2);
+      padding-left: 4px;
+    }
+
+    .collapse-btn {
+      width: 20px;
+      height: 20px;
+      padding: 0;
       background: transparent;
       color: var(--browser-rail-label-color, #e8eef2);
       border: none;
       cursor: pointer;
-      transition: color 0.15s;
+      opacity: 0.7;
     }
 
-    .add-btn:hover {
-      color: var(--lcd-led-on-color, #b4d455);
+    .collapse-btn:hover {
+      opacity: 1;
     }
 
     .hint {

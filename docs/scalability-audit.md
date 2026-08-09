@@ -29,6 +29,10 @@ Done by the shell work: dynamic mount/unmount with shell-owned lifecycle
   completes.
 - **`unsafeStatic(elementTag)` template cache** grows per distinct tag —
   bounded by device-type count.
+- **KeyboardController has no `isEditable` guard** (keyboard.ts keydown →
+  MIDI notes): typing in any future text input would play notes on armed
+  devices. sequels' TransportKeys already guards via `isEditable`; port that
+  check when the first text input lands in the UI.
 
 ## For item 5 — mixer rework
 - `CHANNEL_COUNT = 16` channel strips (4 nodes each) are eagerly allocated at

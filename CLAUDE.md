@@ -23,6 +23,14 @@ MIDI events carry their audible AudioContext frame (mod 2^24) in ring slot
 instrument processors take only events due in the current block
 (`dequeueBefore`); live sources stamp frame 0 = play now, zero added latency.
 
+**The workspace is a fixed-chrome grid**: daw-element is a 100vh grid —
+transport header (a row is reserved for the future timeline), device-browser
+rail docked left (collapsible tab), an independently scrolling rack viewport
+(the PAGE never scrolls), and the mixer docked full-width at the bottom
+(foldable; meter rAF stops while folded). The root branch multicols at wide
+viewports (`:host([root]) .branch`); slot width lives in `--rack-slot-width`
+— never hardcode it. Dock/rail states persist in the session's `ui` field.
+
 **The shell owns the rack**: daw-element mounts/unmounts devices at runtime
 (`mountDevice`/`unmountSlot` — instantiate → route on a free mixer channel;
 ramp silent → dispose → unroute), and the whole session persists

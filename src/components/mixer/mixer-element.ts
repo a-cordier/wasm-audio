@@ -1,4 +1,4 @@
-import { LitElement, html, css } from "lit";
+import { LitElement, html, css, nothing, PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { MixerEngine, CHANNEL_COUNT } from "../../mixer";
 import "./channel-strip";
@@ -8,6 +8,10 @@ export class MixerElement extends LitElement {
   @property({ attribute: false })
   engine?: MixerEngine;
 
+  /** Dock fold state — owned by the shell (persisted with the session). */
+  @property({ type: Boolean })
+  collapsed = false;
+
   @state() private meterLevels: number[] = new Array(CHANNEL_COUNT + 1).fill(0);
 
   private rafId = 0;
@@ -15,7 +19,7 @@ export class MixerElement extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     document.addEventListener("visibilitychange", this.onVisibilityChange);
-    this.startMetering();
+    if (!this.collapsed) this.startMetering();
   }
 
   disconnectedCallback(): void {
@@ -26,7 +30,24 @@ export class MixerElement extends LitElement {
 
   private onVisibilityChange = () => {
     cancelAnimationFrame(this.rafId);
-    if (!document.hidden) this.startMetering();
+    if (!document.hidden && !this.collapsed) this.startMetering();
+  };
+
+  // Meters only draw while the dock is open — a folded mixer keeps playing
+  // but spends no frames on analysers.
+  protected updated(changed: PropertyValues): void {
+    if (changed.has("collapsed")) {
+      cancelAnimationFrame(this.rafId);
+      if (!this.collapsed && !document.hidden) this.startMetering();
+    }
+  }
+
+  private onFoldToggle = () => {
+    this.dispatchEvent(new CustomEvent("mixer-collapse-changed", {
+      detail: { collapsed: !this.collapsed },
+      bubbles: true,
+      composed: true,
+    }));
   };
 
   private startMetering(): void {
@@ -87,8 +108,14 @@ export class MixerElement extends LitElement {
     return html`
       <div class="mixer-panel">
         <div class="mixer-header">
+          <button
+            class="fold-btn"
+            title=${this.collapsed ? "unfold mixer" : "fold mixer"}
+            @click=${this.onFoldToggle}
+          >${this.collapsed ? "▸" : "▾"}</button>
           <span class="mixer-label">MIXER</span>
         </div>
+        ${this.collapsed ? nothing : html`
         <div class="mixer-body">
           <div class="channels-scroll">
             ${state.channels.map(
@@ -121,7 +148,7 @@ export class MixerElement extends LitElement {
               @gain-change=${this.onGainChange}
             ></channel-strip>
           </div>
-        </div>
+        </div>`}
       </div>
     `;
   }
@@ -142,8 +169,24 @@ export class MixerElement extends LitElement {
     .mixer-header {
       display: flex;
       align-items: center;
+      gap: 10px;
       padding: 6px 1.5em;
       background: var(--main-panel-color, #181818);
+    }
+
+    .fold-btn {
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      background: transparent;
+      color: var(--main-panel-label-color, #fff);
+      border: none;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    .fold-btn:hover {
+      opacity: 1;
     }
 
     .mixer-label {

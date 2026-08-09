@@ -694,6 +694,20 @@ export class DeviceSlot extends LitElement {
       align-items: center;
     }
 
+    /* The ROOT branch flows into balanced columns when the viewport fits
+     * more than one rack width (CSS multicol: no vertical holes despite
+     * mixed device heights). Nested branches keep the flex column. */
+    :host([root]) .branch {
+      display: block;
+      columns: var(--rack-slot-width, calc(650px + 3em));
+      column-gap: 24px;
+    }
+
+    :host([root]) .branch > device-slot {
+      break-inside: avoid;
+      margin-bottom: 24px;
+    }
+
     .leaf {
       display: flex;
       flex-direction: column;

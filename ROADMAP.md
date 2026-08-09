@@ -67,15 +67,17 @@ chrome home: item 4b). Stop releases exactly the sounding notes (tracked in
 the drain) instead of 128-note bursts; instrument rings 64 → 256. **MIDI
 clock in/out remain future work by design** (no hardware to test).
 
-### 4b. [ ] DAW workspace layout
-The rack stops being a plain vertical page: docked mixer (bottom or side),
-independently scrolling rack, reserved chrome zones for the transport bar
-(item 4) and the song-mode timeline (item 7), the device browser's final
-home, **multi-column rack flow at wide viewports**, and the first-gesture
-AudioContext unlock. Deliberately placed right before the mixer rework so
-item 5 lands into its docked home instead of being styled twice.
-(Collapsible slots already shipped with item 3 and carry the growing-rack
-problem until this lands.)
+### 4b. [x] DAW workspace layout — done 2026-08-08
+The page became a workspace: daw-element is a 100vh grid — full-width
+transport header (a row is reserved for item 7's timeline), a collapsible
+device-browser rail docked left, an independently scrolling rack viewport,
+and the mixer docked full-width at the bottom (foldable to its header
+strip; meters stop drawing while folded). The root branch flows into
+**balanced multi-columns** (CSS multicol) when the viewport fits more than
+one rack width. Dock states persist with the session (`ui` field), the rack
+width is tokenized (`--rack-slot-width`), and the AudioContext unlock had
+already shipped with item 4 (power-on overlay). Item 5 now lands into the
+docked mixer instead of being styled twice.
 
 ### 5. [ ] Mixer: dynamic routing, EQ, effect loops, audio input
 - Channel assignment follows mount/unmount (routing is already slot-keyed

@@ -93,6 +93,13 @@ export class Daw extends LitElement {
   @state()
   private selectedSlotIds: Set<string> = new Set();
 
+  // Workspace chrome state (persisted with the session).
+  @state()
+  private mixerCollapsed = false;
+
+  @state()
+  private browserOpen = true;
+
   private kbSlotConfigs = new Map<string, KbTarget>();
 
   private slotCounter = 0;
@@ -157,6 +164,8 @@ export class Daw extends LitElement {
     const stored = loadRackSession();
     if (stored) {
       this.transport.setBpm(stored.transport?.bpm ?? 120);
+      this.mixerCollapsed = stored.ui?.mixerCollapsed === true;
+      this.browserOpen = stored.ui?.browserOpen !== false;
       await this.restoreSession(stored);
     } else {
       await this.buildDefaultRack(showTemplate);
@@ -442,6 +451,7 @@ export class Daw extends LitElement {
       slotCounter: this.slotCounter,
       slots,
       transport: { bpm: this.transport.bpm },
+      ui: { mixerCollapsed: this.mixerCollapsed, browserOpen: this.browserOpen },
     });
   }
 
@@ -511,35 +521,51 @@ export class Daw extends LitElement {
         .transport=${this.transport}
         .audioContext=${this.audioContext}
       ></transport-bar>
-      <div class="rack-viewport">
-        <device-slot
-          root
-          .config=${this.slotTree}
-          .plugins=${this.plugins}
-          .bus=${this.midiBus}
-          .midi=${this.midi}
-          .audioContext=${this.audioContext}
-          .mixerEngine=${this.mixerEngine}
-          .selectedSlotIds=${this.selectedSlotIds}
-          @slot-selected=${this.onSlotSelected}
-          @slot-deselected=${this.onSlotDeselected}
-          @slot-config-changed=${this.onSlotConfigChanged}
-          @slot-eject=${this.onSlotEject}
-          @slot-sync-changed=${this.onSlotSyncChanged}
-        ></device-slot>
+      <div class="main-zone">
         <device-browser
+          .open=${this.browserOpen}
           .emptyRack=${(this.slotTree.children ?? []).length === 0}
           @device-mount=${this.onDeviceMount}
+          @browser-toggle=${this.onBrowserToggle}
         ></device-browser>
+        <div class="rack-viewport">
+          <device-slot
+            root
+            .config=${this.slotTree}
+            .plugins=${this.plugins}
+            .bus=${this.midiBus}
+            .midi=${this.midi}
+            .audioContext=${this.audioContext}
+            .mixerEngine=${this.mixerEngine}
+            .selectedSlotIds=${this.selectedSlotIds}
+            @slot-selected=${this.onSlotSelected}
+            @slot-deselected=${this.onSlotDeselected}
+            @slot-config-changed=${this.onSlotConfigChanged}
+            @slot-eject=${this.onSlotEject}
+            @slot-sync-changed=${this.onSlotSyncChanged}
+          ></device-slot>
+        </div>
       </div>
       <mixer-element
         .engine=${this.mixerEngine}
+        .collapsed=${this.mixerCollapsed}
+        @mixer-collapse-changed=${this.onMixerCollapseChanged}
       ></mixer-element>
     `;
   }
 
   private onDeviceMount(e: CustomEvent<{ pluginId: string }>) {
     void this.mountDevice(e.detail.pluginId);
+  }
+
+  private onBrowserToggle(e: CustomEvent<{ open: boolean }>) {
+    this.browserOpen = e.detail.open;
+    this.scheduleSessionSave();
+  }
+
+  private onMixerCollapseChanged(e: CustomEvent<{ collapsed: boolean }>) {
+    this.mixerCollapsed = e.detail.collapsed;
+    this.scheduleSessionSave();
   }
 
   private onSlotEject(e: CustomEvent<{ slotId: string }>) {
@@ -558,16 +584,20 @@ export class Daw extends LitElement {
         width: 100%;
       }
 
+      /* Middle row: browser rail + rack viewport. */
+      .main-zone {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        min-height: 0;
+        overflow: hidden;
+      }
+
       .rack-viewport {
         overflow-y: auto;
         min-height: 0;
         padding: 24px;
         box-sizing: border-box;
         scrollbar-width: thin;
-      }
-
-      device-browser {
-        margin: 24px auto 0;
       }
 
       .power-overlay {
