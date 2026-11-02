@@ -25,7 +25,7 @@ import { Channel } from "../midi/types";
 import { SlotConfig, createBranchSlot, createLeafSlot, collectLeafSlots } from "../core/slot";
 import { pluginRegistry, PluginRegistration } from "../core/plugin-registry";
 import type { Plugin, InstrumentPlugin } from "../core/types";
-import { isInstrumentPlugin, isSlotAware, isAudioProducer, isMidiConsumer, isTransportChild } from "../core/types";
+import { isInstrumentPlugin, isSlotAware, isAudioProducer, isAudioEffect, isMidiConsumer, isTransportChild } from "../core/types";
 import { RackSession, RackSlotEntry, loadRackSession, saveRackSession } from "../core/rack-storage";
 import { getBindingManager } from "../control/binding-manager";
 import { MidiControlAdapter } from "../control/adapters/midi-adapter";
@@ -41,6 +41,7 @@ import "./mixer/mixer-element";
 import "../instruments/poly-ticks/register";
 import "../instruments/monolog/register";
 import "../instruments/sequels/register";
+import "../devices/echo/register";
 
 const SESSION_SAVE_DEBOUNCE_MS = 500;
 
@@ -364,6 +365,22 @@ export class Daw extends LitElement {
     if (isAudioProducer(plugin)) {
       this.mixerEngine.setRouting(slot.id, plugin.getOutputNode());
     }
+    // An effect opens its loop: a send bus feeding its input; its output
+    // already returns on the channel routed above.
+    if (isAudioEffect(plugin)) {
+      this.mixerEngine.addSendBus(slot.id, slot.name, plugin.getInputNode(), plugin.descriptor.accent);
+    }
+  }
+
+  /** A second instance of a device mounts as "NAME 2" — slot names flow to
+   * rack headers, strip nameplates and send-knob labels, where two identical
+   * "ECHO"s would be indistinguishable. */
+  private uniqueSlotName(base: string): string {
+    const names = new Set(this.leafSlots().map((slot) => slot.name));
+    if (!names.has(base)) return base;
+    let n = 2;
+    while (names.has(`${base} ${n}`)) n++;
+    return `${base} ${n}`;
   }
 
   private defaultChannelsFor(reg: PluginRegistration): Partial<Pick<SlotConfig, "midiChannel" | "outputChannel">> {
@@ -403,7 +420,7 @@ export class Daw extends LitElement {
       return null;
     }
     const id = `slot-${++this.slotCounter}`;
-    const slot = createLeafSlot(id, reg.descriptor.name, pluginId, this.defaultChannelsFor(reg));
+    const slot = createLeafSlot(id, this.uniqueSlotName(reg.descriptor.name), pluginId, this.defaultChannelsFor(reg));
     await this.instantiateSlot(slot);
     this.routeSlot(slot);
     const rows = [...(this.slotTree.children ?? [])];
@@ -433,8 +450,10 @@ export class Daw extends LitElement {
     }
 
     if (isTransportChild(plugin)) this.wireSync(slotId, false);
-    // The strip ramps itself silent before the graph is torn down; the
+    // An unmounting effect closes its loop first (sends stop feeding it),
+    // then its strip ramps itself silent before the graph is torn down; the
     // CLICK-bus route (sequencers — they have no strip) unplugs alongside.
+    this.mixerEngine.removeSendBus(slotId);
     await this.mixerEngine.removeChannel(slotId);
     this.mixerEngine.clearRouting(slotId);
 
@@ -516,7 +535,7 @@ export class Daw extends LitElement {
           midiChannel: slot.midiChannel ?? "omni",
           outputChannel: slot.outputChannel ?? 0,
           inputDevice: slot.inputDevice ?? "internal",
-          mixer: this.mixerEngine.getChannel(slot.id)?.strip,
+          mixer: this.saveStrip(slot.id),
           collapsed: slot.collapsed === true,
           sync: slot.sync === true,
           row: rowIndex,
@@ -532,6 +551,13 @@ export class Daw extends LitElement {
       mixer: { master: this.mixerEngine.masterGain, click: this.mixerEngine.clickGain },
       ui: { mixerCollapsed: this.mixerCollapsed, browserOpen: this.browserOpen },
     });
+  }
+
+  private saveStrip(slotId: string) {
+    const channel = this.mixerEngine.getChannel(slotId);
+    if (!channel) return undefined;
+    // Send levels for ejected loops would otherwise pile up forever.
+    return { ...channel.strip, sends: this.mixerEngine.pruneSends(channel.strip.sends) };
   }
 
   private onSlotConfigChanged() {

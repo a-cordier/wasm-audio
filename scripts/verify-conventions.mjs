@@ -25,6 +25,9 @@ import { readdirSync, readFileSync, statSync, existsSync } from "fs";
 import { join } from "path";
 
 const ROOT = process.cwd();
+// Both device trees: synths under src/instruments, non-instrument devices
+// (effects, inputs) under src/devices — same registration conventions.
+const DEVICE_ROOTS = [join(ROOT, "src/instruments"), join(ROOT, "src/devices")].filter(existsSync);
 const INSTRUMENTS = join(ROOT, "src/instruments");
 
 const failures = [];
@@ -46,8 +49,9 @@ function walk(dir) {
   return out;
 }
 
-for (const inst of readdirSync(INSTRUMENTS)) {
-  const dir = join(INSTRUMENTS, inst);
+for (const root of DEVICE_ROOTS)
+for (const inst of readdirSync(root)) {
+  const dir = join(root, inst);
   if (!statSync(dir).isDirectory()) continue;
 
   const sources = {}; // label -> count
@@ -85,8 +89,9 @@ const servedFiles = new Set([...mapBody.matchAll(/"([^"]+)"\s*:/g)].map((m) => m
 if (servedFiles.size === 0) {
   failures.push("vite.config.ts: could not parse the workletFiles map");
 }
-for (const inst of readdirSync(INSTRUMENTS)) {
-  const registerTs = join(INSTRUMENTS, inst, "register.ts");
+for (const root of DEVICE_ROOTS)
+for (const inst of readdirSync(root)) {
+  const registerTs = join(root, inst, "register.ts");
   if (!existsSync(registerTs)) continue;
   const body = readFileSync(registerTs, "utf-8").match(/workletModules\s*:\s*\[([^\]]*)\]/)?.[1] ?? "";
   for (const [, mod] of body.matchAll(/"([^"]+)"/g)) {

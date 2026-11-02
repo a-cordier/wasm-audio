@@ -84,6 +84,11 @@ export enum ControlID {
   TPL_ATTACK,
   TPL_RELEASE,
   TPL_LEVEL,
+
+  // Echo (effect)
+  ECHO_TIME,
+  ECHO_FEEDBACK,
+  ECHO_TONE,
 }
 
 export interface ControlSignal {

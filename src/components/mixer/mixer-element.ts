@@ -151,6 +151,24 @@ export class MixerElement extends LitElement {
     this.requestUpdate();
   }
 
+  private onSendChange(e: CustomEvent) {
+    const { id, busId, value } = e.detail;
+    this.engine?.setSend(id, busId, value);
+    this.notifyMixerChanged();
+    this.requestUpdate();
+  }
+
+  /** One SEND knob per effect loop; the loop's own return strip ghosts its. */
+  private stripSends(slotId: string, levels: Record<string, number>) {
+    return (this.engine?.sends ?? []).map((bus) => ({
+      busId: bus.effectSlotId,
+      label: bus.label,
+      accent: bus.accent,
+      level: levels[bus.effectSlotId] ?? 0,
+      self: bus.effectSlotId === slotId,
+    }));
+  }
+
   // --- Prepared channels: the unused desk capacity stays visible ---
   // Empty strips pad the board to MAX_CHANNELS, mirroring the rack's
   // prepared "+" slots: each is a drop target for a device dragged off the
@@ -251,12 +269,15 @@ export class MixerElement extends LitElement {
                 .eqMid=${ch.strip.eq.mid}
                 .eqMidFreq=${ch.strip.eq.midFreq}
                 .eqHigh=${ch.strip.eq.high}
+                .sends=${this.stripSends(ch.slotId, ch.strip.sends)}
+                .isReturn=${this.engine?.hasSendBus(ch.slotId) ?? false}
                 .meterLevel=${this.meterLevels.get(ch.slotId) ?? 0}
                 @gain-change=${this.onGainChange}
                 @pan-change=${this.onPanChange}
                 @mute-change=${this.onMuteChange}
                 @solo-change=${this.onSoloChange}
                 @eq-change=${this.onEqChange}
+                @send-change=${this.onSendChange}
               ></channel-strip>
             `)}
             ${this.renderGhostStrips(engine.channels.length)}
@@ -266,6 +287,7 @@ export class MixerElement extends LitElement {
               .channelId=${CLICK_ID}
               .master=${true}
               .label=${"CLICK"}
+              .sends=${this.stripSends(CLICK_ID, {})}
               .gain=${engine.clickGain}
               .pan=${0}
               .mute=${false}
@@ -277,6 +299,7 @@ export class MixerElement extends LitElement {
               .channelId=${MASTER_ID}
               .master=${true}
               .limiter=${true}
+              .sends=${this.stripSends(MASTER_ID, {})}
               .gainReduction=${this.meterLevels.get("gr") ?? 0}
               .gain=${engine.masterGain}
               .pan=${0}

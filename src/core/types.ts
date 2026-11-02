@@ -54,6 +54,13 @@ export interface MidiProducer {
   setOutputChannel(channel: Channel): void;
 }
 
+/** A device that processes audio it is FED (kind:"effect"): exposes the
+ * input node the mixer's send buses sum into, alongside its AudioProducer
+ * output (which routes to its return channel like any device). */
+export interface AudioEffect {
+  getInputNode(): AudioNode;
+}
+
 export type InstrumentPlugin = Plugin & MidiConsumer & AudioProducer;
 export type MidiSourcePlugin = Plugin & MidiProducer;
 
@@ -147,6 +154,10 @@ export function isSlotAware(plugin: Plugin): plugin is Plugin & SlotAware {
  */
 export function isAudioProducer(plugin: Plugin): plugin is Plugin & AudioProducer {
   return "getOutputNode" in plugin;
+}
+
+export function isAudioEffect(plugin: Plugin): plugin is Plugin & AudioEffect {
+  return "getInputNode" in plugin;
 }
 
 export function isTransportChild(plugin: Plugin): plugin is Plugin & TransportChild {

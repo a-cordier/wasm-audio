@@ -42,12 +42,15 @@ export interface ChannelStripState {
   mute: boolean;
   solo: boolean;
   eq: ChannelEqState;
+  /** Post-fader send levels (0..1), keyed by the receiving EFFECT's slot id.
+   * Keys for ejected effects are pruned at save time. */
+  sends: Record<string, number>;
 }
 
 export function createDefaultStripState(): ChannelStripState {
   // Fresh channels sit at unity (0 dB, 3/4 throw) — the +6 dB headroom and
   // the master limiter make that the honest default. A flat EQ is identity.
-  return { gain: 1, pan: 0, mute: false, solo: false, eq: createDefaultEqState() };
+  return { gain: 1, pan: 0, mute: false, solo: false, eq: createDefaultEqState(), sends: {} };
 }
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
@@ -75,7 +78,20 @@ export function sanitizeStripState(raw: unknown): ChannelStripState {
       midFreq: clampNumber(eq?.midFreq, EQ_MID_FREQ_MIN, EQ_MID_FREQ_MAX, deq.midFreq),
       high: clampNumber(eq?.high, -EQ_GAIN_DB, EQ_GAIN_DB, deq.high),
     },
+    sends: sanitizeSends(e.sends),
   };
+}
+
+function sanitizeSends(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (raw && typeof raw === "object") {
+    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        out[key] = Math.max(0, Math.min(1, value));
+      }
+    }
+  }
+  return out;
 }
 
 /** Clamp a persisted bus level (master/click) to the fader's gain range. */

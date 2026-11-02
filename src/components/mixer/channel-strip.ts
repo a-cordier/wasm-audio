@@ -18,6 +18,17 @@ const FADER_MAX = 127;
 /** GR LED threshold: light once the limiter actually bites. */
 const GR_LIT_DB = -0.5;
 
+/** One SEND knob's worth of strip data (one per mounted effect loop). */
+export interface StripSend {
+  busId: string;
+  label: string;
+  /** The effect's accent — ties the knob to its return strip visually. */
+  accent?: string;
+  level: number;
+  /** True on the loop's own return strip — that knob ghosts (feedback guard). */
+  self: boolean;
+}
+
 // The FREQ knob sweeps the mid exponentially — equal throw per octave.
 const FREQ_LOG_SPAN = Math.log(EQ_MID_FREQ_MAX / EQ_MID_FREQ_MIN);
 const freqToKnob = (hz: number) => Math.log(hz / EQ_MID_FREQ_MIN) / FREQ_LOG_SPAN;
@@ -45,6 +56,10 @@ export class ChannelStrip extends LitElement {
   @property({ type: Number }) eqMid = 0;
   @property({ type: Number }) eqMidFreq = EQ_MID_FREQ_DEFAULT;
   @property({ type: Number }) eqHigh = 0;
+  /** Effect-loop sends, one knob each (fresh array per board render). */
+  @property({ attribute: false }) sends: StripSend[] = [];
+  /** True when this strip is an effect loop's return. */
+  @property({ type: Boolean }) isReturn = false;
 
   private onFaderChange(e: CustomEvent) {
     // Fader THROW -> amplitude through the desk law (+6 dB up top).
@@ -67,6 +82,31 @@ export class ChannelStrip extends LitElement {
 
   private onEqChange(band: EqBand, value: number) {
     this.dispatchEvent(new CustomEvent("eq-change", { detail: { id: this.channelId, band, value } }));
+  }
+
+  private onSendChange(busId: string, value: number) {
+    this.dispatchEvent(new CustomEvent("send-change", { detail: { id: this.channelId, busId, value } }));
+  }
+
+  private renderSendKnob(send: StripSend) {
+    const ghosted = this.master || this.isReturn || send.self;
+    const title = this.master
+      ? "not available on this bus"
+      : this.isReturn || send.self
+        ? "a return strip never sends (feedback guard)"
+        : `send to ${send.label} — ${Math.round(send.level * 100)}%`;
+    return html`
+      <knob-element
+        style=${send.accent ? `--control-cursor-color: ${send.accent}` : ""}
+        .label=${send.label}
+        .range=${{ min: 0, max: 1 }}
+        .step=${0.02}
+        .value=${ghosted ? 0 : send.level}
+        ?disabled=${ghosted}
+        title=${title}
+        @change=${(e: CustomEvent) => this.onSendChange(send.busId, e.detail.value)}
+      ></knob-element>
+    `;
   }
 
   private renderEqKnob(label: string, band: EqBand, value: number, busTitle: string) {
@@ -106,13 +146,19 @@ export class ChannelStrip extends LitElement {
         <div
           class="label"
           style=${this.accent ? `border-bottom-color: ${this.accent}` : ""}
-        >${this.master ? (this.label || "MASTER") : this.label}</div>
+        >${this.isReturn ? "⏎ " : ""}${this.master ? (this.label || "MASTER") : this.label}</div>
         <div class="eq-zone">
           ${this.renderEqKnob("HI", "high", this.eqHigh, busTitle)}
           ${this.renderEqKnob("MID", "mid", this.eqMid, busTitle)}
           ${this.renderEqKnob("FREQ", "midFreq", this.eqMidFreq, busTitle)}
           ${this.renderEqKnob("LO", "low", this.eqLow, busTitle)}
         </div>
+        ${this.sends.length > 0
+          ? html`<div class="send-zone">
+              <div class="zone-caption">SENDS</div>
+              ${this.sends.map((s) => this.renderSendKnob(s))}
+            </div>`
+          : nothing}
         <fader-element
           style="--meter-level: ${this.meterLevel}"
           .value=${faderValue}
@@ -200,6 +246,37 @@ export class ChannelStrip extends LitElement {
       --control-label-font-size: 7px;
       --control-label-color: var(--mixer-label-color, #cbe2f3);
       --control-cursor-color: var(--mixer-fader-thumb, #cbe2f3);
+    }
+
+    /* Send zone: one knob per effect loop, its own functional tint. */
+    .send-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      width: 100%;
+      padding: 4px 0 2px;
+      background: var(--mixer-send-zone-bg, #22303c);
+      border-radius: 2px;
+      --knob-size: 22px;
+      --control-label-font-size: 7px;
+      --control-label-color: var(--mixer-label-color, #cbe2f3);
+      --control-cursor-color: var(--mixer-fader-thumb, #cbe2f3);
+    }
+
+    .send-zone .label,
+    .send-zone knob-element {
+      max-width: 100%;
+    }
+
+    .zone-caption {
+      font-family: "Space Mono", monospace;
+      font-size: 6px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--mixer-label-color, #cbe2f3);
+      opacity: 0.55;
+      line-height: 1;
     }
 
     fader-element {

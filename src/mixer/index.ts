@@ -1,5 +1,5 @@
 export { MixerEngine } from "./mixer-engine";
-export type { MixerChannel, EqBand } from "./mixer-engine";
+export type { MixerChannel, EqBand, SendBus } from "./mixer-engine";
 export {
   MAX_CHANNELS,
   MASTER_ID,

@@ -28,7 +28,21 @@ interface ChannelNodes {
   eq: { low: BiquadFilterNode; mid: BiquadFilterNode; high: BiquadFilterNode };
   gain: GainNode;
   pan: StereoPannerNode;
+  /** Post-fader send taps (pan output → send gain → bus), keyed by effect slot id. */
+  sends: Map<string, GainNode>;
   analyser: AnalyserNode;
+}
+
+/**
+ * One effect loop: every channel's send gain sums into `input`, which feeds
+ * the effect device; the effect's output returns on its own mixer channel.
+ * One bus per mounted effect, keyed — like channels — by slot id.
+ */
+export interface SendBus {
+  readonly effectSlotId: string;
+  label: string;
+  accent?: string;
+  readonly input: GainNode;
 }
 
 interface MasterNodes {
@@ -66,12 +80,15 @@ export interface MixerChannel {
 export class MixerEngine extends EventTarget {
   /** Ordered strip list — the board renders exactly this. */
   readonly channels: MixerChannel[] = [];
+  /** Ordered effect-loop list — strips grow one SEND knob per entry. */
+  readonly sends: SendBus[] = [];
   readonly master: MasterNodes;
   /** One CLICK bus for every metronome — sequencers never take a channel. */
   readonly click: ClickNodes;
 
   private readonly ctx: AudioContext;
   private byId = new Map<string, MixerChannel>();
+  private sendsById = new Map<string, SendBus>();
   private soloActive = false;
   /** The routed source node per channel slot (disconnected on remove/swap). */
   private sources = new Map<string, AudioNode>();
@@ -168,9 +185,19 @@ export class MixerEngine extends EventTarget {
     pan.connect(analyser);
     analyser.connect(this.master.gain);
 
-    const channel: MixerChannel = { slotId, label, accent, strip, nodes: { input, inserts, eq, gain, pan, analyser } };
+    const channel: MixerChannel = {
+      slotId,
+      label,
+      accent,
+      strip,
+      nodes: { input, inserts, eq, gain, pan, sends: new Map(), analyser },
+    };
     this.channels.push(channel);
     this.byId.set(slotId, channel);
+
+    // Hook this strip into every existing effect loop (restored send levels
+    // apply; the loop's own return channel never sends to itself).
+    for (const bus of this.sends) this.createChannelSend(channel, bus);
 
     // A restored solo (or joining a soloed board) must gate everyone.
     this.soloActive = this.channels.some((c) => c.strip.solo);
@@ -201,6 +228,8 @@ export class MixerEngine extends EventTarget {
     for (const insert of channel.nodes.inserts) insert.disconnect();
     channel.nodes.gain.disconnect();
     channel.nodes.pan.disconnect();
+    for (const send of channel.nodes.sends.values()) send.disconnect();
+    channel.nodes.sends.clear();
     channel.nodes.analyser.disconnect();
 
     const index = this.channels.indexOf(channel);
@@ -246,6 +275,87 @@ export class MixerEngine extends EventTarget {
     if (this.clickRouting.has(sourceId)) return;
     node.connect(this.click.input);
     this.clickRouting.set(sourceId, node);
+  }
+
+  // --- Effect loops (send buses) ---
+
+  /** Open an effect loop: a bus summing every strip's send into the effect. */
+  addSendBus(effectSlotId: string, label: string, effectInput: AudioNode, accent?: string): SendBus {
+    const existing = this.sendsById.get(effectSlotId);
+    if (existing) return existing;
+    const bus: SendBus = {
+      effectSlotId,
+      label,
+      accent,
+      input: new GainNode(this.ctx, { gain: 1 }),
+    };
+    bus.input.connect(effectInput);
+    this.sends.push(bus);
+    this.sendsById.set(effectSlotId, bus);
+    // The effect's own channel predates its bus (routeSlot orders channel →
+    // routing → bus): strip any send gains it acquired while it was a plain
+    // channel — it is a RETURN now, and returns never send (see below).
+    const own = this.byId.get(effectSlotId);
+    if (own) {
+      for (const send of own.nodes.sends.values()) send.disconnect();
+      own.nodes.sends.clear();
+    }
+    for (const channel of this.channels) this.createChannelSend(channel, bus);
+    this.dispatchEvent(new Event("channels-changed"));
+    return bus;
+  }
+
+  /** Close an effect loop (the effect is unmounting): unplug every tap. */
+  removeSendBus(effectSlotId: string): void {
+    const bus = this.sendsById.get(effectSlotId);
+    if (!bus) return;
+    for (const channel of this.channels) {
+      const send = channel.nodes.sends.get(effectSlotId);
+      if (send) {
+        send.disconnect();
+        channel.nodes.sends.delete(effectSlotId);
+      }
+    }
+    bus.input.disconnect();
+    const index = this.sends.indexOf(bus);
+    if (index >= 0) this.sends.splice(index, 1);
+    this.sendsById.delete(effectSlotId);
+    this.dispatchEvent(new Event("channels-changed"));
+  }
+
+  hasSendBus(effectSlotId: string): boolean {
+    return this.sendsById.has(effectSlotId);
+  }
+
+  setSend(channelSlotId: string, effectSlotId: string, value: number): void {
+    const channel = this.byId.get(channelSlotId);
+    const send = channel?.nodes.sends.get(effectSlotId);
+    if (!channel || !send) return;
+    const level = Math.max(0, Math.min(1, value));
+    channel.strip.sends[effectSlotId] = level;
+    send.gain.setTargetAtTime(level, this.ctx.currentTime, RAMP_TC);
+  }
+
+  /** Drop send entries whose effect loop is gone — called at save time. */
+  pruneSends(sends: Record<string, number>): Record<string, number> {
+    return Object.fromEntries(Object.entries(sends).filter(([id]) => this.sendsById.has(id)));
+  }
+
+  private createChannelSend(channel: MixerChannel, bus: SendBus): void {
+    // Feedback guard: RETURN strips never send — not to their own loop and
+    // not to another's. Two cross-sending returns close a cycle through
+    // both delays and run away (measured ×10^8 in seconds); the send node
+    // simply does not exist (the UI ghosts the knobs to match). Chained
+    // effects are item 8's cycle-aware problem.
+    if (channel.slotId === bus.effectSlotId) return;
+    if (this.sendsById.has(channel.slotId)) return;
+    if (channel.nodes.sends.has(bus.effectSlotId)) return;
+    const level = channel.strip.sends[bus.effectSlotId] ?? 0;
+    channel.strip.sends[bus.effectSlotId] = level;
+    const send = new GainNode(this.ctx, { gain: level });
+    channel.nodes.pan.connect(send);
+    send.connect(bus.input);
+    channel.nodes.sends.set(bus.effectSlotId, send);
   }
 
   setGain(slotId: string, value: number): void {
@@ -379,8 +489,12 @@ export class MixerEngine extends EventTarget {
       for (const insert of channel.nodes.inserts) insert.disconnect();
       channel.nodes.gain.disconnect();
       channel.nodes.pan.disconnect();
+      for (const send of channel.nodes.sends.values()) send.disconnect();
       channel.nodes.analyser.disconnect();
     }
+    for (const bus of this.sends) bus.input.disconnect();
+    this.sends.length = 0;
+    this.sendsById.clear();
     this.channels.length = 0;
     this.byId.clear();
     this.sources.clear();
