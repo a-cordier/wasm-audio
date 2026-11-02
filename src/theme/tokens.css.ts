@@ -125,6 +125,7 @@ export const darkTheme = `
     --mixer-eq-zone-bg: color-mix(in srgb, var(--dark-secondary) 94%, var(--light-secondary) 6%);
     --mixer-send-zone-bg: color-mix(in srgb, var(--dark-secondary) 94%, var(--echo-accent, #d97f43) 6%);
     --echo-accent: #d97f43;
+    --audio-in-accent: #c75e6a;
 
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);
@@ -247,6 +248,7 @@ export const retroTheme = `
     --mixer-eq-zone-bg: color-mix(in srgb, var(--dark-secondary) 94%, var(--light-secondary) 6%);
     --mixer-send-zone-bg: color-mix(in srgb, var(--dark-secondary) 94%, var(--echo-accent, #d97f43) 6%);
     --echo-accent: #d97f43;
+    --audio-in-accent: #c75e6a;
 
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);

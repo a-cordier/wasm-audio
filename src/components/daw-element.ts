@@ -42,6 +42,7 @@ import "../instruments/poly-ticks/register";
 import "../instruments/monolog/register";
 import "../instruments/sequels/register";
 import "../devices/echo/register";
+import "../devices/audio-in/register";
 
 const SESSION_SAVE_DEBOUNCE_MS = 500;
 
