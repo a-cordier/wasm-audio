@@ -1,37 +1,47 @@
-export const CHANNEL_COUNT = 16;
+/** Soft cap on mixer channels — strips must stay usable at desk width. */
+export const MAX_CHANNELS = 16;
 
-export interface ChannelState {
-  id: number;
-  label: string;
+/** Reserved strip ids for the fixed buses (regular channels use slot ids). */
+export const MASTER_ID = "master";
+export const CLICK_ID = "click";
+
+/**
+ * Per-channel strip settings. Owned by the engine while the device is
+ * mounted, persisted with the SLOT (rack-storage) so a device's mix travels
+ * with it across reloads.
+ */
+export interface ChannelStripState {
+  /** Linear amplitude 0..1. */
   gain: number;
   pan: number;
   mute: boolean;
   solo: boolean;
-  slotId?: string;
 }
 
-export interface MixerState {
-  channels: ChannelState[];
-  masterGain: number;
-  /** The shared CLICK bus — every sequencer metronome sums into it. */
-  clickGain: number;
+export function createDefaultStripState(): ChannelStripState {
+  return { gain: 0.8, pan: 0, mute: false, solo: false };
 }
 
-export function createDefaultChannel(id: number): ChannelState {
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(min, Math.min(max, value))
+    : fallback;
+}
+
+/** Sanitize a persisted strip snapshot — unknown/legacy fields fall to defaults. */
+export function sanitizeStripState(raw: unknown): ChannelStripState {
+  const d = createDefaultStripState();
+  const e = (raw ?? null) as Partial<ChannelStripState> | null;
+  if (!e || typeof e !== "object") return d;
   return {
-    id,
-    label: "",
-    gain: 0.8,
-    pan: 0,
-    mute: false,
-    solo: false,
+    gain: clampNumber(e.gain, 0, 1, d.gain),
+    pan: clampNumber(e.pan, -1, 1, d.pan),
+    mute: e.mute === true,
+    solo: e.solo === true,
   };
 }
 
-export function createDefaultMixerState(): MixerState {
-  const channels: ChannelState[] = [];
-  for (let i = 0; i < CHANNEL_COUNT; i++) {
-    channels.push(createDefaultChannel(i));
-  }
-  return { channels, masterGain: 0.8, clickGain: 0.8 };
+/** Clamp a persisted bus level (master/click) to the unit gain range. */
+export function sanitizeBusGain(value: unknown, fallback: number): number {
+  return clampNumber(value, 0, 1, fallback);
 }

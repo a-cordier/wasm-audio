@@ -24,6 +24,8 @@
  * richer serialization under its own slot-scoped key.
  */
 
+import { ChannelStripState, sanitizeStripState, sanitizeBusGain } from "../mixer/types";
+
 export interface RackSlotEntry {
   id: string;
   pluginId: string;
@@ -31,7 +33,10 @@ export interface RackSlotEntry {
   midiChannel: number | "omni";
   outputChannel: number;
   inputDevice: string;
-  mixerChannel: number;
+  /** Mixer strip settings for the slot's channel; absent for sequencers.
+   * (Replaces the retired fixed `mixerChannel` index — strip order follows
+   * slot order now that channels are dynamic.) */
+  mixer?: ChannelStripState;
   collapsed: boolean;
   sync: boolean;
   /** Rack row index (rows are the arrangement unit — devices sit side by side). */
@@ -46,6 +51,8 @@ export interface RackSession {
   slots: RackSlotEntry[];
   /** Master transport settings. */
   transport?: { bpm: number };
+  /** Mixer bus levels (the strips persist per slot in `slots[].mixer`). */
+  mixer?: { master: number; click: number };
   /** Workspace chrome state (docked panels). */
   ui?: { mixerCollapsed: boolean; browserOpen: boolean };
 }
@@ -69,7 +76,9 @@ function sanitizeEntry(raw: unknown, index: number): RackSlotEntry | null {
     midiChannel: e.midiChannel === "omni" ? "omni" : clampChannel(e.midiChannel, 0),
     outputChannel: clampChannel(e.outputChannel, 0),
     inputDevice: typeof e.inputDevice === "string" ? e.inputDevice : "internal",
-    mixerChannel: clampChannel(e.mixerChannel, -1),
+    // Legacy sessions carry no strip snapshot — their channels boot from
+    // defaults, exactly as the pre-item-5 mixer always did.
+    mixer: e.mixer == null ? undefined : sanitizeStripState(e.mixer),
     collapsed: e.collapsed === true,
     sync: e.sync === true,
     // Legacy sessions (no row) flow into ONE row — it wraps to fill the
@@ -100,6 +109,7 @@ export function loadRackSession(): RackSession | null {
       .filter((e): e is RackSlotEntry => e !== null);
     if (slots.length === 0) return null;
     const rawBpm = (parsed.transport as { bpm?: unknown } | undefined)?.bpm;
+    const rawMixer = parsed.mixer as { master?: unknown; click?: unknown } | undefined;
     const rawUi = parsed.ui as { mixerCollapsed?: unknown; browserOpen?: unknown } | undefined;
     return {
       version: RACK_VERSION,
@@ -112,6 +122,10 @@ export function loadRackSession(): RackSession | null {
         bpm: typeof rawBpm === "number" && Number.isFinite(rawBpm)
           ? Math.max(20, Math.min(300, Math.round(rawBpm)))
           : 120,
+      },
+      mixer: {
+        master: sanitizeBusGain(rawMixer?.master, 0.8),
+        click: sanitizeBusGain(rawMixer?.click, 0.8),
       },
       ui: {
         mixerCollapsed: rawUi?.mixerCollapsed === true,

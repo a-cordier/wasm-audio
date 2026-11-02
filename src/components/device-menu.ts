@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { LitElement, html, css } from "lit";
-import { customElement } from "lit/decorators.js";
+import { customElement, property } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 
 import { pluginRegistry, PluginRegistration } from "../core/plugin-registry";
@@ -36,6 +36,11 @@ export const KIND_SECTIONS: Array<{ kind: DeviceKind; label: string }> = [
  */
 @customElement("device-menu")
 export class DeviceMenu extends LitElement {
+  /** Kinds to leave out — e.g. the mixer's picker omits sequencers, which
+   * never take a channel. Empty (the rail) shows everything. */
+  @property({ attribute: false })
+  omitKinds: DeviceKind[] = [];
+
   private onDragStart(e: DragEvent, pluginId: string) {
     e.dataTransfer?.setData("text/x-plugin-id", pluginId);
     if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
@@ -52,6 +57,7 @@ export class DeviceMenu extends LitElement {
   render() {
     const devices = pluginRegistry.getAll();
     const sections = KIND_SECTIONS
+      .filter(({ kind }) => !this.omitKinds.includes(kind))
       .map(({ kind, label }) => ({
         label,
         devices: devices.filter((reg) => reg.descriptor.kind === kind),
@@ -74,7 +80,7 @@ export class DeviceMenu extends LitElement {
       <button
         class="device-btn"
         draggable="true"
-        title="drag onto a + slot, or click to mount"
+        title="click to mount — or drag it into the rack or mixer"
         style=${styleMap({ "--device-accent": reg.descriptor.accent ?? "var(--lighter)" })}
         @dragstart=${(e: DragEvent) => this.onDragStart(e, reg.descriptor.id)}
         @click=${() => this.pick(reg.descriptor.id)}

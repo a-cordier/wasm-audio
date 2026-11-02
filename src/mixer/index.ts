@@ -1,3 +1,4 @@
 export { MixerEngine } from "./mixer-engine";
-export { CHANNEL_COUNT } from "./types";
-export type { ChannelState, MixerState } from "./types";
+export type { MixerChannel } from "./mixer-engine";
+export { MAX_CHANNELS, MASTER_ID, CLICK_ID, createDefaultStripState, sanitizeStripState, sanitizeBusGain } from "./types";
+export type { ChannelStripState } from "./types";

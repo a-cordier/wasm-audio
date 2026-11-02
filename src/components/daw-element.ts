@@ -15,6 +15,7 @@
  */
 import { LitElement, html, css, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import { classMap } from "lit/directives/class-map.js";
 
 import { createMidi, Midi } from "../midi/api";
 import { MidiBus } from "../midi/bus/bus";
@@ -29,7 +30,7 @@ import { RackSession, RackSlotEntry, loadRackSession, saveRackSession } from "..
 import { getBindingManager } from "../control/binding-manager";
 import { MidiControlAdapter } from "../control/adapters/midi-adapter";
 
-import { MixerEngine, CHANNEL_COUNT } from "../mixer";
+import { MixerEngine, ChannelStripState } from "../mixer";
 import { TransportController } from "../midi/transport/transport-controller";
 import { addWorkletModuleOnce } from "../runtime/worklet-modules";
 
@@ -104,7 +105,6 @@ export class Daw extends LitElement {
 
   private slotCounter = 0;
   private rowCounter = 0;
-  private mixerAssignments = new Map<string, number>();
   private sessionSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
   // First-gesture audio unlock: the context is born suspended (autoplay
@@ -165,6 +165,10 @@ export class Daw extends LitElement {
     const stored = loadRackSession();
     if (stored) {
       this.transport.setBpm(stored.transport?.bpm ?? 120);
+      if (stored.mixer) {
+        this.mixerEngine.setMasterGain(stored.mixer.master);
+        this.mixerEngine.setClickGain(stored.mixer.click);
+      }
       this.mixerCollapsed = stored.ui?.mixerCollapsed === true;
       this.browserOpen = stored.ui?.browserOpen !== false;
       await this.restoreSession(stored);
@@ -194,6 +198,9 @@ export class Daw extends LitElement {
     window.addEventListener("pagehide", this.onPageHide);
     window.addEventListener("pointerdown", this.unlockAudio);
     window.addEventListener("keydown", this.unlockAudio);
+    // A cancelled device drag fires no dragleave on the viewport — dragend
+    // on the source is the only reliable "it's over" signal.
+    window.addEventListener("dragend", this.onAnyDragEnd);
     this.addEventListener("change", this.onAnyControlChange);
     this.transport.addEventListener("transport-tempo", this.onAnyControlChange);
 
@@ -211,6 +218,7 @@ export class Daw extends LitElement {
     window.removeEventListener("pagehide", this.onPageHide);
     window.removeEventListener("pointerdown", this.unlockAudio);
     window.removeEventListener("keydown", this.unlockAudio);
+    window.removeEventListener("dragend", this.onAnyDragEnd);
     this.removeEventListener("change", this.onAnyControlChange);
     this.transport.removeEventListener("transport-tempo", this.onAnyControlChange);
     getBindingManager().removeEventListener("control-change", this.onAnyControlChange);
@@ -253,9 +261,9 @@ export class Daw extends LitElement {
     }
     this.slotCounter = 0;
     this.slotTree = createBranchSlot("root", "DAW", [this.newRow(slots)]);
-    for (const [index, slot] of this.leafSlots().entries()) {
+    for (const slot of this.leafSlots()) {
       await this.instantiateSlot(slot);
-      this.routeSlot(slot, index);
+      this.routeSlot(slot);
     }
   }
 
@@ -312,12 +320,8 @@ export class Daw extends LitElement {
           console.warn(`rack: could not restore state for ${entry.id}`, err);
         }
       }
-      const wanted = entry.mixerChannel;
-      const used = new Set(this.mixerAssignments.values());
-      const channel = wanted >= 0 && wanted < CHANNEL_COUNT && !used.has(wanted)
-        ? wanted
-        : this.allocateMixerChannel();
-      if (channel >= 0) this.routeSlot(slot, channel);
+      // Strip order follows slot order — the strip settings travel with it.
+      this.routeSlot(slot, entry.mixer);
       this.wireSync(slot.id, entry.sync);
     }
   }
@@ -336,7 +340,7 @@ export class Daw extends LitElement {
     return plugin;
   }
 
-  private routeSlot(slot: SlotConfig, channel: number) {
+  private routeSlot(slot: SlotConfig, restoredStrip?: ChannelStripState) {
     const plugin = this.plugins.get(slot.id);
     if (!plugin) return;
     // Sequencers never take an instrument channel: their only audio is the
@@ -347,20 +351,19 @@ export class Daw extends LitElement {
       }
       return;
     }
-    if (channel < 0) return;
-    this.mixerAssignments.set(slot.id, channel);
-    this.mixerEngine.setLabel(channel, slot.name);
+    const channel = this.mixerEngine.addChannel(
+      slot.id,
+      slot.name,
+      restoredStrip,
+      plugin.descriptor.accent
+    );
+    if (!channel) {
+      console.warn("rack: all mixer channels are in use");
+      return;
+    }
     if (isAudioProducer(plugin)) {
-      this.mixerEngine.setRouting(slot.id, plugin.getOutputNode(), [channel]);
+      this.mixerEngine.setRouting(slot.id, plugin.getOutputNode());
     }
-  }
-
-  private allocateMixerChannel(): number {
-    const used = new Set(this.mixerAssignments.values());
-    for (let ch = 0; ch < CHANNEL_COUNT; ch++) {
-      if (!used.has(ch)) return ch;
-    }
-    return -1;
   }
 
   private defaultChannelsFor(reg: PluginRegistration): Partial<Pick<SlotConfig, "midiChannel" | "outputChannel">> {
@@ -395,15 +398,14 @@ export class Daw extends LitElement {
       return null;
     }
     const needsChannel = reg.descriptor.kind !== "sequencer";
-    const channel = needsChannel ? this.allocateMixerChannel() : -1;
-    if (needsChannel && channel === -1) {
+    if (needsChannel && !this.mixerEngine.hasFreeChannel()) {
       console.warn("rack: all mixer channels are in use");
       return null;
     }
     const id = `slot-${++this.slotCounter}`;
     const slot = createLeafSlot(id, reg.descriptor.name, pluginId, this.defaultChannelsFor(reg));
     await this.instantiateSlot(slot);
-    this.routeSlot(slot, channel);
+    this.routeSlot(slot);
     const rows = [...(this.slotTree.children ?? [])];
     if (rows.length === 0) {
       rows.push(this.newRow([slot]));
@@ -431,10 +433,10 @@ export class Daw extends LitElement {
     }
 
     if (isTransportChild(plugin)) this.wireSync(slotId, false);
+    // The strip ramps itself silent before the graph is torn down; the
+    // CLICK-bus route (sequencers — they have no strip) unplugs alongside.
+    await this.mixerEngine.removeChannel(slotId);
     this.mixerEngine.clearRouting(slotId);
-    const channel = this.mixerAssignments.get(slotId);
-    if (channel !== undefined) this.mixerEngine.setLabel(channel, "");
-    this.mixerAssignments.delete(slotId);
 
     plugin.dispose();
     this.plugins.delete(slotId);
@@ -514,7 +516,7 @@ export class Daw extends LitElement {
           midiChannel: slot.midiChannel ?? "omni",
           outputChannel: slot.outputChannel ?? 0,
           inputDevice: slot.inputDevice ?? "internal",
-          mixerChannel: this.mixerAssignments.get(slot.id) ?? -1,
+          mixer: this.mixerEngine.getChannel(slot.id)?.strip,
           collapsed: slot.collapsed === true,
           sync: slot.sync === true,
           row: rowIndex,
@@ -527,6 +529,7 @@ export class Daw extends LitElement {
       slotCounter: this.slotCounter,
       slots,
       transport: { bpm: this.transport.bpm },
+      mixer: { master: this.mixerEngine.masterGain, click: this.mixerEngine.clickGain },
       ui: { mixerCollapsed: this.mixerCollapsed, browserOpen: this.browserOpen },
     });
   }
@@ -604,7 +607,12 @@ export class Daw extends LitElement {
           @device-mount=${this.onDeviceMount}
           @browser-toggle=${this.onBrowserToggle}
         ></device-browser>
-        <div class="rack-viewport">
+        <div
+          class=${classMap({ "rack-viewport": true, "drag-over": this.rackDragOver })}
+          @dragover=${this.onRackDragOver}
+          @dragleave=${this.onRackDragLeave}
+          @drop=${this.onRackDrop}
+        >
           <device-slot
             root
             @slot-move=${this.onSlotMove}
@@ -628,6 +636,7 @@ export class Daw extends LitElement {
         .engine=${this.mixerEngine}
         .collapsed=${this.mixerCollapsed}
         @mixer-collapse-changed=${this.onMixerCollapseChanged}
+        @device-mount=${this.onDeviceMount}
       ></mixer-element>
     `;
   }
@@ -635,6 +644,47 @@ export class Daw extends LitElement {
   private onDeviceMount(e: CustomEvent<{ pluginId: string }>) {
     void this.mountDevice(e.detail.pluginId);
   }
+
+  // --- Drop-anywhere mounting: the whole rack viewport takes menu drags ---
+  // Aiming for a prepared "+" slot is optional; a device dropped anywhere
+  // in the rack mounts at the end of the last row (same as a rail click).
+
+  @state()
+  private rackDragOver = false;
+
+  private static isPluginDrag(e: DragEvent): boolean {
+    return e.dataTransfer?.types.includes("text/x-plugin-id") ?? false;
+  }
+
+  private onRackDragOver = (e: DragEvent) => {
+    if (!Daw.isPluginDrag(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    if (!this.rackDragOver) this.rackDragOver = true;
+  };
+
+  private onRackDragLeave = (e: DragEvent) => {
+    // dragleave fires on every child transition — only clear when the
+    // pointer actually left the viewport's box.
+    const viewport = this.shadowRoot?.querySelector(".rack-viewport");
+    if (!viewport) return;
+    const r = viewport.getBoundingClientRect();
+    if (e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom) return;
+    this.rackDragOver = false;
+  };
+
+  private onRackDrop = (e: DragEvent) => {
+    this.rackDragOver = false;
+    // A prepared slot that already took this drop prevented it first.
+    if (!Daw.isPluginDrag(e) || e.defaultPrevented) return;
+    e.preventDefault();
+    const pluginId = e.dataTransfer?.getData("text/x-plugin-id");
+    if (pluginId) void this.mountDevice(pluginId);
+  };
+
+  private onAnyDragEnd = () => {
+    if (this.rackDragOver) this.rackDragOver = false;
+  };
 
   private onBrowserToggle(e: CustomEvent<{ open: boolean }>) {
     this.browserOpen = e.detail.open;
@@ -680,6 +730,13 @@ export class Daw extends LitElement {
         padding: 24px;
         box-sizing: border-box;
         scrollbar-width: thin;
+      }
+
+      /* A device drag from the menu lights the whole viewport up as the
+       * drop zone — the prepared "+" slots are an invitation, not a target
+       * you have to hit. */
+      .rack-viewport.drag-over {
+        box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--lcd-led-on-color, #b4d455) 45%, transparent);
       }
 
       .power-overlay {

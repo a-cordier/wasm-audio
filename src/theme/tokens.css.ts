@@ -120,6 +120,7 @@ export const darkTheme = `
     --mixer-btn-bg: var(--medium);
     --mixer-btn-color: var(--light-secondary);
     --mixer-db-color: var(--light-secondary);
+    --mixer-strip-max-width: 96px;
 
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);
@@ -237,6 +238,7 @@ export const retroTheme = `
     --mixer-btn-bg: var(--medium);
     --mixer-btn-color: var(--light-secondary);
     --mixer-db-color: var(--light-secondary);
+    --mixer-strip-max-width: 96px;
 
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);

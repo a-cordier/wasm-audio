@@ -29,6 +29,8 @@ import { Channel, Disposable, INTERNAL_SOURCE, MidiEvent, RouteFilter, Status } 
 import { isNoteOn, isNoteOff } from "../../midi/codec/decode";
 import { getBindingManager } from "../../control/binding-manager";
 import { MixerEngine } from "../../mixer";
+import "../device-picker";
+import { DevicePicker, PickerAnchor } from "../device-picker";
 
 /** Label for the synthetic slot holding the user's own working state. */
 const USER_PRESET = "USER";
@@ -69,9 +71,6 @@ export class DeviceSlot extends LitElement {
   audioContext?: AudioContext;
 
   @property({ attribute: false })
-  parentOutput?: AudioNode;
-
-  @property({ attribute: false })
   mixerEngine?: MixerEngine;
 
   @property({ attribute: false })
@@ -103,7 +102,6 @@ export class DeviceSlot extends LitElement {
   // factory presets can never destroy it.
   private userSnapshot: unknown | null = null;
 
-  private mixNode: GainNode | null = null;
   private busSubscription: Disposable | null = null;
   private activeNotes = new Set<number>();
   private portChangeCleanup: (() => void) | null = null;
@@ -122,7 +120,7 @@ export class DeviceSlot extends LitElement {
   }
 
   updated(changed: Map<string, unknown>) {
-    if (changed.has("config") || changed.has("plugin") || changed.has("bus") || changed.has("audioContext") || changed.has("parentOutput") || changed.has("mixerEngine")) {
+    if (changed.has("config") || changed.has("plugin") || changed.has("bus") || changed.has("audioContext") || changed.has("mixerEngine")) {
       // Unwire the outgoing plugin on swap, or its audio stays connected and
       // its mixer routing keeps pointing at a device this slot no longer hosts.
       if (this.wiredPlugin && this.wiredPlugin !== this.plugin) {
@@ -132,7 +130,6 @@ export class DeviceSlot extends LitElement {
         this.mixerEngine?.clearRouting(this.config.id);
       }
       this.wiredPlugin = this.plugin ?? null;
-      this.wireAudio();
       this.wireRouting();
       this.setupCoreFeatures();
     }
@@ -145,29 +142,6 @@ export class DeviceSlot extends LitElement {
     super.disconnectedCallback();
     this.resizeObserver.disconnect();
     this.teardown();
-  }
-
-  private wireAudio() {
-    if (!this.audioContext) return;
-
-    if (this.config?.mode === "leaf" && this.plugin && isInstrumentPlugin(this.plugin)) {
-      if (this.mixerEngine != null) {
-        return;
-      }
-
-      (this.plugin as InstrumentPlugin).disconnectAudio();
-      if (!this.mixNode) this.mixNode = new GainNode(this.audioContext);
-      this.mixNode.disconnect();
-      this.mixNode.connect(this.parentOutput ?? this.audioContext.destination);
-      (this.plugin as InstrumentPlugin).connectAudio(this.mixNode);
-      return;
-    }
-
-    if (this.config?.mode === "branch") {
-      if (!this.mixNode) this.mixNode = new GainNode(this.audioContext);
-      this.mixNode.disconnect();
-      this.mixNode.connect(this.parentOutput ?? this.audioContext.destination);
-    }
   }
 
   private wireRouting() {
@@ -230,7 +204,6 @@ export class DeviceSlot extends LitElement {
     this.activeNotes.clear();
     this.portChangeCleanup?.();
     this.portChangeCleanup = null;
-    this.mixNode?.disconnect();
     this.wiredPlugin = null;
     this.teardownCoreFeatures();
   }
@@ -459,6 +432,7 @@ export class DeviceSlot extends LitElement {
             @dragleave=${() => { this.newRowOver = false; }}
             @drop=${this.onNewRowDrop}
           >drop a device here for a new row</div>
+          ${this.renderDevicePicker()}
         </div>
       `;
     }
@@ -478,23 +452,58 @@ export class DeviceSlot extends LitElement {
         ${this.showAddTile
           ? Array.from({ length: this.preparedSlotCount(children.length) }, (_, i) => this.renderPreparedSlot(i))
           : nothing}
+        ${this.renderDevicePicker()}
       </div>
     `;
   }
 
   /** Prepared "+" slots pad the last row to the line capacity the screen
    * offers (always at least one) — each is a drop target for a device
-   * dragged from the menu, and mounts land exactly where the slot sits. */
+   * dragged from the menu AND a button: clicking pops the shared
+   * device-picker over the slot. Mounts land where the slot sits. */
   private renderPreparedSlot(index: number) {
     return html`
-      <div
+      <button
         class=${classMap({ "prepared-slot": true, over: this.plugOverIndex === index })}
+        title="add a device — click, or drop one from the rail"
+        @click=${this.onPreparedClick}
         @dragover=${(e: DragEvent) => this.onPlugDragOver(e, index)}
         @dragleave=${() => { if (this.plugOverIndex === index) this.plugOverIndex = -1; }}
         @drop=${this.onPlugDrop}
       >
         <span class="prepared-plus">+</span>
-      </div>
+      </button>
+    `;
+  }
+
+  @state()
+  private pickerAnchor: PickerAnchor | null = null;
+
+  private onPreparedClick = (e: MouseEvent) => {
+    this.pickerAnchor = DevicePicker.anchorFor((e.currentTarget as HTMLElement).getBoundingClientRect());
+  };
+
+  private closePicker = () => {
+    if (this.pickerAnchor !== null) this.pickerAnchor = null;
+  };
+
+  private onPickerPick = (e: CustomEvent<{ pluginId: string }>) => {
+    e.stopPropagation();
+    this.closePicker();
+    this.dispatchEvent(new CustomEvent("device-mount", {
+      detail: { pluginId: e.detail.pluginId },
+      bubbles: true,
+      composed: true,
+    }));
+  };
+
+  private renderDevicePicker() {
+    return html`
+      <device-picker
+        .anchor=${this.pickerAnchor}
+        @device-pick=${this.onPickerPick}
+        @picker-close=${this.closePicker}
+      ></device-picker>
     `;
   }
 
@@ -547,7 +556,6 @@ export class DeviceSlot extends LitElement {
         .midi=${this.midi}
         .audioContext=${this.audioContext}
         .mixerEngine=${this.mixerEngine}
-        .parentOutput=${this.mixNode}
         .selectedSlotIds=${this.selectedSlotIds}
       ></device-slot>
     `;
@@ -917,8 +925,9 @@ export class DeviceSlot extends LitElement {
       opacity: 0.45;
     }
 
-    /* A prepared slot: an empty rack bay inviting a device — drag one in
-     * from the menu (or click a rail entry). Stretches to its line height. */
+    /* A prepared slot: an empty rack bay inviting a device — drop one from
+     * the menu, or click to pop the device picker. Stretches to its line
+     * height. */
     .prepared-slot {
       width: var(--rack-slot-width, calc(650px + 3em));
       max-width: 100%;
@@ -927,9 +936,12 @@ export class DeviceSlot extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 0;
+      background: transparent;
       border: 2px dashed var(--browser-rail-border, #2b3844);
       border-radius: 0.5rem;
       opacity: 0.45;
+      cursor: pointer;
       transition: opacity 0.15s, border-color 0.15s, background 0.15s;
     }
 

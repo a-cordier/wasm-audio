@@ -1,7 +1,11 @@
 import { LitElement, html, css, nothing, PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { MixerEngine, CHANNEL_COUNT } from "../../mixer";
+import { classMap } from "lit/directives/class-map.js";
+import { repeat } from "lit/directives/repeat.js";
+import { MixerEngine, MASTER_ID, CLICK_ID, MAX_CHANNELS } from "../../mixer";
 import "./channel-strip";
+import "../device-picker";
+import { DevicePicker, PickerAnchor } from "../device-picker";
 
 @customElement("mixer-element")
 export class MixerElement extends LitElement {
@@ -12,8 +16,8 @@ export class MixerElement extends LitElement {
   @property({ type: Boolean })
   collapsed = false;
 
-
-  @state() private meterLevels: number[] = new Array(CHANNEL_COUNT + 2).fill(0);
+  /** Peak level per strip id (slot ids + the MASTER/CLICK bus ids). */
+  @state() private meterLevels = new Map<string, number>();
 
   private rafId = 0;
 
@@ -26,6 +30,7 @@ export class MixerElement extends LitElement {
   disconnectedCallback(): void {
     super.disconnectedCallback();
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    this.engine?.removeEventListener("channels-changed", this.onChannelsChanged);
     cancelAnimationFrame(this.rafId);
   }
 
@@ -34,9 +39,21 @@ export class MixerElement extends LitElement {
     if (!document.hidden && !this.collapsed) this.startMetering();
   };
 
+  /** Strips follow mount/unmount — the engine says when the list moved. */
+  private onChannelsChanged = () => {
+    this.requestUpdate();
+  };
+
   // Meters only draw while the dock is open — a folded mixer keeps playing
   // but spends no frames on analysers.
   protected updated(changed: PropertyValues): void {
+    if (changed.has("engine")) {
+      (changed.get("engine") as MixerEngine | undefined)?.removeEventListener(
+        "channels-changed",
+        this.onChannelsChanged
+      );
+      this.engine?.addEventListener("channels-changed", this.onChannelsChanged);
+    }
     if (changed.has("collapsed")) {
       cancelAnimationFrame(this.rafId);
       if (!this.collapsed && !document.hidden) this.startMetering();
@@ -53,62 +70,150 @@ export class MixerElement extends LitElement {
 
   private startMetering(): void {
     const update = () => {
-      if (this.engine) {
-        // Only routed channels carry signal, so the rest report 0 without an
-        // analyser read; and when no level moved, skip the state write so a
-        // silent mixer does not re-render its strips every frame.
-        const active = this.engine.getActiveChannels();
-        const levels = new Array(CHANNEL_COUNT + 2).fill(0);
-        for (const i of active) {
-          const [l, r] = this.engine.getMeterLevel(i);
-          levels[i] = Math.max(l, r);
+      const engine = this.engine;
+      if (engine) {
+        // Every strip has a mounted device behind it, so read them all; when
+        // no level moved, skip the state write so a silent mixer does not
+        // re-render its strips every frame.
+        const next = new Map<string, number>();
+        for (const ch of engine.channels) {
+          const [l, r] = engine.getMeterLevel(ch.slotId);
+          next.set(ch.slotId, Math.max(l, r));
         }
-        const [ml, mr] = this.engine.getMasterMeterLevel();
-        levels[CHANNEL_COUNT] = Math.max(ml, mr);
-        const [cl, cr] = this.engine.getClickMeterLevel();
-        levels[CHANNEL_COUNT + 1] = Math.max(cl, cr);
-        if (levels.some((v, i) => v !== this.meterLevels[i])) {
-          this.meterLevels = levels;
+        const [ml, mr] = engine.getMasterMeterLevel();
+        next.set(MASTER_ID, Math.max(ml, mr));
+        const [cl, cr] = engine.getClickMeterLevel();
+        next.set(CLICK_ID, Math.max(cl, cr));
+
+        let changed = next.size !== this.meterLevels.size;
+        if (!changed) {
+          for (const [id, level] of next) {
+            if (this.meterLevels.get(id) !== level) {
+              changed = true;
+              break;
+            }
+          }
         }
+        if (changed) this.meterLevels = next;
       }
       this.rafId = requestAnimationFrame(update);
     };
     this.rafId = requestAnimationFrame(update);
   }
 
+  // Strip edits land in the engine, then bubble a composed "change" so the
+  // shell snapshots the session (mixer state persists with the slots).
+  private notifyMixerChanged() {
+    this.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+  }
+
   private onGainChange(e: CustomEvent) {
-    const { index, value } = e.detail;
-    if (index === -1) {
+    const { id, value } = e.detail;
+    if (id === MASTER_ID) {
       this.engine?.setMasterGain(value);
-    } else if (index === -2) {
+    } else if (id === CLICK_ID) {
       this.engine?.setClickGain(value);
     } else {
-      this.engine?.setGain(index, value);
+      this.engine?.setGain(id, value);
     }
+    this.notifyMixerChanged();
     this.requestUpdate();
   }
 
   private onPanChange(e: CustomEvent) {
-    const { index, value } = e.detail;
-    this.engine?.setPan(index, value);
+    const { id, value } = e.detail;
+    this.engine?.setPan(id, value);
+    this.notifyMixerChanged();
     this.requestUpdate();
   }
 
   private onMuteChange(e: CustomEvent) {
-    const { index, value } = e.detail;
-    this.engine?.setMute(index, value);
+    const { id, value } = e.detail;
+    this.engine?.setMute(id, value);
+    this.notifyMixerChanged();
     this.requestUpdate();
   }
 
   private onSoloChange(e: CustomEvent) {
-    const { index, value } = e.detail;
-    this.engine?.setSolo(index, value);
+    const { id, value } = e.detail;
+    this.engine?.setSolo(id, value);
+    this.notifyMixerChanged();
     this.requestUpdate();
   }
 
+  // --- Prepared channels: the unused desk capacity stays visible ---
+  // Empty strips pad the board to MAX_CHANNELS, mirroring the rack's
+  // prepared "+" slots: each is a drop target for a device dragged off the
+  // rail, and a BUTTON — clicking pops the shared device-picker over the
+  // cell and picking mounts there (the strip takes the first prepared cell).
+
+  @state()
+  private ghostOverIndex = -1;
+
+  @state()
+  private pickerAnchor: PickerAnchor | null = null;
+
+  private static isPluginDrag(e: DragEvent): boolean {
+    return e.dataTransfer?.types.includes("text/x-plugin-id") ?? false;
+  }
+
+  private onGhostDragOver(e: DragEvent, index: number) {
+    if (!MixerElement.isPluginDrag(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    if (this.ghostOverIndex !== index) this.ghostOverIndex = index;
+  }
+
+  private onGhostDrop = (e: DragEvent) => {
+    if (!MixerElement.isPluginDrag(e)) return;
+    e.preventDefault();
+    this.ghostOverIndex = -1;
+    const pluginId = e.dataTransfer?.getData("text/x-plugin-id");
+    if (!pluginId) return;
+    this.mountPicked(pluginId);
+  };
+
+  private mountPicked(pluginId: string) {
+    this.dispatchEvent(new CustomEvent("device-mount", {
+      detail: { pluginId },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  private onGhostClick(e: MouseEvent) {
+    this.pickerAnchor = DevicePicker.anchorFor((e.currentTarget as HTMLElement).getBoundingClientRect());
+  }
+
+  private closePicker = () => {
+    if (this.pickerAnchor !== null) this.pickerAnchor = null;
+  };
+
+  private onPickerPick = (e: CustomEvent<{ pluginId: string }>) => {
+    e.stopPropagation();
+    this.closePicker();
+    this.mountPicked(e.detail.pluginId);
+  };
+
+  private renderGhostStrips(used: number) {
+    const count = Math.max(0, MAX_CHANNELS - used);
+    return Array.from({ length: count }, (_, i) => html`
+      <button
+        class=${classMap({ "ghost-strip": true, over: this.ghostOverIndex === i })}
+        title="add a device — click, or drop one from the rail"
+        @click=${this.onGhostClick}
+        @dragover=${(e: DragEvent) => this.onGhostDragOver(e, i)}
+        @dragleave=${() => { if (this.ghostOverIndex === i) this.ghostOverIndex = -1; }}
+        @drop=${this.onGhostDrop}
+      >
+        <span class="ghost-plus">+</span>
+      </button>
+    `);
+  }
+
   render() {
-    const state = this.engine?.state;
-    if (!state) return html``;
+    const engine = this.engine;
+    if (!engine) return html``;
 
     return html`
       <div class="mixer-panel">
@@ -123,48 +228,55 @@ export class MixerElement extends LitElement {
         ${this.collapsed ? nothing : html`
         <div class="mixer-body">
           <div class="channels-scroll">
-            ${state.channels.map(
-              (ch, i) => html`
-                <channel-strip
-                  .channelIndex=${i}
-                  .label=${ch.label}
-                  .gain=${ch.gain}
-                  .pan=${ch.pan}
-                  .mute=${ch.mute}
-                  .solo=${ch.solo}
-                  .meterLevel=${this.meterLevels[i] ?? 0}
-                  @gain-change=${this.onGainChange}
-                  @pan-change=${this.onPanChange}
-                  @mute-change=${this.onMuteChange}
-                  @solo-change=${this.onSoloChange}
-                ></channel-strip>
-              `
-            )}
+            ${repeat(engine.channels, (ch) => ch.slotId, (ch) => html`
+              <channel-strip
+                .channelId=${ch.slotId}
+                .label=${ch.label}
+                .accent=${ch.accent ?? ""}
+                .gain=${ch.strip.gain}
+                .pan=${ch.strip.pan}
+                .mute=${ch.strip.mute}
+                .solo=${ch.strip.solo}
+                .meterLevel=${this.meterLevels.get(ch.slotId) ?? 0}
+                @gain-change=${this.onGainChange}
+                @pan-change=${this.onPanChange}
+                @mute-change=${this.onMuteChange}
+                @solo-change=${this.onSoloChange}
+              ></channel-strip>
+            `)}
+            ${this.renderGhostStrips(engine.channels.length)}
           </div>
           <div class="master-section">
             <channel-strip
-              .channelIndex=${-2}
+              .channelId=${CLICK_ID}
               .master=${true}
               .label=${"CLICK"}
-              .gain=${state.clickGain}
+              .gain=${engine.clickGain}
               .pan=${0}
               .mute=${false}
               .solo=${false}
-              .meterLevel=${this.meterLevels[CHANNEL_COUNT + 1] ?? 0}
+              .meterLevel=${this.meterLevels.get(CLICK_ID) ?? 0}
               @gain-change=${this.onGainChange}
             ></channel-strip>
             <channel-strip
-              .channelIndex=${-1}
+              .channelId=${MASTER_ID}
               .master=${true}
-              .gain=${state.masterGain}
+              .gain=${engine.masterGain}
               .pan=${0}
               .mute=${false}
               .solo=${false}
-              .meterLevel=${this.meterLevels[CHANNEL_COUNT] ?? 0}
+              .meterLevel=${this.meterLevels.get(MASTER_ID) ?? 0}
               @gain-change=${this.onGainChange}
             ></channel-strip>
           </div>
         </div>`}
+        <device-picker
+          heading="ADD TO MIXER"
+          .anchor=${this.pickerAnchor}
+          .omitKinds=${["sequencer"] as const}
+          @device-pick=${this.onPickerPick}
+          @picker-close=${this.closePicker}
+        ></device-picker>
       </div>
     `;
   }
@@ -218,15 +330,56 @@ export class MixerElement extends LitElement {
       overflow: hidden;
     }
 
-    /* Strips share the full dock width — contiguous desk cells, no gaps,
-     * falling back to horizontal scrolling when squeezed. */
+    /* Strips share the dock width — contiguous desk cells, no gaps, growing
+     * only to the desk-cell cap (a two-device board is not two huge strips)
+     * and falling back to horizontal scrolling when squeezed. */
     .channels-scroll > channel-strip {
       flex: 1 1 0;
       min-width: 44px;
+      max-width: var(--mixer-strip-max-width, 96px);
     }
 
     .master-section > channel-strip {
       width: 64px;
+    }
+
+    /* A prepared channel: an empty desk cell inviting a device — same
+     * affordance as the rack's prepared "+" slots, but also a real button:
+     * clicking pops the device menu over the cell. */
+    .ghost-strip {
+      flex: 1 1 0;
+      min-width: 44px;
+      max-width: var(--mixer-strip-max-width, 96px);
+      border: none;
+      border-right: var(--mixer-strip-border, 1px solid #2b3844);
+      padding: 0;
+      background: color-mix(in srgb, var(--mixer-strip-bg, #192734) 45%, var(--mixer-bg, #141414));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      opacity: 0.45;
+      cursor: pointer;
+      transition: opacity 0.15s, background 0.15s;
+    }
+
+    .ghost-strip.over,
+    .ghost-strip:hover {
+      opacity: 1;
+      background: color-mix(in srgb, var(--lcd-led-on-color, #b4d455) 8%, var(--mixer-bg, #141414));
+    }
+
+    .ghost-plus {
+      font-family: var(--main-panel-label-font-family, "Bungee Outline", cursive);
+      font-size: 1.1em;
+      line-height: 1;
+      color: var(--lcd-led-on-color, #b4d455);
+      opacity: 0.6;
+    }
+
+    .ghost-strip.over .ghost-plus,
+    .ghost-strip:hover .ghost-plus {
+      opacity: 1;
     }
 
     .channels-scroll {
@@ -251,6 +404,7 @@ export class MixerElement extends LitElement {
       display: flex;
       border-left: 2px solid var(--mixer-fader-track, #2b3844);
       flex-shrink: 0;
+      margin-left: auto;
     }
   `;
 }

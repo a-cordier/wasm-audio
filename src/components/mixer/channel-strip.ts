@@ -8,8 +8,11 @@ const FADER_MAX = 127;
 
 @customElement("channel-strip")
 export class ChannelStrip extends LitElement {
-  @property({ type: Number }) channelIndex = 0;
+  /** Channel identity — a slot id, or the reserved MASTER/CLICK bus ids. */
+  @property({ type: String }) channelId = "";
   @property({ type: String }) label = "";
+  /** Device accent (CSS color or var()) — tints the nameplate underline. */
+  @property({ type: String }) accent = "";
   @property({ type: Number }) gain = 0.8;
   @property({ type: Number }) pan = 0;
   @property({ type: Boolean }) mute = false;
@@ -19,24 +22,24 @@ export class ChannelStrip extends LitElement {
 
   private onFaderChange(e: CustomEvent) {
     const value = e.detail.value / FADER_MAX;
-    this.dispatchEvent(new CustomEvent("gain-change", { detail: { index: this.channelIndex, value } }));
+    this.dispatchEvent(new CustomEvent("gain-change", { detail: { id: this.channelId, value } }));
   }
 
   private onPanInput(e: InputEvent) {
     const value = parseFloat((e.target as HTMLInputElement).value);
-    this.dispatchEvent(new CustomEvent("pan-change", { detail: { index: this.channelIndex, value } }));
+    this.dispatchEvent(new CustomEvent("pan-change", { detail: { id: this.channelId, value } }));
   }
 
   private onMuteClick() {
-    this.dispatchEvent(new CustomEvent("mute-change", { detail: { index: this.channelIndex, value: !this.mute } }));
+    this.dispatchEvent(new CustomEvent("mute-change", { detail: { id: this.channelId, value: !this.mute } }));
   }
 
   private onSoloClick() {
-    this.dispatchEvent(new CustomEvent("solo-change", { detail: { index: this.channelIndex, value: !this.solo } }));
+    this.dispatchEvent(new CustomEvent("solo-change", { detail: { id: this.channelId, value: !this.solo } }));
   }
 
   private get dbDisplay(): string {
-    if (this.gain <= 0) return "-\u221E";
+    if (this.gain <= 0) return "-∞";
     const db = 20 * Math.log10(this.gain);
     return db.toFixed(1);
   }
@@ -45,10 +48,16 @@ export class ChannelStrip extends LitElement {
     const muteClasses = { "ctrl-btn": true, mute: true, active: this.mute };
     const soloClasses = { "ctrl-btn": true, solo: true, active: this.solo };
     const faderValue = Math.round(this.gain * FADER_MAX);
+    // Conditional relevance: the fixed buses have no pan/mute/solo — the
+    // controls stay in place and ghost rather than leave the layout.
+    const busTitle = this.master ? "not available on this bus" : "";
 
     return html`
       <div class="strip ${this.master ? "master" : ""}">
-        <div class="label">${this.master ? (this.label || "MASTER") : this.label || `CH ${this.channelIndex + 1}`}</div>
+        <div
+          class="label"
+          style=${this.accent ? `border-bottom-color: ${this.accent}` : ""}
+        >${this.master ? (this.label || "MASTER") : this.label}</div>
         <fader-element
           style="--meter-level: ${this.meterLevel}"
           .value=${faderValue}
@@ -59,12 +68,14 @@ export class ChannelStrip extends LitElement {
           <input type="range" class="pan-slider"
             min="-1" max="1" step="0.01"
             .value=${String(this.pan)}
+            ?disabled=${this.master}
+            title=${busTitle}
             @input=${this.onPanInput}
           />
         </div>
         <div class="btn-row">
-          <button class=${classMap(muteClasses)} @click=${this.onMuteClick}>M</button>
-          <button class=${classMap(soloClasses)} @click=${this.onSoloClick}>S</button>
+          <button class=${classMap(muteClasses)} ?disabled=${this.master} title=${busTitle} @click=${this.onMuteClick}>M</button>
+          <button class=${classMap(soloClasses)} ?disabled=${this.master} title=${busTitle} @click=${this.onSoloClick}>S</button>
         </div>
         <div class="db-readout">${this.dbDisplay} dB</div>
       </div>
@@ -109,6 +120,8 @@ export class ChannelStrip extends LitElement {
       width: 100%;
       line-height: 1.2;
       min-height: 12px;
+      border-bottom: 2px solid transparent;
+      box-sizing: border-box;
     }
 
     fader-element {
@@ -130,6 +143,11 @@ export class ChannelStrip extends LitElement {
       background: var(--mixer-fader-track, #2b3844);
       border-radius: 3px;
       outline: none;
+    }
+
+    .pan-slider:disabled {
+      opacity: 0.3;
+      cursor: default;
     }
 
     .pan-slider::-webkit-slider-thumb {
@@ -170,6 +188,11 @@ export class ChannelStrip extends LitElement {
       padding: 0;
       line-height: 18px;
       text-align: center;
+    }
+
+    .ctrl-btn:disabled {
+      opacity: 0.3;
+      cursor: default;
     }
 
     .ctrl-btn.mute.active {
