@@ -77,7 +77,6 @@ export class EchoElement extends LitElement {
             ${this.knob("FDBK", ControlID.ECHO_FEEDBACK, this.delay.feedback.value, (v) => this.controller.setFeedback(v))}
             ${this.knob("TONE", ControlID.ECHO_TONE, this.delay.tone.value, (v) => this.controller.setTone(v))}
           </div>
-          <div class="hint">send from any channel — returns on this strip, 100% wet</div>
         </div>
       </div>
     `;
@@ -138,14 +137,6 @@ export class EchoElement extends LitElement {
       gap: 0.8em;
       --knob-size: 34px;
       --control-label-font-size: 0.62em;
-    }
-
-    .hint {
-      font-size: 0.55em;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: var(--light-secondary);
-      opacity: 0.55;
     }
   `;
 }
