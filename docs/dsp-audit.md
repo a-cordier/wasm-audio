@@ -39,9 +39,16 @@ before acting on old line numbers.
   exactly ON the anchor (measured 0.00 ms, 3/3 runs; two synced children
   stamp the identical downbeat frame regardless of `__start` arrival
   jitter).
-- **Item 5 (mixer)**: fader is a linear-amplitude taper with a dB readout
-  (top half of the fader spans 6 dB); per-filter-model level trim
-  (MOOG/ACID/SCREAM/KORG differ audibly at high res); a master limiter.
+- **Item 5 (mixer)** — **RESOLVED 2026-11-02**: desk fader law replaced the
+  linear-amplitude taper (`mixer/fader-law.ts`: +6 dB top, unity at 3/4
+  throw, −∞ at 0; state stays linear amplitude, signed dB readout);
+  per-filter-model trims in the monolog kernel (post-saturator: SCREAM
+  −1.5 dB, KORG +0.5 dB — measured <1 dB spread at three reference patches);
+  master safety limiter (hard-knee DynamicsCompressor, −3 dB/20:1/3 ms,
+  GR LED on the MASTER strip). Bonus finding fixed en route: Web Audio
+  lowpass **Q is in dB** — the echo's "zero" Q peaked +1.25 dB and
+  self-oscillated in the feedback loop (now Butterworth −3.01 dB, plus a
+  4x-oversampled tanh loop saturator).
 - **Item 3 (shell)**: ramp controller `output` gains to zero before
   `disconnectAudio()` on unmount/swap (instant graph teardown cuts
   mid-waveform; the GainNode exists on all controllers and its gain is never

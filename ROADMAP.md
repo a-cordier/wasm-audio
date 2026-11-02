@@ -84,22 +84,26 @@ transport, CYCLE ghosts off non-square waves. `--rack-slot-width`
 tokenized; AudioContext unlock shipped with item 4 (power-on overlay).
 Item 5 lands into the docked mixer instead of being styled twice.
 
-### 5. [ ] Mixer: dynamic routing, EQ, effect loops, audio input
-- Channel assignment follows mount/unmount (routing is already slot-keyed
-  in [mixer-engine.ts](src/mixer/mixer-engine.ts); it must become dynamic).
-  (A routed-only strip view was tried in 4b and rolled back — the user
-  prefers the full-width board; revisit presentation here.)
-- **Per-track EQ**: 3-band (low shelf / mid peak / high shelf) as chained
-  BiquadFilterNodes between channel input and fader — the first resident of
-  the per-channel insert chain, native nodes, smoothly ramped AudioParams.
-- Effect sends/returns (loops) and insert chains per channel.
-- **Audio input as a DEVICE**: an "AUDIO IN" browser entry (descriptor kind
-  "input") wrapping getUserMedia → MediaStreamAudioSourceNode behind the
-  standard getOutputNode() — mounts/routes/folds/persists like any device.
-  Handle: permission flow, input selection (enumerateDevices), mono→stereo,
-  and feedback protection (per-channel monitor mute). Opens recording later.
-- Prove the plumbing with one minimal effect device (e.g. a delay) — the
-  full effects suite is item 8.
+### 5. [x] Mixer: dynamic routing, EQ, effect loops, audio input — done 2026-11-02
+Six QA'd batches. Channels are dynamic (slot-keyed, created on mount, ramped
+silent on eject) and the full-width board pads its unused capacity with
+prepared strips — clickable (shared `device-picker`, also on rack "+" slots)
+and drop targets, with devices droppable anywhere on the rack. Per-channel
+insert chain landed with its first resident (3-band EQ: low shelf 120 Hz,
+sweepable mid, high shelf 8 kHz, ±15 dB); desk fader law (+6 dB headroom,
+unity at 3/4 throw) with the state kept in linear amplitude; master safety
+limiter + GR LED. Effect loops proved with ECHO (`src/devices/echo`, native
+tape delay — Butterworth tone after a lowpass-Q-is-in-dB self-oscillation
+bug, tanh loop saturator): one post-fader send bus per mounted effect, the
+return on the effect's own ⏎ channel, and **returns never send** (cross-
+sending returns measured a ×10^8 runaway cycle). AUDIO IN shipped as a
+device (gesture-driven permission, LCD input stepper, MONITOR gate default
+OFF, tracks stopped on eject). Mixer state persists per slot (gain/pan/mute/
+solo/eq/sends, pruned) + master/click on the session; legacy sessions load.
+Monolog's four filter models level-matched in the kernel (<1 dB spread,
+post-saturator trims). Duplicate mounts auto-number; `src/devices/*` joined
+the conventions guard. **MIDI-learn persistence and effect chaining (cycle-
+aware sends) deliberately deferred** — items 8+.
 
 ## Phase 2 — DAW modules
 

@@ -58,7 +58,15 @@ that already wires every item below. Rename `template`→`<synth>`, adjust param
 done. The list here is the contract it satisfies:
 
 - **Registration** — `instruments/<synth>/register.ts` calls
-  `pluginRegistry.register({ descriptor:{id,name,kind,accent,type}, controllerFactory, elementTag, workletModules, keyboardOctaveShift })`; add `import "../instruments/<synth>/register"` to `src/components/daw-element.ts`. `kind` ("instrument"/"sequencer") and `accent` (the device's CSS var, e.g. `var(--<synth>-accent)`) feed the device browser; the controller's own `descriptor` literal must match.
+  `pluginRegistry.register({ descriptor:{id,name,kind,accent,type}, controllerFactory, elementTag, workletModules, keyboardOctaveShift })`; add `import "../instruments/<synth>/register"` to `src/components/daw-element.ts`. `kind` ("instrument"/"sequencer"/"effect"/"input") and `accent` (the device's CSS var, e.g. `var(--<synth>-accent)`) feed the device browser; the controller's own `descriptor` literal must match.
+- **Non-instrument devices** (effects, inputs) live under `src/devices/<id>/`
+  — same shape minus the worklet when native WebAudio nodes suffice (see
+  `src/devices/echo`, `src/devices/audio-in`; the conventions guard scans both
+  trees). A `kind:"effect"` device additionally implements the `AudioEffect`
+  contract (`getInputNode()` — the mixer's send bus feeds it; its output
+  returns on its own ⏎ channel, which **never sends**). A `kind:"input"`
+  device never auto-opens capture on mount — acquisition is gesture-driven
+  from its panel.
 - **Serve the worklet** — add each `workletModules` file to the `workletFiles` map in `vite.config.ts`, or `addModule()` 404s in dev and build.
 - **Params** — a `ParamId` enum ending in `PARAM_COUNT`; the alignment trio above.
 - **Node** — sizes a `SharedParamBuffer(ParamId.PARAM_COUNT)`, loads the worklet module, owns `setParam`.

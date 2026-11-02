@@ -42,13 +42,40 @@ width lives in `--rack-slot-width` — never hardcode it. Dock/rail states persi
 persist per slot entry.
 
 **The shell owns the rack**: daw-element mounts/unmounts devices at runtime
-(`mountDevice`/`unmountSlot` — instantiate → route on a free mixer channel;
-ramp silent → dispose → unroute), and the whole session persists
+(`mountDevice`/`unmountSlot` — instantiate → route on a dynamic mixer
+channel; ramp silent → dispose → unroute), and the whole session persists
 (`core/rack-storage.ts`: layout + per-device state snapshots; sequels
-self-persists). Slots fold to their header strip (device keeps running) and
-hold-to-eject unmounts. **KB arming gates ALL computer-keyboard input** to a
-device — notes and document-level shortcuts alike (sequels' transport keys
-check the armed flag); N armed devices all respond.
+self-persists). Duplicate mounts auto-number ("ECHO 2") — slot names flow to
+rack headers, strip nameplates and send-knob labels. Slots fold to their
+header strip (device keeps running) and hold-to-eject unmounts. **KB arming
+gates ALL computer-keyboard input** to a device — notes and document-level
+shortcuts alike (sequels' transport keys check the armed flag); N armed
+devices all respond. Non-instrument devices (effects, inputs) live under
+`src/devices/*` — same registration conventions, scanned by the conventions
+guard; the picker/mount affordances are everywhere: rail entries (click or
+drag), prepared "+" slots in the rack AND prepared mixer strips (click pops
+the shared `device-picker`), or drop a device anywhere on the rack viewport.
+
+**The mixer is dynamic** (`src/mixer/`): one channel per mounted
+non-sequencer device, keyed by slot id — created on mount, ramped silent and
+removed on eject; the board renders exactly the engine's channel list and
+pads the unused capacity with prepared strips (16 cap). Per-channel chain:
+`input → inserts [3-band EQ: low shelf 120 Hz, sweepable mid, high shelf
+8 kHz] → fader → pan → meter (+ post-fader send taps) → master → limiter
+(hard-knee ceiling, GR LED)`. The fader maps throw → gain through a desk law
+(`fader-law.ts`: +6 dB top, unity at 3/4 throw, −∞ at 0) while STATE stays
+linear amplitude. **Effect loops**: one send bus per mounted `kind:"effect"`
+device (`getInputNode()` in — the `AudioEffect` contract; output returns on
+the device's own ⏎ channel); **returns never send** — the send node simply
+never exists on a return strip (cross-sending returns close a runaway cycle
+through the effects' delays; chained effects are item 8's cycle-aware
+problem). Strip settings (gain/pan/mute/solo/eq/sends) persist per SLOT and
+travel with it; send levels prune when their loop unmounts; master/click
+levels persist on the session. **AUDIO IN** is a device (kind `"input"`):
+getUserMedia behind the standard `getOutputNode()`, gesture-driven ENABLE
+(never an unprompted permission dialog), LCD stepper for device selection,
+and a MONITOR gate that defaults OFF (feedback protection — the panel LED
+reads level pre-monitor).
 
 Parameter signal path (one direction, lock-free):
 
@@ -80,7 +107,13 @@ Any **new worklet file** (`*-processor.js`, `*.wasmmodule.js`) must be added to 
   title saying why; never remove it from the layout. The gate lives where
   both input paths converge (e.g. sequels' play/stop handlers gate SYNC for
   toolbar AND Space). Examples: FM knob outside FM routing, CYCLE off
-  non-square waves, sequels local transport & BPM under SYNC.
+  non-square waves, sequels local transport & BPM under SYNC, bus strips'
+  pan/M/S, send knobs on return strips.
+- **No explainer copy in panels**: if a device panel or strip needs a caption
+  to explain routing or behavior, the UX is wrong — fix the affordance
+  (label, placement, ghosting, accent link) instead. `title=` tooltips on
+  the control itself are fine; LCDs are the status displays (they may read
+  "OFF" / "DENIED" / a device name), never prose.
 
 ## Panel / visual language
 

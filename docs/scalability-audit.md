@@ -34,19 +34,15 @@ Done by the shell work: dynamic mount/unmount with shell-owned lifecycle
   devices. sequels' TransportKeys already guards via `isEditable`; port that
   check when the first text input lands in the UI.
 
-## For item 5 — mixer rework
-- `CHANNEL_COUNT = 16` channel strips (4 nodes each) are eagerly allocated at
-  boot; no add/remove path, `MixerEngine.dispose()` has no caller.
-- `ChannelState.slotId` is declared and never used — the slot↔channel
-  association lives only in the routing-table keys; labels are hardcoded in
-  daw-element. Channel assignment should follow mount/unmount.
-- Two slots routing the **same AudioNode** to overlapping channels confuses
-  the routing diff (duplicate connections; one disconnect clears both). Cannot
-  happen with per-slot instances today, but the effect-loop fan-out must not
-  reintroduce it.
-- `device-slot.wireAudio()`'s mixNode/parentOutput branch-summing path is dead
-  code whenever a MixerEngine exists (always, today). Decide: delete or make
-  branch submixes real.
+## Item 5 (mixer rework) — RESOLVED 2026-11-02
+All four findings closed by the rework: channels are dynamic (one per
+mounted device, slot-keyed, created/removed with the mount; the 16 is a soft
+cap), the slot id IS the channel identity (labels follow slot names), every
+send/return edge is its own dedicated GainNode so no two slots ever connect
+the same node pair (and returns never send at all — the cross-return cycle
+was measured running away ×10^8 before the guard), and the dead
+`wireAudio()` branch-summing path was deleted. `MixerEngine.dispose()`
+still has no caller (engine lives for the page) — fine.
 
 ## For item 6 — automation module
 - `getLearnableParams()` exists on all controllers and has **zero callers**;
