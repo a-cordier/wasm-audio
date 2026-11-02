@@ -1,10 +1,13 @@
-import { LitElement, html, css } from "lit";
+import { LitElement, html, css, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { faderMixerMeterSkin } from "../common/controls/skins/fader-mixer-meter-skin";
+import { faderToGain, gainToFader } from "../../mixer";
 import "../common/controls/fader-element";
 
 const FADER_MAX = 127;
+/** GR LED threshold: light once the limiter actually bites. */
+const GR_LIT_DB = -0.5;
 
 @customElement("channel-strip")
 export class ChannelStrip extends LitElement {
@@ -19,9 +22,14 @@ export class ChannelStrip extends LitElement {
   @property({ type: Boolean }) solo = false;
   @property({ type: Number }) meterLevel = 0;
   @property({ type: Boolean }) master = false;
+  /** MASTER only: show the limiter's gain-reduction LED. */
+  @property({ type: Boolean }) limiter = false;
+  /** Limiter gain reduction in dB (negative while limiting). */
+  @property({ type: Number }) gainReduction = 0;
 
   private onFaderChange(e: CustomEvent) {
-    const value = e.detail.value / FADER_MAX;
+    // Fader THROW -> amplitude through the desk law (+6 dB up top).
+    const value = faderToGain(e.detail.value / FADER_MAX);
     this.dispatchEvent(new CustomEvent("gain-change", { detail: { id: this.channelId, value } }));
   }
 
@@ -41,13 +49,13 @@ export class ChannelStrip extends LitElement {
   private get dbDisplay(): string {
     if (this.gain <= 0) return "-∞";
     const db = 20 * Math.log10(this.gain);
-    return db.toFixed(1);
+    return db >= 0.05 ? `+${db.toFixed(1)}` : db.toFixed(1);
   }
 
   render() {
     const muteClasses = { "ctrl-btn": true, mute: true, active: this.mute };
     const soloClasses = { "ctrl-btn": true, solo: true, active: this.solo };
-    const faderValue = Math.round(this.gain * FADER_MAX);
+    const faderValue = Math.round(gainToFader(this.gain) * FADER_MAX);
     // Conditional relevance: the fixed buses have no pan/mute/solo — the
     // controls stay in place and ghost rather than leave the layout.
     const busTitle = this.master ? "not available on this bus" : "";
@@ -76,6 +84,12 @@ export class ChannelStrip extends LitElement {
         <div class="btn-row">
           <button class=${classMap(muteClasses)} ?disabled=${this.master} title=${busTitle} @click=${this.onMuteClick}>M</button>
           <button class=${classMap(soloClasses)} ?disabled=${this.master} title=${busTitle} @click=${this.onSoloClick}>S</button>
+          ${this.limiter
+            ? html`<span
+                class=${classMap({ "gr-led": true, lit: this.gainReduction < GR_LIT_DB })}
+                title="limiter gain reduction"
+              ></span>`
+            : nothing}
         </div>
         <div class="db-readout">${this.dbDisplay} dB</div>
       </div>
@@ -203,6 +217,22 @@ export class ChannelStrip extends LitElement {
     .ctrl-btn.solo.active {
       background: var(--mixer-solo-active, #b4d455);
       color: #111;
+    }
+
+    .gr-led {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      align-self: center;
+      background: var(--mixer-meter-bg, #0d1117);
+      border: 1px solid var(--mixer-btn-bg, #2b3844);
+      box-sizing: border-box;
+    }
+
+    .gr-led.lit {
+      background: var(--mixer-limiter-led, #d4913a);
+      border-color: var(--mixer-limiter-led, #d4913a);
+      box-shadow: 0 0 4px var(--mixer-limiter-led, #d4913a);
     }
 
     .db-readout {

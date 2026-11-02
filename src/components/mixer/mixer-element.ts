@@ -84,6 +84,9 @@ export class MixerElement extends LitElement {
         next.set(MASTER_ID, Math.max(ml, mr));
         const [cl, cr] = engine.getClickMeterLevel();
         next.set(CLICK_ID, Math.max(cl, cr));
+        // The limiter's gain reduction (dB, negative) rides the same frame
+        // loop — it drives the MASTER strip's GR LED.
+        next.set("gr", engine.getLimiterReduction());
 
         let changed = next.size !== this.meterLevels.size;
         if (!changed) {
@@ -261,6 +264,8 @@ export class MixerElement extends LitElement {
             <channel-strip
               .channelId=${MASTER_ID}
               .master=${true}
+              .limiter=${true}
+              .gainReduction=${this.meterLevels.get("gr") ?? 0}
               .gain=${engine.masterGain}
               .pan=${0}
               .mute=${false}

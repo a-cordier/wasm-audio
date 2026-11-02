@@ -1,3 +1,5 @@
+import { MAX_FADER_GAIN } from "./fader-law";
+
 /** Soft cap on mixer channels — strips must stay usable at desk width. */
 export const MAX_CHANNELS = 16;
 
@@ -11,7 +13,8 @@ export const CLICK_ID = "click";
  * with it across reloads.
  */
 export interface ChannelStripState {
-  /** Linear amplitude 0..1. */
+  /** Linear amplitude, 0..MAX_FADER_GAIN (+6 dB) — the fader law maps throw
+   * position to this; persisted values stay plain amplitude. */
   gain: number;
   pan: number;
   mute: boolean;
@@ -19,7 +22,9 @@ export interface ChannelStripState {
 }
 
 export function createDefaultStripState(): ChannelStripState {
-  return { gain: 0.8, pan: 0, mute: false, solo: false };
+  // Fresh channels sit at unity (0 dB, 3/4 throw) — the +6 dB headroom and
+  // the master limiter make that the honest default.
+  return { gain: 1, pan: 0, mute: false, solo: false };
 }
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
@@ -34,14 +39,14 @@ export function sanitizeStripState(raw: unknown): ChannelStripState {
   const e = (raw ?? null) as Partial<ChannelStripState> | null;
   if (!e || typeof e !== "object") return d;
   return {
-    gain: clampNumber(e.gain, 0, 1, d.gain),
+    gain: clampNumber(e.gain, 0, MAX_FADER_GAIN, d.gain),
     pan: clampNumber(e.pan, -1, 1, d.pan),
     mute: e.mute === true,
     solo: e.solo === true,
   };
 }
 
-/** Clamp a persisted bus level (master/click) to the unit gain range. */
+/** Clamp a persisted bus level (master/click) to the fader's gain range. */
 export function sanitizeBusGain(value: unknown, fallback: number): number {
-  return clampNumber(value, 0, 1, fallback);
+  return clampNumber(value, 0, MAX_FADER_GAIN, fallback);
 }

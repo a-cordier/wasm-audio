@@ -1,4 +1,5 @@
 import { ChannelStripState, MAX_CHANNELS, createDefaultStripState } from "./types";
+import { MAX_FADER_GAIN } from "./fader-law";
 
 const FFT_SIZE = 256;
 const SMOOTHING = 0.8;
@@ -16,6 +17,7 @@ interface ChannelNodes {
 
 interface MasterNodes {
   gain: GainNode;
+  limiter: DynamicsCompressorNode;
   analyser: AnalyserNode;
 }
 
@@ -68,9 +70,20 @@ export class MixerEngine extends EventTarget {
 
     this.master = {
       gain: new GainNode(ctx, { gain: this._masterGain }),
+      // Safety limiter (dsp-audit, item 5): a brickwall-ish ceiling so the
+      // +6 dB fader headroom and hot stacks can't clip the DAC. Hard knee,
+      // steep ratio, fast attack — transparent until the mix actually slams.
+      limiter: new DynamicsCompressorNode(ctx, {
+        threshold: -3,
+        knee: 0,
+        ratio: 20,
+        attack: 0.003,
+        release: 0.25,
+      }),
       analyser: new AnalyserNode(ctx, { fftSize: FFT_SIZE, smoothingTimeConstant: SMOOTHING }),
     };
-    this.master.gain.connect(this.master.analyser);
+    this.master.gain.connect(this.master.limiter);
+    this.master.limiter.connect(this.master.analyser);
     this.master.analyser.connect(ctx.destination);
 
     this.click = {
@@ -207,7 +220,7 @@ export class MixerEngine extends EventTarget {
   setGain(slotId: string, value: number): void {
     const channel = this.byId.get(slotId);
     if (!channel) return;
-    channel.strip.gain = Math.max(0, Math.min(1, value));
+    channel.strip.gain = Math.max(0, Math.min(MAX_FADER_GAIN, value));
     this.applyChannelGain(channel);
   }
 
@@ -243,13 +256,18 @@ export class MixerEngine extends EventTarget {
   }
 
   setMasterGain(value: number): void {
-    this._masterGain = Math.max(0, Math.min(1, value));
+    this._masterGain = Math.max(0, Math.min(MAX_FADER_GAIN, value));
     this.master.gain.gain.setTargetAtTime(this._masterGain, this.ctx.currentTime, RAMP_TC);
   }
 
   setClickGain(value: number): void {
-    this._clickGain = Math.max(0, Math.min(1, value));
+    this._clickGain = Math.max(0, Math.min(MAX_FADER_GAIN, value));
     this.click.gain.gain.setTargetAtTime(this._clickGain, this.ctx.currentTime, RAMP_TC);
+  }
+
+  /** Limiter gain reduction in dB (negative while limiting) — the GR LED. */
+  getLimiterReduction(): number {
+    return this.master.limiter.reduction;
   }
 
   getMeterLevel(slotId: string): [number, number] {
@@ -312,6 +330,7 @@ export class MixerEngine extends EventTarget {
     this.sources.clear();
     this.clickRouting.clear();
     this.master.gain.disconnect();
+    this.master.limiter.disconnect();
     this.master.analyser.disconnect();
     this.click.input.disconnect();
     this.click.gain.disconnect();
