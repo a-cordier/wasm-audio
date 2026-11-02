@@ -15,14 +15,23 @@ interface MasterNodes {
   analyser: AnalyserNode;
 }
 
+interface ClickNodes {
+  input: GainNode;
+  gain: GainNode;
+  analyser: AnalyserNode;
+}
+
 export class MixerEngine {
   readonly channels: ChannelNodes[] = [];
   readonly master: MasterNodes;
+  /** One CLICK bus for every metronome — sequencers never take a channel. */
+  readonly click: ClickNodes;
   readonly state: MixerState;
 
   private readonly ctx: AudioContext;
   private soloActive = false;
   private routingTable = new Map<string, { node: AudioNode; channels: Set<number> }>();
+  private clickRouting = new Map<string, AudioNode>();
 
   constructor(ctx: AudioContext) {
     this.ctx = ctx;
@@ -34,6 +43,15 @@ export class MixerEngine {
     };
     this.master.gain.connect(this.master.analyser);
     this.master.analyser.connect(ctx.destination);
+
+    this.click = {
+      input: new GainNode(ctx, { gain: 1 }),
+      gain: new GainNode(ctx, { gain: this.state.clickGain }),
+      analyser: new AnalyserNode(ctx, { fftSize: FFT_SIZE, smoothingTimeConstant: SMOOTHING }),
+    };
+    this.click.input.connect(this.click.gain);
+    this.click.gain.connect(this.click.analyser);
+    this.click.analyser.connect(this.master.gain);
 
     for (let i = 0; i < CHANNEL_COUNT; i++) {
       const ch = this.createChannel(i);
@@ -134,6 +152,26 @@ export class MixerEngine {
       }
       this.routingTable.delete(sourceId);
     }
+    const clickNode = this.clickRouting.get(sourceId);
+    if (clickNode) {
+      try { clickNode.disconnect(this.click.input); } catch { /* already disconnected */ }
+      this.clickRouting.delete(sourceId);
+    }
+  }
+
+  routeToClick(sourceId: string, node: AudioNode): void {
+    if (this.clickRouting.has(sourceId)) return;
+    node.connect(this.click.input);
+    this.clickRouting.set(sourceId, node);
+  }
+
+  setClickGain(value: number): void {
+    this.state.clickGain = Math.max(0, Math.min(1, value));
+    this.click.gain.gain.setTargetAtTime(this.state.clickGain, this.ctx.currentTime, 0.01);
+  }
+
+  getClickMeterLevel(): [number, number] {
+    return this.readPeak(this.click.analyser);
   }
 
   getRouting(sourceId: string): number[] {
@@ -199,5 +237,8 @@ export class MixerEngine {
     }
     this.master.gain.disconnect();
     this.master.analyser.disconnect();
+    this.click.input.disconnect();
+    this.click.gain.disconnect();
+    this.click.analyser.disconnect();
   }
 }

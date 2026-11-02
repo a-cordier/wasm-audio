@@ -76,6 +76,7 @@ export class Oscillator extends SynthPanel {
                   <knob-element
                     .range=${this.cycleRange}
                     .value=${this.state.cycle.value}
+                    ?disabled=${this.state.mode.value !== OscillatorMode.SQUARE}
                     @change=${(e: CustomEvent) => this.dispatchChange(OscillatorEvent.CYCLE, e.detail.value)}
                   ></knob-element>
                 </control-learn-wrapper>

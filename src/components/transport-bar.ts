@@ -26,9 +26,10 @@ const TAP_AVERAGE = 4;
 const BEATS_PER_BAR = 4;
 
 /**
- * The master transport bar (the mother clock's face): PLAY/STOP, BPM, and a
- * bar.beat position readout — the workspace's full-width top chrome. Devices
- * follow it only when their slot's SYNC is on.
+ * The master transport strip (the mother clock's face): PLAY/STOP, BPM, and
+ * a bar.beat position readout in one thin full-width band pinned to the top
+ * screen edge — with room to grow the global menu (export…). Devices follow
+ * it only when their slot's SYNC is on.
  */
 @customElement("transport-bar")
 export class TransportBar extends LitElement {
@@ -130,7 +131,6 @@ export class TransportBar extends LitElement {
   render() {
     return html`
       <div class="bar">
-        <span class="label">MASTER</span>
         <button
           class=${classMap({ "round-btn": true, active: this.playing })}
           title=${this.playing ? "Stop all synced devices" : "Start all synced devices"}
@@ -153,36 +153,24 @@ export class TransportBar extends LitElement {
     :host {
       display: block;
       width: 100%;
-      background: var(--transport-bar-bg, #181818);
       border-bottom: 1px solid var(--medium, #2b3844);
+      background: var(--transport-bar-bg, #181818);
       --lcd-screen-width: 52px;
       --lcd-font-size: 11px;
     }
 
-    /* Full-width header chrome: flush bar, controls kept to a readable
-     * measure and centred like the rack below. */
     .bar {
       display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 8px 1.5em;
-      max-width: var(--rack-slot-width, calc(650px + 3em));
-      margin: 0 auto;
-      box-sizing: border-box;
-    }
-
-    .label {
-      font-family: var(--main-panel-label-font-family, "Bungee Outline", cursive);
-      font-size: 1em;
-      color: var(--transport-label-color, #fff);
-      letter-spacing: 0.08em;
-      margin-right: auto;
+      justify-content: center;
+      gap: 18px;
+      padding: 6px 1.5em;
     }
 
     .round-btn {
       width: 30px;
       height: 30px;
-      border-radius: 50%;
+      border-radius: 4px;
       border: 1px solid var(--light-secondary, #cbe2f3);
       background: var(--dark-secondary, #192734);
       color: var(--lighter, #fff);

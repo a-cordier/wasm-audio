@@ -9,8 +9,10 @@ DEPS = $(wildcard $(ENGINE)/*.h) $(wildcard $(ENGINE)/*.cpp) $(wildcard $(DSP)/*
 MONOLOG_DEPS = $(wildcard $(MONOLOG_ENGINE)/*.h) $(wildcard $(MONOLOG_ENGINE)/*.cpp) $(wildcard $(DSP)/*.h) Makefile
 
 SHELL := /bin/bash
-# Overridable so CI (native emsdk) can run the same targets: make build EMCC=emcc
-EMCC ?= docker run --rm -v $(CURDIR):/src -u $(shell id -u):$(shell id -g) emscripten/emsdk emcc
+# em++, not emcc: recent emscripten links as C when invoked as emcc, dropping
+# the C++ runtime (undefined __cxa_* symbols at link). Overridable so CI
+# (native emsdk) can run the same targets: make build EMCC=em++
+EMCC ?= docker run --rm -v $(CURDIR):/src -u $(shell id -u):$(shell id -g) emscripten/emsdk em++
 
 # ALLOW_MEMORY_GROWTH: all instances of one engine share a single wasm heap;
 # without growth a _malloc failure aborts the whole AudioWorkletGlobalScope,

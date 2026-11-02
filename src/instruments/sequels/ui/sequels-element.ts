@@ -296,12 +296,16 @@ export class SequencerElement extends LitElement {
   // --- Transport ---
 
   private togglePlayPause() {
+    // SYNC on: the master transport owns start/stop (conditional-relevance
+    // rule — the toolbar buttons are ghosted, and Space lands here too).
+    if (this.transportSynced) return;
     this.audioContext.resume();
     this.sequencer.togglePlayPause();
     this.syncCursor();
   }
 
   private stop() {
+    if (this.transportSynced) return;
     this.sequencer.stop();
     this.syncCursor();
   }

@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 import { LitElement, html, css, nothing } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
-import { styleMap } from "lit/directives/style-map.js";
+import { customElement, property } from "lit/decorators.js";
 
-import { pluginRegistry } from "../core/plugin-registry";
+import "./device-menu";
 
 /**
  * The device browser rail — the workspace's left dock. Lists every
@@ -44,13 +43,14 @@ export class DeviceBrowser extends LitElement {
     }));
   }
 
-  private mount(pluginId: string) {
+  private onDevicePick = (e: CustomEvent<{ pluginId: string }>) => {
+    e.stopPropagation();
     this.dispatchEvent(new CustomEvent("device-mount", {
-      detail: { pluginId },
+      detail: { pluginId: e.detail.pluginId },
       bubbles: true,
       composed: true,
     }));
-  }
+  };
 
   render() {
     if (!this.open) {
@@ -60,25 +60,13 @@ export class DeviceBrowser extends LitElement {
         </button>
       `;
     }
-    const devices = pluginRegistry.getAll();
     return html`
       <div class="rail">
         <div class="rail-header">
           <span class="rail-title">DEVICES</span>
           <button class="collapse-btn" title="collapse" @click=${this.toggle}>◂</button>
         </div>
-        <div class="menu">
-          ${devices.map((reg) => html`
-            <button
-              class="device-btn"
-              style=${styleMap({ "--device-accent": reg.descriptor.accent ?? "var(--lighter)" })}
-              @click=${() => this.mount(reg.descriptor.id)}
-            >
-              <span class="device-name">${reg.descriptor.name}</span>
-              <span class="device-kind">${reg.descriptor.kind}</span>
-            </button>
-          `)}
-        </div>
+        <device-menu @device-pick=${this.onDevicePick}></device-menu>
         ${this.emptyRack
           ? html`<div class="hint">the rack is empty — add a device</div>`
           : nothing}
@@ -169,47 +157,5 @@ export class DeviceBrowser extends LitElement {
       padding-bottom: 4px;
     }
 
-    .menu {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      background: var(--browser-menu-bg, #141414);
-      padding: 6px;
-      border-radius: 4px;
-    }
-
-    .device-btn {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      height: 26px;
-      padding: 4px 10px;
-      font-size: 0.6em;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      background: var(--button-active-background-color, #192734);
-      color: var(--browser-rail-label-color, #e8eef2);
-      border: none;
-      border-left: 3px solid var(--device-accent);
-      border-radius: 3px;
-      cursor: pointer;
-      transition: filter 0.15s;
-    }
-
-    .device-btn:hover {
-      filter: brightness(1.4);
-    }
-
-    .device-name {
-      color: var(--device-accent);
-    }
-
-    .device-kind {
-      font-weight: 400;
-      opacity: 0.55;
-      color: var(--browser-kind-color, #cbe2f3);
-    }
   `;
 }

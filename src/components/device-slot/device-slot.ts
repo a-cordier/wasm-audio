@@ -113,6 +113,7 @@ export class DeviceSlot extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.resizeObserver.observe(this);
     this.midiChannel = this.config?.midiChannel ?? "omni";
     this.outputChannel = this.config?.outputChannel ?? (0 as Channel);
     this.inputDevice = this.config?.inputDevice ?? "all";
@@ -142,6 +143,7 @@ export class DeviceSlot extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this.resizeObserver.disconnect();
     this.teardown();
   }
 
@@ -444,48 +446,242 @@ export class DeviceSlot extends LitElement {
 
   private renderBranch() {
     const children = this.config.children ?? [];
+    if (this.hasAttribute("root")) {
+      // The root is a column of ROWS (the last one pads itself with prepared
+      // "+" slots), plus a drop zone that starts a new row.
+      return html`
+        <div class="branch">
+          ${repeat(children, (c) => c.id, (c, i) => this.renderChildSlot(c, i === children.length - 1))}
+          ${children.length === 0 ? this.renderPreparedSlot(0) : nothing}
+          <div
+            class=${classMap({ "new-row-zone": true, over: this.newRowOver })}
+            @dragover=${this.onNewRowDragOver}
+            @dragleave=${() => { this.newRowOver = false; }}
+            @drop=${this.onNewRowDrop}
+          >drop a device here for a new row</div>
+        </div>
+      `;
+    }
+    // A row: devices side by side; a dragged slot previews its insertion
+    // point with a marker.
     return html`
-      <div class="branch">
-        ${repeat(
-          children,
-          (childConfig) => childConfig.id,
-          (childConfig) => {
-            // Instances are keyed by SLOT id: two slots can host the same
-            // device. repeat() keys element identity to slot identity, so
-            // unmounting slot k tears down slot k's element — an unkeyed map
-            // would recycle elements by index and detach the wrong one.
-            const childPlugin = this.plugins?.get(childConfig.id);
-            return html`
-              <device-slot
-                .config=${childConfig}
-                .plugin=${childPlugin}
-                .plugins=${this.plugins}
-                .bus=${this.bus}
-                .midi=${this.midi}
-                .audioContext=${this.audioContext}
-                .mixerEngine=${this.mixerEngine}
-                .parentOutput=${this.mixNode}
-                .selectedSlotIds=${this.selectedSlotIds}
-              ></device-slot>
-            `;
-          }
-        )}
+      <div
+        class="branch row"
+        @dragover=${this.onRowDragOver}
+        @dragleave=${this.onRowDragLeave}
+        @drop=${this.onRowDrop}
+      >
+        ${repeat(children, (c) => c.id, (c, i) => html`${
+          this.dropIndex === i ? html`<div class="drop-marker"></div>` : nothing
+        }${this.renderChildSlot(c)}`)}
+        ${this.dropIndex === children.length ? html`<div class="drop-marker"></div>` : nothing}
+        ${this.showAddTile
+          ? Array.from({ length: this.preparedSlotCount(children.length) }, (_, i) => this.renderPreparedSlot(i))
+          : nothing}
       </div>
     `;
   }
+
+  /** Prepared "+" slots pad the last row to the line capacity the screen
+   * offers (always at least one) — each is a drop target for a device
+   * dragged from the menu, and mounts land exactly where the slot sits. */
+  private renderPreparedSlot(index: number) {
+    return html`
+      <div
+        class=${classMap({ "prepared-slot": true, over: this.plugOverIndex === index })}
+        @dragover=${(e: DragEvent) => this.onPlugDragOver(e, index)}
+        @dragleave=${() => { if (this.plugOverIndex === index) this.plugOverIndex = -1; }}
+        @drop=${this.onPlugDrop}
+      >
+        <span class="prepared-plus">+</span>
+      </div>
+    `;
+  }
+
+  /** How many prepared slots complete the current line, from the measured
+   * row width (ResizeObserver-fed). A full line gets one on the next. */
+  private preparedSlotCount(deviceCount: number): number {
+    const slotW = this.measuredSlotWidth || 698;
+    const perLine = Math.max(1, Math.floor((this.measuredRowWidth + 24) / (slotW + 24)));
+    const occupied = deviceCount % perLine;
+    return occupied === 0 ? 1 : perLine - occupied;
+  }
+
+  private static isPluginDrag(e: DragEvent): boolean {
+    return e.dataTransfer?.types.includes("text/x-plugin-id") ?? false;
+  }
+
+  private onPlugDragOver = (e: DragEvent, index: number) => {
+    if (!DeviceSlot.isPluginDrag(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    if (this.plugOverIndex !== index) this.plugOverIndex = index;
+  };
+
+  private onPlugDrop = (e: DragEvent) => {
+    if (!DeviceSlot.isPluginDrag(e)) return;
+    e.preventDefault();
+    this.plugOverIndex = -1;
+    const pluginId = e.dataTransfer?.getData("text/x-plugin-id");
+    if (!pluginId) return;
+    this.dispatchEvent(new CustomEvent("device-mount", {
+      detail: { pluginId },
+      bubbles: true,
+      composed: true,
+    }));
+  };
+
+  private renderChildSlot(childConfig: SlotConfig, isLastRow = false) {
+    // Instances are keyed by SLOT id: two slots can host the same
+    // device. repeat() keys element identity to slot identity, so
+    // unmounting slot k tears down slot k's element — an unkeyed map
+    // would recycle elements by index and detach the wrong one.
+    const childPlugin = this.plugins?.get(childConfig.id);
+    return html`
+      <device-slot
+        .showAddTile=${isLastRow}
+        .config=${childConfig}
+        .plugin=${childPlugin}
+        .plugins=${this.plugins}
+        .bus=${this.bus}
+        .midi=${this.midi}
+        .audioContext=${this.audioContext}
+        .mixerEngine=${this.mixerEngine}
+        .parentOutput=${this.mixNode}
+        .selectedSlotIds=${this.selectedSlotIds}
+      ></device-slot>
+    `;
+  }
+
+  // --- Drag-and-drop arrangement (HTML5 DnD; the slot label is the handle) ---
+
+  /** Set on the LAST row by the root: this row pads with prepared slots. */
+  @property({ attribute: false })
+  showAddTile = false;
+
+  @state()
+  private plugOverIndex = -1;
+
+  @state()
+  private measuredRowWidth = 0;
+
+  private measuredSlotWidth = 0;
+
+  // Line capacity follows the element's real width (window resizes, rail
+  // fold/unfold, dock changes) — cheap to observe on every slot host.
+  private resizeObserver = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      this.measuredRowWidth = entry.contentRect.width;
+    }
+    const child = this.shadowRoot?.querySelector(".branch.row > device-slot") as HTMLElement | null;
+    if (child) this.measuredSlotWidth = child.offsetWidth;
+  });
+
+  @state()
+  private dropIndex = -1;
+
+  @state()
+  private newRowOver = false;
+
+  @state()
+  private dragging = false;
+
+  private static isSlotDrag(e: DragEvent): boolean {
+    return e.dataTransfer?.types.includes("text/x-slot-id") ?? false;
+  }
+
+  private onDragStart = (e: DragEvent) => {
+    e.dataTransfer?.setData("text/x-slot-id", this.config.id);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+    this.dragging = true;
+  };
+
+  private onDragEnd = () => {
+    this.dragging = false;
+  };
+
+  private onRowDragOver = (e: DragEvent) => {
+    if (!DeviceSlot.isSlotDrag(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    const branch = this.shadowRoot?.querySelector(".branch.row");
+    if (!branch) return;
+    // Insertion index in reading order — rows wrap on narrow viewports, so
+    // compare lines (y) before positions within a line (x).
+    const slots = [...branch.querySelectorAll(":scope > device-slot")];
+    let index = slots.length;
+    for (let i = 0; i < slots.length; i++) {
+      const r = slots[i].getBoundingClientRect();
+      if (e.clientY < r.top || (e.clientY < r.bottom && e.clientX < r.left + r.width / 2)) {
+        index = i;
+        break;
+      }
+    }
+    if (index !== this.dropIndex) this.dropIndex = index;
+  };
+
+  private onRowDragLeave = (e: DragEvent) => {
+    // dragleave fires on every child transition — only clear when the
+    // pointer actually left the row's box.
+    const branch = this.shadowRoot?.querySelector(".branch.row");
+    if (!branch) return;
+    const r = branch.getBoundingClientRect();
+    if (e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom) return;
+    this.dropIndex = -1;
+  };
+
+  private onRowDrop = (e: DragEvent) => {
+    if (!DeviceSlot.isSlotDrag(e)) return;
+    e.preventDefault();
+    const slotId = e.dataTransfer?.getData("text/x-slot-id");
+    const index = this.dropIndex === -1 ? (this.config.children?.length ?? 0) : this.dropIndex;
+    this.dropIndex = -1;
+    if (!slotId) return;
+    this.dispatchEvent(new CustomEvent("slot-move", {
+      detail: { slotId, targetRowId: this.config.id, index },
+      bubbles: true,
+      composed: true,
+    }));
+  };
+
+  private onNewRowDragOver = (e: DragEvent) => {
+    if (!DeviceSlot.isSlotDrag(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    this.newRowOver = true;
+  };
+
+  private onNewRowDrop = (e: DragEvent) => {
+    if (!DeviceSlot.isSlotDrag(e)) return;
+    e.preventDefault();
+    this.newRowOver = false;
+    const slotId = e.dataTransfer?.getData("text/x-slot-id");
+    if (!slotId) return;
+    this.dispatchEvent(new CustomEvent("slot-move", {
+      detail: { slotId, targetRowId: null, index: -1 },
+      bubbles: true,
+      composed: true,
+    }));
+  };
 
   private renderLeaf() {
     if (!this.plugin) return nothing;
 
     return html`
-      <div class="leaf">
+      <div class=${classMap({ leaf: true, dragging: this.dragging })}>
         <div class=${classMap({ "slot-header": true, folded: this.collapsed })}>
           <button
             class="fold-btn"
             title=${this.collapsed ? "unfold" : "fold"}
             @click=${this.onFoldToggle}
           >${this.collapsed ? "▸" : "▾"}</button>
-          <span class="slot-label">${this.config.name}</span>
+          <span
+            class="slot-label"
+            draggable="true"
+            title="drag to arrange"
+            @dragstart=${this.onDragStart}
+            @dragend=${this.onDragEnd}
+          >${this.config.name}</span>
           <div class="slot-controls">
             ${this.renderPresetBrowser()}
             ${this.renderKbButton()}
@@ -694,18 +890,84 @@ export class DeviceSlot extends LitElement {
       align-items: center;
     }
 
-    /* The ROOT branch flows into balanced columns when the viewport fits
-     * more than one rack width (CSS multicol: no vertical holes despite
-     * mixed device heights). Nested branches keep the flex column. */
-    :host([root]) .branch {
-      display: block;
-      columns: var(--rack-slot-width, calc(650px + 3em));
-      column-gap: 24px;
+    /* A non-root branch is a ROW — the arrangement unit: devices sit side
+     * by side (wrapping on narrow viewports); the root stacks rows. */
+    :host(:not([root])) .branch {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
     }
 
-    :host([root]) .branch > device-slot {
-      break-inside: avoid;
-      margin-bottom: 24px;
+    :host(:not([root])) .branch > device-slot {
+      width: var(--rack-slot-width, calc(650px + 3em));
+      max-width: 100%;
+      flex: none;
+    }
+
+    .drop-marker {
+      width: 4px;
+      min-height: 48px;
+      align-self: stretch;
+      border-radius: 2px;
+      background: var(--lcd-led-on-color, #b4d455);
+    }
+
+    .leaf.dragging {
+      opacity: 0.45;
+    }
+
+    /* A prepared slot: an empty rack bay inviting a device — drag one in
+     * from the menu (or click a rail entry). Stretches to its line height. */
+    .prepared-slot {
+      width: var(--rack-slot-width, calc(650px + 3em));
+      max-width: 100%;
+      min-height: 120px;
+      align-self: stretch;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed var(--browser-rail-border, #2b3844);
+      border-radius: 0.5rem;
+      opacity: 0.45;
+      transition: opacity 0.15s, border-color 0.15s, background 0.15s;
+    }
+
+    .prepared-slot.over,
+    .prepared-slot:hover {
+      opacity: 1;
+      border-color: var(--lcd-led-on-color, #b4d455);
+      background: color-mix(in srgb, var(--lcd-led-on-color, #b4d455) 6%, transparent);
+    }
+
+    .prepared-plus {
+      font-family: var(--main-panel-label-font-family, "Bungee Outline", cursive);
+      font-size: 2.4em;
+      line-height: 1;
+      color: var(--lcd-led-on-color, #b4d455);
+    }
+
+    .new-row-zone {
+      width: var(--rack-slot-width, calc(650px + 3em));
+      max-width: 100%;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px dashed var(--browser-rail-border, #2b3844);
+      border-radius: 0.5rem;
+      font-size: 0.6em;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--browser-kind-color, #cbe2f3);
+      opacity: 0.35;
+      transition: opacity 0.15s, border-color 0.15s;
+    }
+
+    .new-row-zone.over,
+    .new-row-zone:hover {
+      opacity: 0.9;
+      border-color: var(--lcd-led-on-color, #b4d455);
     }
 
     .leaf {
@@ -726,6 +988,7 @@ export class DeviceSlot extends LitElement {
     }
 
     .slot-label {
+      cursor: grab;
       font-family: var(--main-panel-label-font-family, "Bungee Outline", cursive);
       font-size: 1.1em;
       font-weight: 700;

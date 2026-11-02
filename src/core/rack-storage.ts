@@ -34,6 +34,8 @@ export interface RackSlotEntry {
   mixerChannel: number;
   collapsed: boolean;
   sync: boolean;
+  /** Rack row index (rows are the arrangement unit — devices sit side by side). */
+  row: number;
   /** Device state snapshot from plugin.getState(); absent for self-persisting devices. */
   state?: unknown;
 }
@@ -57,7 +59,7 @@ function clampChannel(value: unknown, fallback: number): number {
     : fallback;
 }
 
-function sanitizeEntry(raw: unknown): RackSlotEntry | null {
+function sanitizeEntry(raw: unknown, index: number): RackSlotEntry | null {
   const e = raw as Partial<RackSlotEntry> | null;
   if (!e || typeof e.id !== "string" || typeof e.pluginId !== "string") return null;
   return {
@@ -70,6 +72,11 @@ function sanitizeEntry(raw: unknown): RackSlotEntry | null {
     mixerChannel: clampChannel(e.mixerChannel, -1),
     collapsed: e.collapsed === true,
     sync: e.sync === true,
+    // Legacy sessions (no row) flow into ONE row — it wraps to fill the
+    // viewport, so wide screens stay fully used until the user makes rows.
+    row: typeof e.row === "number" && Number.isFinite(e.row)
+      ? Math.max(0, Math.round(e.row))
+      : 0,
     state: e.state,
   };
 }
@@ -89,7 +96,7 @@ export function loadRackSession(): RackSession | null {
     const parsed = JSON.parse(raw) as Partial<RackSession>;
     if (parsed?.version !== RACK_VERSION || !Array.isArray(parsed.slots)) return null;
     const slots = parsed.slots
-      .map(sanitizeEntry)
+      .map((raw, index) => sanitizeEntry(raw, index))
       .filter((e): e is RackSlotEntry => e !== null);
     if (slots.length === 0) return null;
     const rawBpm = (parsed.transport as { bpm?: unknown } | undefined)?.bpm;

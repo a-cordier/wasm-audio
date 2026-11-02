@@ -24,12 +24,22 @@ instrument processors take only events due in the current block
 (`dequeueBefore`); live sources stamp frame 0 = play now, zero added latency.
 
 **The workspace is a fixed-chrome grid**: daw-element is a 100vh grid —
-transport header (a row is reserved for the future timeline), device-browser
-rail docked left (collapsible tab), an independently scrolling rack viewport
-(the PAGE never scrolls), and the mixer docked full-width at the bottom
-(foldable; meter rAF stops while folded). The root branch multicols at wide
-viewports (`:host([root]) .branch`); slot width lives in `--rack-slot-width`
-— never hardcode it. Dock/rail states persist in the session's `ui` field.
+device-browser rail docked left (collapsible tab), an independently
+scrolling rack viewport (the PAGE never scrolls), a thin full-width
+transport strip pinned to the TOP edge (room to grow the global menu —
+export…), and the mixer board docked at the bottom: hardware-desk strips
+(contiguous, full width, hairline dividers; CLICK + MASTER close the
+board; foldable, meter rAF stops while folded). Sequencers never take a
+mixer channel: their metronomes sum into the shared CLICK bus
+(`routeToClick`). **The rack is rows of devices**: drag a device by its
+name label to arrange (drop markers preview; the end drop zone makes a new
+row; empty rows prune). Default is ONE flowing row that wraps — wide
+viewports fill edge to edge until the user makes deliberate rows. Prepared
+"+" slots pad the last line to the screen's capacity (ResizeObserver-fed):
+drag a device from the menu onto one to mount it there (menu entries are
+drag sources; click still mounts); eject stays on the slot header. Slot
+width lives in `--rack-slot-width` — never hardcode it. Dock/rail states persist in the session's `ui` field; row indices
+persist per slot entry.
 
 **The shell owns the rack**: daw-element mounts/unmounts devices at runtime
 (`mountDevice`/`unmountSlot` — instantiate → route on a free mixer channel;
@@ -65,6 +75,12 @@ Any **new worklet file** (`*-processor.js`, `*.wasmmodule.js`) must be added to 
 - **Discrete choice → LCD stepper** (label + `[-] lcd [+]`): SCALE, SHAPE, EUCL, ROT…
 - **Mode selector → full-width name buttons** spanning the panel (MOOG｜ACID｜SCREAM｜KORG).
 - Labels sit on a shared baseline; knobs are centered in the band above them.
+- **Conditional relevance**: a control that does nothing in the current mode
+  stays in place and GHOSTS — `?disabled` on `knob-element`/buttons, plus a
+  title saying why; never remove it from the layout. The gate lives where
+  both input paths converge (e.g. sequels' play/stop handlers gate SYNC for
+  toolbar AND Space). Examples: FM knob outside FM routing, CYCLE off
+  non-square waves, sequels local transport & BPM under SYNC.
 
 ## Panel / visual language
 

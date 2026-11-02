@@ -13,6 +13,8 @@ export interface ChannelState {
 export interface MixerState {
   channels: ChannelState[];
   masterGain: number;
+  /** The shared CLICK bus — every sequencer metronome sums into it. */
+  clickGain: number;
 }
 
 export function createDefaultChannel(id: number): ChannelState {
@@ -31,5 +33,5 @@ export function createDefaultMixerState(): MixerState {
   for (let i = 0; i < CHANNEL_COUNT; i++) {
     channels.push(createDefaultChannel(i));
   }
-  return { channels, masterGain: 0.8 };
+  return { channels, masterGain: 0.8, clickGain: 0.8 };
 }

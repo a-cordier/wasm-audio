@@ -48,7 +48,7 @@ export class ChannelStrip extends LitElement {
 
     return html`
       <div class="strip ${this.master ? "master" : ""}">
-        <div class="label">${this.master ? "MASTER" : this.label || `CH ${this.channelIndex + 1}`}</div>
+        <div class="label">${this.master ? (this.label || "MASTER") : this.label || `CH ${this.channelIndex + 1}`}</div>
         <fader-element
           style="--meter-level: ${this.meterLevel}"
           .value=${faderValue}
@@ -75,24 +75,26 @@ export class ChannelStrip extends LitElement {
     :host {
       display: block;
       user-select: none;
+      height: 100%;
     }
 
+    /* Hardware-desk strips: contiguous cells divided by hairlines — the
+     * strip fills whatever width its console cell gives it. */
     .strip {
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: 50px;
+      width: 100%;
+      height: 100%;
       background: var(--mixer-strip-bg, #192734);
-      border: var(--mixer-strip-border, 1px solid #2b3844);
-      border-radius: 3px;
+      border-right: var(--mixer-strip-border, 1px solid #2b3844);
       padding: 4px 2px;
       gap: 4px;
       box-sizing: border-box;
     }
 
     .strip.master {
-      width: 60px;
-      border-color: var(--mixer-fader-thumb, #cbe2f3);
+      background: color-mix(in srgb, var(--mixer-strip-bg, #192734) 80%, var(--mixer-fader-thumb, #cbe2f3) 6%);
     }
 
     .label {

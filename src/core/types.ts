@@ -18,7 +18,7 @@ import { MidiEvent, Channel } from "../midi/types";
 import { MidiBus } from "../midi/bus/bus";
 
 /** Browser grouping; effect/module arrive with roadmap items 5-7. */
-export type DeviceKind = "instrument" | "sequencer" | "effect" | "module";
+export type DeviceKind = "instrument" | "sequencer" | "effect" | "module" | "input";
 
 export interface PluginDescriptor {
   readonly id: string;

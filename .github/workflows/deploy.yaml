@@ -37,10 +37,11 @@ jobs:
         run: make -v && emcc -v
 
       # Same targets and flags as local builds — the Makefile is the single
-      # source of truth; only the compiler invocation differs (native emcc
-      # instead of the Docker wrapper).
+      # source of truth; only the compiler invocation differs (native em++
+      # instead of the Docker wrapper). em++, not emcc: newer emscripten
+      # links as C under emcc and drops the C++ runtime.
       - name: compile wasm
-        run: make build EMCC=emcc
+        run: make build EMCC=em++
 
       - name: install and build
         run: |

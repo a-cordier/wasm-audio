@@ -90,15 +90,20 @@ export class SequencerToolbar extends LitElement {
         <div class="panel transport-panel">
           <button
             class=${classMap({ "round-btn": true, "play-btn": true, active: this.playing })}
-            title=${this.playing ? "Pause (Space)" : "Play (Space)"}
+            title=${this.synced
+              ? "the master transport drives this device (SYNC on)"
+              : this.playing ? "Pause (Space)" : "Play (Space)"}
+            ?disabled=${this.synced}
             @click=${() => this.emit(ToolbarEvent.PLAY_PAUSE, 0)}
           >
             ${this.playing ? "❚❚" : "▶"}
           </button>
           <button
             class=${classMap({ "round-btn": true, "stop-btn": true })}
-            title="Stop (Shift+Space)"
-            ?disabled=${this.transport === TransportState.STOPPED}
+            title=${this.synced
+              ? "the master transport drives this device (SYNC on)"
+              : "Stop (Shift+Space)"}
+            ?disabled=${this.transport === TransportState.STOPPED || this.synced}
             @click=${() => this.emit(ToolbarEvent.STOP, 0)}
           >
             ■

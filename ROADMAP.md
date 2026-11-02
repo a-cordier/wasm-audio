@@ -67,21 +67,28 @@ chrome home: item 4b). Stop releases exactly the sounding notes (tracked in
 the drain) instead of 128-note bursts; instrument rings 64 → 256. **MIDI
 clock in/out remain future work by design** (no hardware to test).
 
-### 4b. [x] DAW workspace layout — done 2026-08-08
-The page became a workspace: daw-element is a 100vh grid — full-width
-transport header (a row is reserved for item 7's timeline), a collapsible
-device-browser rail docked left, an independently scrolling rack viewport,
-and the mixer docked full-width at the bottom (foldable to its header
-strip; meters stop drawing while folded). The root branch flows into
-**balanced multi-columns** (CSS multicol) when the viewport fits more than
-one rack width. Dock states persist with the session (`ui` field), the rack
-width is tokenized (`--rack-slot-width`), and the AudioContext unlock had
-already shipped with item 4 (power-on overlay). Item 5 now lands into the
-docked mixer instead of being styled twice.
+### 4b. [x] DAW workspace layout — done 2026-08-09
+The page became a workspace: daw-element is a 100vh grid — a collapsible
+device-browser rail docked left (kind sections, accent nameplates), an
+independently scrolling rack viewport, a thin top transport strip (global
+menu grows there), and a bottom hardware-desk mixer board (contiguous
+full-width strips, CLICK + MASTER at the right; folds, meters stop drawing
+while folded) — settled after a UI-pattern review of DAW layouts.
+Sequencer metronomes sum into a shared CLICK bus instead of eating
+channels. **The rack is user-arranged rows** with drag-and-drop (label =
+handle, drop markers, new-row zone, empty rows prune, row indices persist);
+the default is one flowing row that wraps, so wide viewports stay fully
+used, and prepared "+" slots pad the last line to screen capacity — drag a
+device off the menu onto one to mount it there (shared `device-menu`). Conditional-relevance codified: SYNC ghosts local
+transport, CYCLE ghosts off non-square waves. `--rack-slot-width`
+tokenized; AudioContext unlock shipped with item 4 (power-on overlay).
+Item 5 lands into the docked mixer instead of being styled twice.
 
 ### 5. [ ] Mixer: dynamic routing, EQ, effect loops, audio input
 - Channel assignment follows mount/unmount (routing is already slot-keyed
   in [mixer-engine.ts](src/mixer/mixer-engine.ts); it must become dynamic).
+  (A routed-only strip view was tried in 4b and rolled back — the user
+  prefers the full-width board; revisit presentation here.)
 - **Per-track EQ**: 3-band (low shelf / mid peak / high shelf) as chained
   BiquadFilterNodes between channel input and fader — the first resident of
   the per-channel insert chain, native nodes, smoothly ramped AudioParams.

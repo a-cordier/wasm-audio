@@ -12,7 +12,8 @@ export class MixerElement extends LitElement {
   @property({ type: Boolean })
   collapsed = false;
 
-  @state() private meterLevels: number[] = new Array(CHANNEL_COUNT + 1).fill(0);
+
+  @state() private meterLevels: number[] = new Array(CHANNEL_COUNT + 2).fill(0);
 
   private rafId = 0;
 
@@ -57,13 +58,15 @@ export class MixerElement extends LitElement {
         // analyser read; and when no level moved, skip the state write so a
         // silent mixer does not re-render its strips every frame.
         const active = this.engine.getActiveChannels();
-        const levels = new Array(CHANNEL_COUNT + 1).fill(0);
+        const levels = new Array(CHANNEL_COUNT + 2).fill(0);
         for (const i of active) {
           const [l, r] = this.engine.getMeterLevel(i);
           levels[i] = Math.max(l, r);
         }
         const [ml, mr] = this.engine.getMasterMeterLevel();
         levels[CHANNEL_COUNT] = Math.max(ml, mr);
+        const [cl, cr] = this.engine.getClickMeterLevel();
+        levels[CHANNEL_COUNT + 1] = Math.max(cl, cr);
         if (levels.some((v, i) => v !== this.meterLevels[i])) {
           this.meterLevels = levels;
         }
@@ -77,6 +80,8 @@ export class MixerElement extends LitElement {
     const { index, value } = e.detail;
     if (index === -1) {
       this.engine?.setMasterGain(value);
+    } else if (index === -2) {
+      this.engine?.setClickGain(value);
     } else {
       this.engine?.setGain(index, value);
     }
@@ -138,6 +143,17 @@ export class MixerElement extends LitElement {
           </div>
           <div class="master-section">
             <channel-strip
+              .channelIndex=${-2}
+              .master=${true}
+              .label=${"CLICK"}
+              .gain=${state.clickGain}
+              .pan=${0}
+              .mute=${false}
+              .solo=${false}
+              .meterLevel=${this.meterLevels[CHANNEL_COUNT + 1] ?? 0}
+              @gain-change=${this.onGainChange}
+            ></channel-strip>
+            <channel-strip
               .channelIndex=${-1}
               .master=${true}
               .gain=${state.masterGain}
@@ -154,11 +170,10 @@ export class MixerElement extends LitElement {
   }
 
   static styles = css`
-    /* Bottom dock: full-bleed chrome pinned under the rack viewport. */
+    /* A block of the DAW core dock (the dock draws the shared border). */
     :host {
       display: block;
       width: 100%;
-      border-top: 1px solid var(--medium, #2b3844);
     }
 
     .mixer-panel {
@@ -200,19 +215,22 @@ export class MixerElement extends LitElement {
     .mixer-body {
       display: flex;
       background: var(--mixer-bg, #141414);
-      padding: 8px;
-      gap: 6px;
       overflow: hidden;
     }
 
-    /* Centre the strip row when the dock is wider than 16 strips + master. */
-    .channels-scroll {
-      justify-content: safe center;
+    /* Strips share the full dock width — contiguous desk cells, no gaps,
+     * falling back to horizontal scrolling when squeezed. */
+    .channels-scroll > channel-strip {
+      flex: 1 1 0;
+      min-width: 44px;
+    }
+
+    .master-section > channel-strip {
+      width: 64px;
     }
 
     .channels-scroll {
       display: flex;
-      gap: 3px;
       overflow-x: auto;
       overflow-y: hidden;
       flex: 1;
@@ -230,8 +248,8 @@ export class MixerElement extends LitElement {
     }
 
     .master-section {
-      border-left: 1px solid var(--mixer-fader-track, #2b3844);
-      padding-left: 6px;
+      display: flex;
+      border-left: 2px solid var(--mixer-fader-track, #2b3844);
       flex-shrink: 0;
     }
   `;

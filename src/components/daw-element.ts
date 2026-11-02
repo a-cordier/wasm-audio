@@ -103,6 +103,7 @@ export class Daw extends LitElement {
   private kbSlotConfigs = new Map<string, KbTarget>();
 
   private slotCounter = 0;
+  private rowCounter = 0;
   private mixerAssignments = new Map<string, number>();
   private sessionSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -225,6 +226,11 @@ export class Daw extends LitElement {
     return this.slotTree ? collectLeafSlots(this.slotTree) : [];
   }
 
+  /** Rows are unnamed branches — the arrangement unit of the rack. */
+  private newRow(children: SlotConfig[]): SlotConfig {
+    return createBranchSlot(`row-${++this.rowCounter}`, "", children);
+  }
+
   private async buildDefaultRack(showTemplate: boolean) {
     const slots = [
       createLeafSlot("slot-synth", "POLY TICKS", "poly-ticks", {
@@ -246,7 +252,7 @@ export class Daw extends LitElement {
       );
     }
     this.slotCounter = 0;
-    this.slotTree = createBranchSlot("root", "DAW", slots);
+    this.slotTree = createBranchSlot("root", "DAW", [this.newRow(slots)]);
     for (const [index, slot] of this.leafSlots().entries()) {
       await this.instantiateSlot(slot);
       this.routeSlot(slot, index);
@@ -278,7 +284,19 @@ export class Daw extends LitElement {
       await this.buildDefaultRack(false);
       return;
     }
-    this.slotTree = createBranchSlot("root", "DAW", slots);
+    // Rebuild the row structure: entries carry their row index.
+    const rowBuckets = new Map<number, SlotConfig[]>();
+    for (const entry of session.slots) {
+      const slot = slots.find((s) => s.id === entry.id);
+      if (!slot) continue;
+      const bucket = rowBuckets.get(entry.row);
+      if (bucket) bucket.push(slot);
+      else rowBuckets.set(entry.row, [slot]);
+    }
+    const rows = [...rowBuckets.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, leaves]) => this.newRow(leaves));
+    this.slotTree = createBranchSlot("root", "DAW", rows);
 
     for (const entry of session.slots) {
       const slot = slots.find((s) => s.id === entry.id);
@@ -321,6 +339,15 @@ export class Daw extends LitElement {
   private routeSlot(slot: SlotConfig, channel: number) {
     const plugin = this.plugins.get(slot.id);
     if (!plugin) return;
+    // Sequencers never take an instrument channel: their only audio is the
+    // metronome click, which sums into the mixer's shared CLICK bus.
+    if (plugin.descriptor.kind === "sequencer") {
+      if (isAudioProducer(plugin)) {
+        this.mixerEngine.routeToClick(slot.id, plugin.getOutputNode());
+      }
+      return;
+    }
+    if (channel < 0) return;
     this.mixerAssignments.set(slot.id, channel);
     this.mixerEngine.setLabel(channel, slot.name);
     if (isAudioProducer(plugin)) {
@@ -367,8 +394,9 @@ export class Daw extends LitElement {
       console.warn(`rack: unknown device "${pluginId}"`);
       return null;
     }
-    const channel = this.allocateMixerChannel();
-    if (channel === -1) {
+    const needsChannel = reg.descriptor.kind !== "sequencer";
+    const channel = needsChannel ? this.allocateMixerChannel() : -1;
+    if (needsChannel && channel === -1) {
       console.warn("rack: all mixer channels are in use");
       return null;
     }
@@ -376,7 +404,14 @@ export class Daw extends LitElement {
     const slot = createLeafSlot(id, reg.descriptor.name, pluginId, this.defaultChannelsFor(reg));
     await this.instantiateSlot(slot);
     this.routeSlot(slot, channel);
-    this.slotTree = { ...this.slotTree, children: [...(this.slotTree.children ?? []), slot] };
+    const rows = [...(this.slotTree.children ?? [])];
+    if (rows.length === 0) {
+      rows.push(this.newRow([slot]));
+    } else {
+      const last = rows[rows.length - 1];
+      rows[rows.length - 1] = { ...last, children: [...(last.children ?? []), slot] };
+    }
+    this.slotTree = { ...this.slotTree, children: rows };
     this.scheduleSessionSave();
     return id;
   }
@@ -412,10 +447,48 @@ export class Daw extends LitElement {
 
     this.slotTree = {
       ...this.slotTree,
-      children: (this.slotTree.children ?? []).filter((c) => c.id !== slotId),
+      children: (this.slotTree.children ?? [])
+        .map((row) => ({ ...row, children: (row.children ?? []).filter((c) => c.id !== slotId) }))
+        .filter((row) => (row.children ?? []).length > 0),
     };
     this.scheduleSessionSave();
   }
+
+  /** Drag-and-drop arrangement: move a device within/between rows, or into a
+   * fresh row at the end (targetRowId null). Rows left empty are pruned. */
+  private onSlotMove = (e: CustomEvent<{ slotId: string; targetRowId: string | null; index: number }>) => {
+    if (!this.slotTree) return;
+    const { slotId, targetRowId, index } = e.detail;
+    const rows: Array<SlotConfig & { children: SlotConfig[] }> =
+      (this.slotTree.children ?? []).map((r) => ({ ...r, children: [...(r.children ?? [])] }));
+    let moved: SlotConfig | undefined;
+    let sourceRow: (typeof rows)[number] | undefined;
+    let sourceIndex = -1;
+    for (const row of rows) {
+      const i = row.children.findIndex((c) => c.id === slotId);
+      if (i !== -1) {
+        moved = row.children[i];
+        sourceRow = row;
+        sourceIndex = i;
+        break;
+      }
+    }
+    if (!moved || !sourceRow) return;
+    if (targetRowId !== null) {
+      const target = rows.find((r) => r.id === targetRowId);
+      if (!target) return;
+      let insertIndex = index;
+      if (target === sourceRow && sourceIndex < insertIndex) insertIndex -= 1;
+      sourceRow.children.splice(sourceIndex, 1);
+      insertIndex = Math.max(0, Math.min(insertIndex, target.children.length));
+      target.children.splice(insertIndex, 0, moved);
+    } else {
+      sourceRow.children.splice(sourceIndex, 1);
+      rows.push({ ...this.newRow([moved]), children: [moved] });
+    }
+    this.slotTree = { ...this.slotTree, children: rows.filter((r) => r.children.length > 0) };
+    this.scheduleSessionSave();
+  };
 
   // --- Session persistence ---
 
@@ -430,22 +503,25 @@ export class Daw extends LitElement {
   private saveSessionNow() {
     if (!this.slotTree) return;
     const slots: RackSlotEntry[] = [];
-    for (const slot of this.leafSlots()) {
-      if (!slot.pluginId) continue;
-      const plugin = this.plugins.get(slot.id);
-      slots.push({
-        id: slot.id,
-        pluginId: slot.pluginId,
-        name: slot.name,
-        midiChannel: slot.midiChannel ?? "omni",
-        outputChannel: slot.outputChannel ?? 0,
-        inputDevice: slot.inputDevice ?? "internal",
-        mixerChannel: this.mixerAssignments.get(slot.id) ?? -1,
-        collapsed: slot.collapsed === true,
-        sync: slot.sync === true,
-        state: plugin && !isSlotAware(plugin) ? plugin.getState() : undefined,
-      });
-    }
+    (this.slotTree.children ?? []).forEach((row, rowIndex) => {
+      for (const slot of row.children ?? []) {
+        if (!slot.pluginId) continue;
+        const plugin = this.plugins.get(slot.id);
+        slots.push({
+          id: slot.id,
+          pluginId: slot.pluginId,
+          name: slot.name,
+          midiChannel: slot.midiChannel ?? "omni",
+          outputChannel: slot.outputChannel ?? 0,
+          inputDevice: slot.inputDevice ?? "internal",
+          mixerChannel: this.mixerAssignments.get(slot.id) ?? -1,
+          collapsed: slot.collapsed === true,
+          sync: slot.sync === true,
+          row: rowIndex,
+          state: plugin && !isSlotAware(plugin) ? plugin.getState() : undefined,
+        });
+      }
+    });
     saveRackSession({
       version: 1,
       slotCounter: this.slotCounter,
@@ -508,6 +584,10 @@ export class Daw extends LitElement {
   render() {
     if (!this.ready || !this.slotTree) return html``;
     return html`
+      <transport-bar
+        .transport=${this.transport}
+        .audioContext=${this.audioContext}
+      ></transport-bar>
       ${!this.audioReady
         ? html`
           <div class="power-overlay" @click=${this.powerOn}>
@@ -517,10 +597,6 @@ export class Daw extends LitElement {
             </div>
           </div>`
         : nothing}
-      <transport-bar
-        .transport=${this.transport}
-        .audioContext=${this.audioContext}
-      ></transport-bar>
       <div class="main-zone">
         <device-browser
           .open=${this.browserOpen}
@@ -531,6 +607,8 @@ export class Daw extends LitElement {
         <div class="rack-viewport">
           <device-slot
             root
+            @slot-move=${this.onSlotMove}
+            @device-mount=${this.onDeviceMount}
             .config=${this.slotTree}
             .plugins=${this.plugins}
             .bus=${this.midiBus}
@@ -574,14 +652,18 @@ export class Daw extends LitElement {
 
   static get styles() {
     return css`
-      /* The workspace grid: fixed chrome (transport header, mixer dock)
-       * around an independently scrolling rack. Item 7's timeline will
-       * insert a row between header and rack. */
+      /* The workspace grid: browser rail + scrolling rack over the DAW
+       * core dock (MASTER transport + mixer, composable — future core
+       * modules join it). Item 7's timeline claims a chrome row later. */
       :host {
         display: grid;
         grid-template-rows: auto minmax(0, 1fr) auto;
         height: 100%;
         width: 100%;
+      }
+
+      mixer-element {
+        border-top: 1px solid var(--medium, #2b3844);
       }
 
       /* Middle row: browser rail + rack viewport. */
