@@ -28,6 +28,7 @@ import type { Plugin, InstrumentPlugin } from "../core/types";
 import { isInstrumentPlugin, isSlotAware, isAudioProducer, isAudioEffect, isMidiConsumer, isTransportChild } from "../core/types";
 import { RackSession, RackSlotEntry, loadRackSession, saveRackSession } from "../core/rack-storage";
 import { getBindingManager } from "../control/binding-manager";
+import { getParamDirectory } from "../control/param-directory";
 import { MidiControlAdapter } from "../control/adapters/midi-adapter";
 
 import { MixerEngine, ChannelStripState } from "../mixer";
@@ -43,6 +44,7 @@ import "../instruments/monolog/register";
 import "../instruments/sequels/register";
 import "../devices/echo/register";
 import "../devices/audio-in/register";
+import "../devices/automation/register";
 
 const SESSION_SAVE_DEBOUNCE_MS = 500;
 
@@ -339,6 +341,9 @@ export class Daw extends LitElement {
     if (isSlotAware(plugin)) plugin.setSlotId(slot.id);
     plugin.init();
     this.plugins.set(slot.id, plugin);
+    // Every mount path converges here — the automation address book sees
+    // every learnable device (register no-ops for the rest).
+    getParamDirectory().register(slot.id, slot.name, plugin);
     return plugin;
   }
 
@@ -353,6 +358,8 @@ export class Daw extends LitElement {
       }
       return;
     }
+    // Modules emit no audio at all — nothing to route, no strip to take.
+    if (plugin.descriptor.kind === "module") return;
     const channel = this.mixerEngine.addChannel(
       slot.id,
       slot.name,
@@ -385,6 +392,8 @@ export class Daw extends LitElement {
   }
 
   private defaultChannelsFor(reg: PluginRegistration): Partial<Pick<SlotConfig, "midiChannel" | "outputChannel">> {
+    // Control devices consume no MIDI — don't burn an IN channel on one.
+    if (reg.descriptor.type === "control") return {};
     if (reg.descriptor.type === "midi-source") {
       // Drive the first mounted instrument, mirroring the default
       // sequels → monolog wiring.
@@ -415,7 +424,7 @@ export class Daw extends LitElement {
       console.warn(`rack: unknown device "${pluginId}"`);
       return null;
     }
-    const needsChannel = reg.descriptor.kind !== "sequencer";
+    const needsChannel = reg.descriptor.kind !== "sequencer" && reg.descriptor.kind !== "module";
     if (needsChannel && !this.mixerEngine.hasFreeChannel()) {
       console.warn("rack: all mixer channels are in use");
       return null;
@@ -440,6 +449,10 @@ export class Daw extends LitElement {
     if (!this.slotTree) return;
     const plugin = this.plugins.get(slotId);
     if (!plugin) return;
+
+    // Out of the automation address book FIRST: no tick may dispatch into a
+    // plugin that is ramping down or disposed.
+    getParamDirectory().unregister(slotId);
 
     // Ramp to silence before teardown so the unmount never clicks.
     if (isAudioProducer(plugin)) {

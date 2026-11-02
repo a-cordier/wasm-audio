@@ -313,7 +313,7 @@ export class MixerElement extends LitElement {
         <device-picker
           heading="ADD TO MIXER"
           .anchor=${this.pickerAnchor}
-          .omitKinds=${["sequencer"] as const}
+          .omitKinds=${["sequencer", "module"] as const}
           @device-pick=${this.onPickerPick}
           @picker-close=${this.closePicker}
         ></device-picker>

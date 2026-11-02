@@ -127,6 +127,11 @@ export const darkTheme = `
     --echo-accent: #d97f43;
     --audio-in-accent: #c75e6a;
 
+    /* MOTION (automation module): amber accent + two-zone camaïeu. */
+    --automation-accent: #f2a33c;
+    --automation-target-panel-color: #33302a;
+    --automation-signal-panel-color: #322e28;
+
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);
     --transport-label-color: var(--moonbeam);
@@ -249,6 +254,11 @@ export const retroTheme = `
     --mixer-send-zone-bg: color-mix(in srgb, var(--dark-secondary) 94%, var(--echo-accent, #d97f43) 6%);
     --echo-accent: #d97f43;
     --audio-in-accent: #c75e6a;
+
+    /* MOTION (automation module): warm amber accent + two-zone camaïeu. */
+    --automation-accent: #e8963c;
+    --automation-target-panel-color: #352c20;
+    --automation-signal-panel-color: #332b22;
 
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);

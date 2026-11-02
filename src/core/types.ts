@@ -27,8 +27,11 @@ export interface PluginDescriptor {
   readonly kind: DeviceKind;
   /** Accent for browser chips: a CSS color or var() reference. */
   readonly accent?: string;
-  /** MIDI role (kept separate from kind: a sequencer is a midi-source). */
-  readonly type: "instrument" | "midi-source";
+  /** MIDI role (kept separate from kind: a sequencer is a midi-source).
+   * "control" is neither: a device that emits no audio and no MIDI (kind
+   * "module" automation sources) — it takes no MIDI channels and is never
+   * a sequencer's default target. */
+  readonly type: "instrument" | "midi-source" | "control";
 }
 
 export interface Plugin {
