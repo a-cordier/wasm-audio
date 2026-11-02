@@ -122,6 +122,7 @@ export const darkTheme = `
     --mixer-db-color: var(--light-secondary);
     --mixer-strip-max-width: 96px;
     --mixer-limiter-led: #d4913a;
+    --mixer-eq-zone-bg: color-mix(in srgb, var(--dark-secondary) 94%, var(--light-secondary) 6%);
 
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);
@@ -241,6 +242,7 @@ export const retroTheme = `
     --mixer-db-color: var(--light-secondary);
     --mixer-strip-max-width: 96px;
     --mixer-limiter-led: #d4913a;
+    --mixer-eq-zone-bg: color-mix(in srgb, var(--dark-secondary) 94%, var(--light-secondary) 6%);
 
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);

@@ -144,6 +144,13 @@ export class MixerElement extends LitElement {
     this.requestUpdate();
   }
 
+  private onEqChange(e: CustomEvent) {
+    const { id, band, value } = e.detail;
+    this.engine?.setEq(id, band, value);
+    this.notifyMixerChanged();
+    this.requestUpdate();
+  }
+
   // --- Prepared channels: the unused desk capacity stays visible ---
   // Empty strips pad the board to MAX_CHANNELS, mirroring the rack's
   // prepared "+" slots: each is a drop target for a device dragged off the
@@ -240,11 +247,16 @@ export class MixerElement extends LitElement {
                 .pan=${ch.strip.pan}
                 .mute=${ch.strip.mute}
                 .solo=${ch.strip.solo}
+                .eqLow=${ch.strip.eq.low}
+                .eqMid=${ch.strip.eq.mid}
+                .eqMidFreq=${ch.strip.eq.midFreq}
+                .eqHigh=${ch.strip.eq.high}
                 .meterLevel=${this.meterLevels.get(ch.slotId) ?? 0}
                 @gain-change=${this.onGainChange}
                 @pan-change=${this.onPanChange}
                 @mute-change=${this.onMuteChange}
                 @solo-change=${this.onSoloChange}
+                @eq-change=${this.onEqChange}
               ></channel-strip>
             `)}
             ${this.renderGhostStrips(engine.channels.length)}

@@ -2,12 +2,26 @@ import { LitElement, html, css, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { faderMixerMeterSkin } from "../common/controls/skins/fader-mixer-meter-skin";
-import { faderToGain, gainToFader } from "../../mixer";
+import {
+  faderToGain,
+  gainToFader,
+  EqBand,
+  EQ_GAIN_DB,
+  EQ_MID_FREQ_MIN,
+  EQ_MID_FREQ_MAX,
+  EQ_MID_FREQ_DEFAULT,
+} from "../../mixer";
 import "../common/controls/fader-element";
+import "../common/controls/knob-element";
 
 const FADER_MAX = 127;
 /** GR LED threshold: light once the limiter actually bites. */
 const GR_LIT_DB = -0.5;
+
+// The FREQ knob sweeps the mid exponentially — equal throw per octave.
+const FREQ_LOG_SPAN = Math.log(EQ_MID_FREQ_MAX / EQ_MID_FREQ_MIN);
+const freqToKnob = (hz: number) => Math.log(hz / EQ_MID_FREQ_MIN) / FREQ_LOG_SPAN;
+const knobToFreq = (v: number) => Math.round(EQ_MID_FREQ_MIN * Math.exp(v * FREQ_LOG_SPAN));
 
 @customElement("channel-strip")
 export class ChannelStrip extends LitElement {
@@ -26,6 +40,11 @@ export class ChannelStrip extends LitElement {
   @property({ type: Boolean }) limiter = false;
   /** Limiter gain reduction in dB (negative while limiting). */
   @property({ type: Number }) gainReduction = 0;
+  /** 3-band EQ (dB gains + mid center Hz) — ghosted on the fixed buses. */
+  @property({ type: Number }) eqLow = 0;
+  @property({ type: Number }) eqMid = 0;
+  @property({ type: Number }) eqMidFreq = EQ_MID_FREQ_DEFAULT;
+  @property({ type: Number }) eqHigh = 0;
 
   private onFaderChange(e: CustomEvent) {
     // Fader THROW -> amplitude through the desk law (+6 dB up top).
@@ -44,6 +63,28 @@ export class ChannelStrip extends LitElement {
 
   private onSoloClick() {
     this.dispatchEvent(new CustomEvent("solo-change", { detail: { id: this.channelId, value: !this.solo } }));
+  }
+
+  private onEqChange(band: EqBand, value: number) {
+    this.dispatchEvent(new CustomEvent("eq-change", { detail: { id: this.channelId, band, value } }));
+  }
+
+  private renderEqKnob(label: string, band: EqBand, value: number, busTitle: string) {
+    // The FREQ knob carries a normalized 0..1 value (log sweep); gain knobs
+    // carry dB directly. Alt-drag is the fine adjust, as everywhere.
+    const isFreq = band === "midFreq";
+    return html`
+      <knob-element
+        .label=${label}
+        .range=${isFreq ? { min: 0, max: 1 } : { min: -EQ_GAIN_DB, max: EQ_GAIN_DB }}
+        .step=${isFreq ? 0.02 : 0.5}
+        .value=${isFreq ? freqToKnob(value) : value}
+        ?disabled=${this.master}
+        title=${this.master ? busTitle : (isFreq ? `${Math.round(value)} Hz` : `${value.toFixed(1)} dB`)}
+        @change=${(e: CustomEvent) =>
+          this.onEqChange(band, isFreq ? knobToFreq(e.detail.value) : e.detail.value)}
+      ></knob-element>
+    `;
   }
 
   private get dbDisplay(): string {
@@ -66,6 +107,12 @@ export class ChannelStrip extends LitElement {
           class="label"
           style=${this.accent ? `border-bottom-color: ${this.accent}` : ""}
         >${this.master ? (this.label || "MASTER") : this.label}</div>
+        <div class="eq-zone">
+          ${this.renderEqKnob("HI", "high", this.eqHigh, busTitle)}
+          ${this.renderEqKnob("MID", "mid", this.eqMid, busTitle)}
+          ${this.renderEqKnob("FREQ", "midFreq", this.eqMidFreq, busTitle)}
+          ${this.renderEqKnob("LO", "low", this.eqLow, busTitle)}
+        </div>
         <fader-element
           style="--meter-level: ${this.meterLevel}"
           .value=${faderValue}
@@ -136,6 +183,23 @@ export class ChannelStrip extends LitElement {
       min-height: 12px;
       border-bottom: 2px solid transparent;
       box-sizing: border-box;
+    }
+
+    /* EQ zone: the strip's insert section, tinted by function (camaïeu) —
+     * a vertical knob column, as on a hardware desk. */
+    .eq-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      width: 100%;
+      padding: 4px 0 2px;
+      background: var(--mixer-eq-zone-bg, #1c2a38);
+      border-radius: 2px;
+      --knob-size: 22px;
+      --control-label-font-size: 7px;
+      --control-label-color: var(--mixer-label-color, #cbe2f3);
+      --control-cursor-color: var(--mixer-fader-thumb, #cbe2f3);
     }
 
     fader-element {

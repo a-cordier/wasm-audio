@@ -1,5 +1,17 @@
-import { ChannelStripState, MAX_CHANNELS, createDefaultStripState } from "./types";
+import {
+  ChannelStripState,
+  MAX_CHANNELS,
+  createDefaultStripState,
+  EQ_GAIN_DB,
+  EQ_LOW_SHELF_HZ,
+  EQ_HIGH_SHELF_HZ,
+  EQ_MID_FREQ_MIN,
+  EQ_MID_FREQ_MAX,
+  EQ_MID_Q,
+} from "./types";
 import { MAX_FADER_GAIN } from "./fader-law";
+
+export type EqBand = "low" | "mid" | "midFreq" | "high";
 
 const FFT_SIZE = 256;
 const SMOOTHING = 0.8;
@@ -10,6 +22,10 @@ const REMOVE_RAMP_MS = 40;
 
 interface ChannelNodes {
   input: GainNode;
+  /** The per-channel insert chain, in order, between input and fader.
+   * Residents today: the 3-band EQ. Item 8's effects slot in here. */
+  inserts: AudioNode[];
+  eq: { low: BiquadFilterNode; mid: BiquadFilterNode; high: BiquadFilterNode };
   gain: GainNode;
   pan: StereoPannerNode;
   analyser: AnalyserNode;
@@ -127,18 +143,32 @@ export class MixerEngine extends EventTarget {
     if (existing) return existing;
     if (this.channels.length >= MAX_CHANNELS) return null;
 
-    const strip = restored ? { ...restored } : createDefaultStripState();
+    const strip = restored ? { ...restored, eq: { ...restored.eq } } : createDefaultStripState();
     const input = new GainNode(this.ctx, { gain: 1 });
+    // 3-band EQ (native biquads): flat gains are identity, so there is no
+    // bypass — zeroed knobs ARE the bypass.
+    const eq = {
+      low: new BiquadFilterNode(this.ctx, { type: "lowshelf", frequency: EQ_LOW_SHELF_HZ, gain: strip.eq.low }),
+      mid: new BiquadFilterNode(this.ctx, { type: "peaking", frequency: strip.eq.midFreq, Q: EQ_MID_Q, gain: strip.eq.mid }),
+      high: new BiquadFilterNode(this.ctx, { type: "highshelf", frequency: EQ_HIGH_SHELF_HZ, gain: strip.eq.high }),
+    };
     const gain = new GainNode(this.ctx, { gain: strip.mute ? 0 : strip.gain });
     const pan = new StereoPannerNode(this.ctx, { pan: strip.pan });
     const analyser = new AnalyserNode(this.ctx, { fftSize: FFT_SIZE, smoothingTimeConstant: SMOOTHING });
 
-    input.connect(gain);
+    // input → [inserts…] → fader → pan → meter → master.
+    const inserts: AudioNode[] = [eq.low, eq.mid, eq.high];
+    let previous: AudioNode = input;
+    for (const insert of inserts) {
+      previous.connect(insert);
+      previous = insert;
+    }
+    previous.connect(gain);
     gain.connect(pan);
     pan.connect(analyser);
     analyser.connect(this.master.gain);
 
-    const channel: MixerChannel = { slotId, label, accent, strip, nodes: { input, gain, pan, analyser } };
+    const channel: MixerChannel = { slotId, label, accent, strip, nodes: { input, inserts, eq, gain, pan, analyser } };
     this.channels.push(channel);
     this.byId.set(slotId, channel);
 
@@ -168,6 +198,7 @@ export class MixerEngine extends EventTarget {
       this.sources.delete(slotId);
     }
     channel.nodes.input.disconnect();
+    for (const insert of channel.nodes.inserts) insert.disconnect();
     channel.nodes.gain.disconnect();
     channel.nodes.pan.disconnect();
     channel.nodes.analyser.disconnect();
@@ -248,6 +279,30 @@ export class MixerEngine extends EventTarget {
     this.applyAllChannelGains();
   }
 
+  setEq(slotId: string, band: EqBand, value: number): void {
+    const channel = this.byId.get(slotId);
+    if (!channel) return;
+    const now = this.ctx.currentTime;
+    switch (band) {
+      case "low":
+        channel.strip.eq.low = Math.max(-EQ_GAIN_DB, Math.min(EQ_GAIN_DB, value));
+        channel.nodes.eq.low.gain.setTargetAtTime(channel.strip.eq.low, now, RAMP_TC);
+        break;
+      case "mid":
+        channel.strip.eq.mid = Math.max(-EQ_GAIN_DB, Math.min(EQ_GAIN_DB, value));
+        channel.nodes.eq.mid.gain.setTargetAtTime(channel.strip.eq.mid, now, RAMP_TC);
+        break;
+      case "midFreq":
+        channel.strip.eq.midFreq = Math.max(EQ_MID_FREQ_MIN, Math.min(EQ_MID_FREQ_MAX, value));
+        channel.nodes.eq.mid.frequency.setTargetAtTime(channel.strip.eq.midFreq, now, RAMP_TC);
+        break;
+      case "high":
+        channel.strip.eq.high = Math.max(-EQ_GAIN_DB, Math.min(EQ_GAIN_DB, value));
+        channel.nodes.eq.high.gain.setTargetAtTime(channel.strip.eq.high, now, RAMP_TC);
+        break;
+    }
+  }
+
   setLabel(slotId: string, label: string): void {
     const channel = this.byId.get(slotId);
     if (!channel || channel.label === label) return;
@@ -321,6 +376,7 @@ export class MixerEngine extends EventTarget {
   dispose(): void {
     for (const channel of this.channels) {
       channel.nodes.input.disconnect();
+      for (const insert of channel.nodes.inserts) insert.disconnect();
       channel.nodes.gain.disconnect();
       channel.nodes.pan.disconnect();
       channel.nodes.analyser.disconnect();
