@@ -189,7 +189,15 @@ namespace Monolog {
 
 			stopIfNecessary();
 
-			return clean * sVelocity * ampLevel * (1.0f + accent * ACCENT_AMP);
+			// Per-model level trim (dsp-audit, item 5): measured post-chain at
+			// three reference patches (A2 saw; res 105/127/115; cutoff 64/80/40),
+			// SCREAM ran ~1.5 dB hot and KORG ~0.5 dB shy of MOOG/ACID. Applied
+			// AFTER the saturator: pure loudness matching, never a change to how
+			// hard a model drives the tanh stage. Indexed by FilterModel.
+			static constexpr float MODEL_TRIM[4] = { 1.0f, 1.0f, 0.84f, 1.06f };
+
+			return clean * MODEL_TRIM[static_cast<int>(filterModel)]
+				* sVelocity * ampLevel * (1.0f + accent * ACCENT_AMP);
 		}
 
 		void noteOn() {
