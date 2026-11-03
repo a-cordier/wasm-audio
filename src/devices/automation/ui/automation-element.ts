@@ -44,8 +44,15 @@ export class AutomationElement extends LitElement {
   transportSynced = false;
 
   @state() private signal: AutomationState["signal"] | null = null;
+  @state() private steps: AutomationState["steps"] | null = null;
   @state() private target: AutomationState["target"] | null = null;
   @state() private targets: AutomationTargetEntry[] = [];
+
+  /** True between lane pointer-down and up — one session save per gesture. */
+  private painting = false;
+  /** Last painted bar — a fast drag hops bars between samples, so the gap
+   * is filled by interpolating from here. */
+  private lastPaint: { index: number; value: number } | null = null;
 
   private get controller(): AutomationController {
     return this.plugin as AutomationController;
@@ -53,6 +60,7 @@ export class AutomationElement extends LitElement {
 
   // Stable handler identity — symmetric add/remove, as everywhere.
   private onSignal = (e: Event) => { this.signal = { ...(e as CustomEvent).detail }; };
+  private onSteps = (e: Event) => { this.steps = (e as CustomEvent).detail; };
   private onTarget = (e: Event) => { this.target = { ...(e as CustomEvent).detail }; };
   private onDirectory = () => { this.targets = getParamDirectory().getTargets(); };
 
@@ -61,9 +69,11 @@ export class AutomationElement extends LitElement {
     if (!this.plugin) return;
     const snapshot = this.controller.getState();
     this.signal = snapshot.signal;
+    this.steps = snapshot.steps;
     this.target = snapshot.target;
     this.targets = getParamDirectory().getTargets();
     this.controller.addEventListener(AutomationEvent.SIGNAL, this.onSignal);
+    this.controller.addEventListener(AutomationEvent.STEPS, this.onSteps);
     this.controller.addEventListener(AutomationEvent.TARGET, this.onTarget);
     getParamDirectory().addEventListener("directory-change", this.onDirectory);
   }
@@ -73,6 +83,7 @@ export class AutomationElement extends LitElement {
     getParamDirectory().removeEventListener("directory-change", this.onDirectory);
     if (!this.plugin) return;
     this.controller.removeEventListener(AutomationEvent.SIGNAL, this.onSignal);
+    this.controller.removeEventListener(AutomationEvent.STEPS, this.onSteps);
     this.controller.removeEventListener(AutomationEvent.TARGET, this.onTarget);
   }
 
@@ -141,9 +152,63 @@ export class AutomationElement extends LitElement {
     this.notifyChanged();
   }
 
+  // --- Step lane (drag-bar editor: press draws, drag paints across) ---
+
+  private get stepMode(): boolean {
+    return this.signal !== null && SHAPES[this.signal.shape.value] === "STEP";
+  }
+
+  private onLaneDown(e: PointerEvent) {
+    if (!this.stepMode) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    this.painting = true;
+    this.lastPaint = null;
+    this.paintStep(e);
+  }
+
+  private onLaneMove(e: PointerEvent) {
+    if (this.painting) this.paintStep(e);
+  }
+
+  private onLaneUp(e: PointerEvent) {
+    if (!this.painting) return;
+    this.painting = false;
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    this.notifyChanged();
+  }
+
+  // Index from x, value from y — both clamped, so a captured drag keeps
+  // painting at the edges instead of falling off the lane.
+  private paintStep(e: PointerEvent) {
+    if (!this.steps) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const index = Math.max(0, Math.min(this.steps.count - 1,
+      Math.floor(((e.clientX - rect.left) / rect.width) * this.steps.count)));
+    const raw = 127 * (1 - (e.clientY - rect.top) / rect.height);
+    const value = Math.max(0, Math.min(127, raw));
+    const from = this.lastPaint;
+    this.lastPaint = { index, value };
+    if (from && Math.abs(index - from.index) > 1) {
+      // Fill the hopped-over bars on a line between the two samples.
+      const dir = index > from.index ? 1 : -1;
+      const span = index - from.index;
+      for (let i = from.index + dir; i !== index; i += dir) {
+        this.controller.setStep(i, from.value + ((i - from.index) / span) * (value - from.value));
+      }
+    }
+    this.controller.setStep(index, value);
+  }
+
+  private stepCount(delta: number) {
+    if (!this.steps) return;
+    this.controller.setStepCount(this.steps.count + delta);
+    this.notifyChanged();
+  }
+
   render() {
-    if (!this.signal || !this.target) return html``;
+    if (!this.signal || !this.steps || !this.target) return html``;
     const synced = this.transportSynced;
+    const stepMode = this.stepMode;
     const hasTargets = this.targets.length > 0;
     const running = this.signal.run.value === 1;
     return html`
@@ -176,6 +241,32 @@ export class AutomationElement extends LitElement {
               title=${synced ? "The master transport runs the cycle while SYNC is on" : "Run the cycle"}
               @click=${this.onRunToggle}
             >RUN</button>
+          </div>
+        </div>
+        <div class="zone steps-zone">
+          <label class="zone-label">STEPS</label>
+          ${this.stepper(
+            "COUNT",
+            String(this.steps.count),
+            stepMode,
+            (d) => this.stepCount(d),
+            stepMode ? "" : "Steps play when SHAPE is STEP"
+          )}
+          <div
+            class=${classMap({ lane: true, inactive: !stepMode })}
+            title=${stepMode ? "Draw step values — drag paints across" : "Steps play when SHAPE is STEP"}
+            @pointerdown=${this.onLaneDown}
+            @pointermove=${this.onLaneMove}
+            @pointerup=${this.onLaneUp}
+            @pointercancel=${this.onLaneUp}
+          >
+            ${this.steps.values.slice(0, this.steps.count).map(
+              (v) => html`
+                <div class="bar">
+                  <div class="fill" style="height: ${Math.round((v / 127) * 100)}%"></div>
+                </div>
+              `
+            )}
           </div>
         </div>
       </div>
@@ -254,6 +345,51 @@ export class AutomationElement extends LitElement {
 
     .signal-zone {
       background: var(--automation-signal-panel-color, #322e28);
+    }
+
+    .steps-zone {
+      background: var(--automation-steps-panel-color, #353028);
+    }
+
+    /* SIGNAL/STEPS LCDs hold ≤4 chars (STEP, 1/32, 16) — the 92px width
+     * exists for TARGET's device/param names. */
+    .signal-zone .stepper,
+    .steps-zone .stepper {
+      --lcd-screen-width: 56px;
+    }
+
+    /* Fixed lane, flex bars: the bars always tile the full hit area, so
+     * pointer→index math lines up with the visuals at every COUNT. */
+    .lane {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      width: 158px;
+      height: 52px;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .lane.inactive {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .bar {
+      display: flex;
+      align-items: flex-end;
+      flex: 1 1 0;
+      height: 100%;
+      background: var(--dark-secondary);
+      border-radius: 2px;
+      overflow: hidden;
+      pointer-events: none; /* the lane owns the gesture */
+    }
+
+    .bar .fill {
+      width: 100%;
+      min-height: 2px; /* a zeroed step still reads as a step */
+      background: var(--automation-accent, #f28c28);
     }
 
     .zone-label {

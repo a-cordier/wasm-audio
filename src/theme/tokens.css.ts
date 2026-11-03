@@ -127,10 +127,11 @@ export const darkTheme = `
     --echo-accent: #d97f43;
     --audio-in-accent: #c75e6a;
 
-    /* MOTION (automation module): amber accent + two-zone camaïeu. */
+    /* MOTION (automation module): amber accent + three-zone camaïeu. */
     --automation-accent: #f2a33c;
     --automation-target-panel-color: #33302a;
     --automation-signal-panel-color: #322e28;
+    --automation-steps-panel-color: #353028;
 
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);
@@ -255,10 +256,11 @@ export const retroTheme = `
     --echo-accent: #d97f43;
     --audio-in-accent: #c75e6a;
 
-    /* MOTION (automation module): warm amber accent + two-zone camaïeu. */
+    /* MOTION (automation module): warm amber accent + three-zone camaïeu. */
     --automation-accent: #e8963c;
     --automation-target-panel-color: #352c20;
     --automation-signal-panel-color: #332b22;
+    --automation-steps-panel-color: #372e1e;
 
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);
