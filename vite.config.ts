@@ -11,6 +11,7 @@ const workletFiles: Record<string, string> = {
   "monolog-processor.js": "src/instruments/monolog",
   "monolog-kernel.wasmmodule.js": "src/instruments/monolog/engine",
   "template-processor.js": "src/instruments/template",
+  "automation-processor.js": "src/devices/automation",
 };
 
 const BASE = "/wasm-audio/";

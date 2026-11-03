@@ -615,6 +615,13 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
   handleControlChange(paramId: number, value: number): void {
     switch (paramId) {
       case ControlID.SEQ_BPM:
+        // Ghosted under SYNC exactly like the panel's BPM stepper: the
+        // master owns the tempo, so external writers (MIDI-learn CCs,
+        // automation) are inert too — this handler is where those paths
+        // converge. Without the gate a control write lands in the clock
+        // config while the master anchor stays put, and the sequencer
+        // keeps the rogue tempo until the next SYNC toggle.
+        if (this.masterTransport) break;
         this.setBpm(Math.round(40 + (value / 127) * 200));
         this.dispatchEvent(new CustomEvent("config-change"));
         break;

@@ -16,4 +16,5 @@ pluginRegistry.register({
   },
   controllerFactory: (audioContext: AudioContext) => new AutomationController(audioContext),
   elementTag: "automation-element",
+  workletModules: ["automation-processor.js"],
 });

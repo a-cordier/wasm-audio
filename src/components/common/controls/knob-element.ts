@@ -77,8 +77,16 @@ export class Knob extends LitElement {
     this.updateValue(this.computeStep(event.deltaY, event.altKey));
   }
 
+  // The ONE place `change` fires: user gestures (drag/wheel) land here. A
+  // programmatic `.value` set re-renders silently — automation and
+  // MIDI-learn write through controllers, and echoing their writes back as
+  // `change` looped panel handlers into redundant setter calls and session
+  // saves (daw-element snapshots on composed change).
   updateValue(step) {
-    this.value = clamp(this.range, this.value + step);
+    const next = clamp(this.range, this.value + step);
+    if (next === this.value) return;
+    this.value = next;
+    this.dispatchEvent(new CustomEvent("change", { detail: { value: next } }));
   }
 
   computeStep(increment, sharp = false) {
@@ -88,12 +96,6 @@ export class Knob extends LitElement {
   computeStepMultiplier(increment, sharp = false) {
     const multiplier = increment < 0 ? -1 : 1;
     return sharp ? multiplier * 0.25 : multiplier;
-  }
-
-  updated(changedProperties) {
-    if (changedProperties.has("value")) {
-      this.dispatchEvent(new CustomEvent("change", { detail: { value: this.value } }));
-    }
   }
 
   private get normalizedValue(): number {
