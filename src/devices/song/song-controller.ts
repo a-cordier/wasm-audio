@@ -14,7 +14,16 @@
  * limitations under the License.
  */
 
-import { SongState, SongScene, createSongState, CELL_MUTE, SCENE_COUNT } from "./types/song-state";
+import {
+  SongState,
+  SongScene,
+  createSongState,
+  CELL_MUTE,
+  SCENE_COUNT,
+  CHAIN_CAPACITY,
+  MIN_ENTRY_BARS,
+  MAX_ENTRY_BARS,
+} from "./types/song-state";
 import { SongEvent } from "./types/song-event";
 import {
   Plugin,
@@ -162,12 +171,18 @@ export class SongController extends EventTarget implements Plugin, TransportChil
 
   onMasterStart(_anchor: TransportAnchor): void {
     this.masterRunning = true;
-    // Every synced child restarts at step 0 on the shared downbeat, so the
-    // playing scene is re-asserted immediately (idempotent): the config
-    // already holds its patterns before any __start reads it, and stopped
-    // mutes survive in the worklet either way.
     this.resetRun();
-    if (this.playingScene >= 0) this.applySceneNow(this.playingScene);
+    // Every synced child restarts at step 0 on the shared downbeat, so the
+    // opening scene is applied immediately (idempotent): the config already
+    // holds its patterns before any __start reads it, and stopped mutes
+    // survive in the worklet either way. The chain always starts the song
+    // over — bar 0 is entry 0.
+    const opening = this.state.chain.on === 1 ? (this.chainAt(0)?.scene ?? -1) : this.playingScene;
+    if (opening >= 0) {
+      this.applySceneNow(opening);
+      this.playingScene = opening;
+      this.followSelection(opening);
+    }
     this.updateClockGate();
   }
 
@@ -219,19 +234,20 @@ export class SongController extends EventTarget implements Plugin, TransportChil
         this.playingScene = this.dispatched.scene;
         this.dispatched = null;
         if (this.queuedScene === this.playingScene) this.queuedScene = null;
-        if (this.state.selectedScene !== this.playingScene) {
-          this.state.selectedScene = this.playingScene;
-          // Playback-driven: panel listeners re-render, no composed change,
-          // so the session-save path never ticks over.
-          this.dispatch(SongEvent.SELECTION, this.selectionDetail());
-        }
+        this.followSelection(this.playingScene);
       }
     }
 
-    // Decide the scene for bar+1 (manual queue; the chain joins in batch 3)
-    // and dispatch it inside the lead window, exactly once per boundary —
-    // a re-queue before the window closes replaces it (last wins).
-    const next = this.queuedScene;
+    // Decide the scene for bar+1 — a manual queue wins; otherwise the chain
+    // maps it from the absolute position (a pure function of the transport,
+    // so re-engaging CHAIN rejoins where the song would be). Dispatch inside
+    // the lead window, exactly once per boundary — a re-queue before the
+    // window closes replaces it (last wins).
+    let next = this.queuedScene;
+    if (next === null && this.state.chain.on === 1) {
+      const step = this.chainAt(bar + 1);
+      next = step !== null && step.scene !== this.playingScene ? step.scene : null;
+    }
     if (next === null) return;
     if (this.dispatched && this.dispatched.bar === bar + 1 && this.dispatched.scene === next) return;
 
@@ -249,6 +265,34 @@ export class SongController extends EventTarget implements Plugin, TransportChil
     return Math.round(tBar * this.audioContext.sampleRate) - BOUNDARY_SAFETY_FRAMES;
   }
 
+  // --- The chain: absolute bar → (entry, scene, bar-in-entry) ---
+
+  /** Where the song stands at bar N: wraps when looping, holds the last
+   * entry at the end otherwise (a module never stops the master). */
+  private chainAt(bar: number): { scene: number; index: number; barInEntry: number; bars: number } | null {
+    const c = this.state.chain;
+    const entries = c.entries.slice(0, c.count);
+    const total = entries.reduce((n, e) => n + e.bars, 0);
+    if (total <= 0 || bar < 0) return null;
+    let pos: number;
+    if (c.loop === 1) {
+      pos = bar % total;
+    } else if (bar >= total) {
+      const last = entries[entries.length - 1];
+      return { scene: last.scene, index: entries.length - 1, barInEntry: last.bars - 1, bars: last.bars };
+    } else {
+      pos = bar;
+    }
+    let acc = 0;
+    for (let i = 0; i < entries.length; i++) {
+      if (pos < acc + entries[i].bars) {
+        return { scene: entries[i].scene, index: i, barInEntry: pos - acc, bars: entries[i].bars };
+      }
+      acc += entries[i].bars;
+    }
+    return null;
+  }
+
   // --- Scene dispatch ---
 
   /** Mount-ordered sequencers that take scene dispatches. */
@@ -259,14 +303,17 @@ export class SongController extends EventTarget implements Plugin, TransportChil
   }
 
   /** Launch: quantized to the next bar while the master runs, immediate
-   * recall otherwise (stopped or unsynced). Selection follows the launch. */
+   * recall otherwise (stopped or unsynced). Selection follows the launch,
+   * and a manual launch under a running chain takes over — CHAIN goes off
+   * (one rule; re-engaging rejoins the absolute song position). */
   launchScene(index: number) {
     const scene = Math.max(0, Math.min(SCENE_COUNT - 1, Math.round(index)));
-    if (this.state.selectedScene !== scene) {
-      this.state.selectedScene = scene;
-      this.dispatch(SongEvent.SELECTION, this.selectionDetail());
-    }
+    this.followSelection(scene);
     if (this.isRunning()) {
+      if (this.state.chain.on === 1) {
+        this.state.chain.on = 0;
+        this.dispatch(SongEvent.CHAIN, this.copyChain());
+      }
       this.queuedScene = scene;
       this.dispatch(SongEvent.SELECTION, this.selectionDetail());
     } else {
@@ -331,6 +378,42 @@ export class SongController extends EventTarget implements Plugin, TransportChil
     return this.state.scenes[scene]?.cells[slotId] ?? null;
   }
 
+  // --- Chain editing (panel setters; the tick loop reads state) ---
+
+  setChainEntry(index: number, patch: { scene?: number; bars?: number }) {
+    const entry = this.state.chain.entries[index];
+    if (!entry) return;
+    if (patch.scene !== undefined) {
+      entry.scene = Math.max(0, Math.min(SCENE_COUNT - 1, Math.round(patch.scene)));
+    }
+    if (patch.bars !== undefined) {
+      entry.bars = Math.max(MIN_ENTRY_BARS, Math.min(MAX_ENTRY_BARS, Math.round(patch.bars)));
+    }
+    this.dispatch(SongEvent.CHAIN, this.copyChain());
+  }
+
+  setChainCount(count: number) {
+    this.state.chain.count = Math.max(1, Math.min(CHAIN_CAPACITY, Math.round(count)));
+    this.dispatch(SongEvent.CHAIN, this.copyChain());
+  }
+
+  setChainLoop(on: boolean) {
+    this.state.chain.loop = on ? 1 : 0;
+    this.dispatch(SongEvent.CHAIN, this.copyChain());
+  }
+
+  /** Engaging the chain hands it the next bar (it maps the absolute song
+   * position, so it rejoins mid-song); a manual queue in flight is dropped. */
+  setChainOn(on: boolean) {
+    this.state.chain.on = on ? 1 : 0;
+    if (on) this.queuedScene = null;
+    this.dispatch(SongEvent.CHAIN, this.copyChain());
+  }
+
+  getChain() {
+    return this.copyChain();
+  }
+
   // --- Reads the panel renders from ---
 
   getScenes(): SongScene[] {
@@ -343,12 +426,26 @@ export class SongController extends EventTarget implements Plugin, TransportChil
 
   /** Display snapshot for the panel's rAF readout. */
   getPosition() {
+    const running = this.clockGateOn;
+    const chain =
+      running && this.state.chain.on === 1 && this.currentBar >= 0
+        ? this.chainAt(this.currentBar)
+        : null;
     return {
-      running: this.clockGateOn,
+      running,
       bar: this.currentBar,
       playingScene: this.playingScene,
       queuedScene: this.queuedScene,
+      chain,
     };
+  }
+
+  /** Playback- and launch-driven selection: panel listeners re-render, no
+   * composed change, so the session-save path never ticks over. */
+  private followSelection(scene: number) {
+    if (this.state.selectedScene === scene) return;
+    this.state.selectedScene = scene;
+    this.dispatch(SongEvent.SELECTION, this.selectionDetail());
   }
 
   private selectionDetail() {

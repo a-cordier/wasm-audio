@@ -20,7 +20,7 @@ import { classMap } from "lit/directives/class-map.js";
 import type { Plugin } from "../../../core/types";
 import { getParamDirectory } from "../../../control/param-directory";
 import { SongController, SceneTargetEntry } from "../song-controller";
-import { SongScene, SCENE_COUNT, CELL_MUTE } from "../types/song-state";
+import { SongScene, SongChain, SCENE_COUNT, CELL_MUTE, MIN_ENTRY_BARS, MAX_ENTRY_BARS } from "../types/song-state";
 import { SongEvent } from "../types/song-event";
 
 import "../../../components/common/lcd/lcd-element";
@@ -53,19 +53,24 @@ export class SongElement extends LitElement {
   transportSynced = false;
 
   @state() private scenes: SongScene[] | null = null;
+  @state() private chain: SongChain | null = null;
   @state() private selectedScene = 0;
   @state() private targets: SceneTargetEntry[] = [];
 
-  // rAF readout (POS LCD + pad playing/queued lights) — mixer-meter idiom:
-  // value-quantized writes outside Lit's render loop; rAF parks while the
-  // tab is hidden, and disconnect cancels it.
+  // rAF readout (POS LCD, pad playing/queued lights, chain playhead) —
+  // mixer-meter idiom: value-quantized writes outside Lit's render loop;
+  // rAF parks while the tab is hidden, and disconnect cancels it.
   private rafId = 0;
   private lastBarShown = "";
   private lastPlaying = -2;
   private lastQueued: number | null = -2 as number | null;
+  private lastChainIndex = -2;
+  private lastChainPct = -1;
 
   /** The in-flight cell drag; one composed change per gesture. */
   private drag: { scene: number; slotId: string; startY: number; startOrd: number; edited: boolean } | null = null;
+  /** The in-flight chain-entry drag (scene or bars field). */
+  private entryDrag: { index: number; field: "scene" | "bars"; startY: number; startVal: number; edited: boolean } | null = null;
 
   private get controller(): SongController {
     return this.plugin as SongController;
@@ -73,6 +78,7 @@ export class SongElement extends LitElement {
 
   // Stable handler identity — symmetric add/remove, as everywhere.
   private onScenes = (e: Event) => { this.scenes = (e as CustomEvent).detail; };
+  private onChain = (e: Event) => { this.chain = (e as CustomEvent).detail; };
   private onSelection = (e: Event) => { this.selectedScene = (e as CustomEvent).detail.selectedScene; };
   private onDirectory = () => { this.targets = this.controller.sceneTargets(); };
 
@@ -80,9 +86,11 @@ export class SongElement extends LitElement {
     super.connectedCallback();
     if (!this.plugin) return;
     this.scenes = this.controller.getScenes();
+    this.chain = this.controller.getChain();
     this.selectedScene = this.controller.getSelection().selectedScene;
     this.targets = this.controller.sceneTargets();
     this.controller.addEventListener(SongEvent.SCENES, this.onScenes);
+    this.controller.addEventListener(SongEvent.CHAIN, this.onChain);
     this.controller.addEventListener(SongEvent.SELECTION, this.onSelection);
     getParamDirectory().addEventListener("directory-change", this.onDirectory);
     this.rafId = requestAnimationFrame(this.tickReadout);
@@ -94,6 +102,7 @@ export class SongElement extends LitElement {
     getParamDirectory().removeEventListener("directory-change", this.onDirectory);
     if (!this.plugin) return;
     this.controller.removeEventListener(SongEvent.SCENES, this.onScenes);
+    this.controller.removeEventListener(SongEvent.CHAIN, this.onChain);
     this.controller.removeEventListener(SongEvent.SELECTION, this.onSelection);
   }
 
@@ -108,13 +117,19 @@ export class SongElement extends LitElement {
     this.lastBarShown = "";
     this.lastPlaying = -2;
     this.lastQueued = -2;
+    this.lastChainIndex = -2;
+    this.lastChainPct = -1;
   }
 
   private tickReadout = () => {
     this.rafId = requestAnimationFrame(this.tickReadout);
     if (!this.plugin) return;
     const p = this.controller.getPosition();
-    const barText = p.running && p.bar >= 0 ? `BAR ${p.bar + 1}` : "—";
+    const barText = !p.running || p.bar < 0
+      ? "—"
+      : p.chain
+        ? `S${p.chain.scene + 1} ${p.chain.barInEntry + 1}/${p.chain.bars} · BAR ${p.bar + 1}`
+        : `BAR ${p.bar + 1}`;
     if (barText !== this.lastBarShown) {
       this.lastBarShown = barText;
       const lcd = this.shadowRoot?.querySelector<LCD>(".pos-lcd lcd-element");
@@ -126,6 +141,18 @@ export class SongElement extends LitElement {
       this.shadowRoot?.querySelectorAll(".pad").forEach((pad, i) => {
         pad.classList.toggle("playing", i === p.playingScene);
         pad.classList.toggle("queued", i === p.queuedScene);
+      });
+    }
+    // Chain playhead: active entry + a bar-granular progress fill.
+    const chainIndex = p.chain?.index ?? -1;
+    const chainPct = p.chain ? Math.round(((p.chain.barInEntry + 1) / p.chain.bars) * 100) : 0;
+    if (chainIndex !== this.lastChainIndex || chainPct !== this.lastChainPct) {
+      this.lastChainIndex = chainIndex;
+      this.lastChainPct = chainPct;
+      this.shadowRoot?.querySelectorAll(".entry").forEach((entry, i) => {
+        entry.classList.toggle("active", i === chainIndex);
+        const fill = entry.querySelector<HTMLElement>(".e-progress");
+        if (fill) fill.style.width = i === chainIndex ? `${chainPct}%` : "0";
       });
     }
   };
@@ -181,10 +208,74 @@ export class SongElement extends LitElement {
     this.notifyChanged();
   }
 
+  // --- Chain editing: per-field drag/wheel on the entry tiles ---
+
+  private entryVal(index: number, field: "scene" | "bars"): number {
+    const entry = this.chain?.entries[index];
+    return entry ? (field === "scene" ? entry.scene : entry.bars) : 0;
+  }
+
+  private setEntryVal(index: number, field: "scene" | "bars", value: number): boolean {
+    const lo = field === "scene" ? 0 : MIN_ENTRY_BARS;
+    const hi = field === "scene" ? SCENE_COUNT - 1 : MAX_ENTRY_BARS;
+    const clamped = Math.max(lo, Math.min(hi, value));
+    if (clamped === this.entryVal(index, field)) return false;
+    this.controller.setChainEntry(index, { [field]: clamped });
+    return true;
+  }
+
+  private onEntryDown(e: PointerEvent, index: number, field: "scene" | "bars") {
+    if (!this.transportSynced) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    this.entryDrag = { index, field, startY: e.clientY, startVal: this.entryVal(index, field), edited: false };
+  }
+
+  private onEntryMove(e: PointerEvent) {
+    const d = this.entryDrag;
+    if (!d) return;
+    const val = d.startVal + Math.round((d.startY - e.clientY) / DRAG_PX);
+    if (this.setEntryVal(d.index, d.field, val)) d.edited = true;
+  }
+
+  private onEntryUp(e: PointerEvent) {
+    if (!this.entryDrag) return;
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    if (this.entryDrag.edited) this.notifyChanged();
+    this.entryDrag = null;
+  }
+
+  private onEntryWheel(e: WheelEvent, index: number, field: "scene" | "bars") {
+    if (!this.transportSynced) return;
+    e.preventDefault();
+    if (this.setEntryVal(index, field, this.entryVal(index, field) + (e.deltaY < 0 ? 1 : -1))) {
+      this.notifyChanged();
+    }
+  }
+
+  private stepChainCount(delta: number) {
+    if (!this.chain) return;
+    this.controller.setChainCount(this.chain.count + delta);
+    this.notifyChanged();
+  }
+
+  private onChainToggle() {
+    if (!this.chain) return;
+    this.controller.setChainOn(this.chain.on === 0);
+    this.notifyChanged();
+  }
+
+  private onLoopToggle() {
+    if (!this.chain) return;
+    this.controller.setChainLoop(this.chain.loop === 0);
+    this.notifyChanged();
+  }
+
   render() {
-    if (!this.scenes) return html``;
+    if (!this.scenes || !this.chain) return html``;
     const targets = this.targets;
     const hasTargets = targets.length > 0;
+    const synced = this.transportSynced;
+    const chainTitle = synced ? "" : "Follows the master transport — SYNC the module";
     return html`
       <div class="module">
         <div class="zone scenes-zone">
@@ -196,10 +287,75 @@ export class SongElement extends LitElement {
             )}
             ${this.scenes.map((_, scene) => this.renderRow(scene, targets, hasTargets))}
           </div>
-          <div class="pos-lcd" title="Master bar — runs while SYNC is on and the master plays">
+        </div>
+        <div class=${classMap({ zone: true, "chain-zone": true, ghosted: !synced })} title=${chainTitle}>
+          <label class="zone-label">CHAIN</label>
+          ${this.stepper("COUNT", String(this.chain.count), synced, (d) => this.stepChainCount(d), chainTitle)}
+          <div class="lane">
+            ${this.chain.entries.slice(0, this.chain.count).map((e, i) => this.renderEntry(e, i, synced))}
+          </div>
+          <div class="chain-btns">
+            <button
+              class=${classMap({ "name-btn": true, active: synced && this.chain.on === 1 })}
+              ?disabled=${!synced}
+              title=${synced ? "Play the scenes in order, N bars each" : chainTitle}
+              @click=${this.onChainToggle}
+            >CHAIN</button>
+            <button
+              class=${classMap({ "name-btn": true, active: synced && this.chain.loop === 1 })}
+              ?disabled=${!synced}
+              title=${synced ? "Wrap at the end — off holds the last scene" : chainTitle}
+              @click=${this.onLoopToggle}
+            >LOOP</button>
+          </div>
+          <div class="pos-lcd" title=${synced ? "Song position — scene, bar in entry, master bar" : chainTitle}>
             <label class="stepper-label">POS</label>
             <lcd-element .text=${"—"}></lcd-element>
           </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private renderEntry(entry: { scene: number; bars: number }, index: number, synced: boolean) {
+    return html`
+      <div class="entry" title=${synced ? "Drag or wheel: scene × bars" : ""}>
+        <span
+          class="e-field e-scene"
+          @pointerdown=${(e: PointerEvent) => this.onEntryDown(e, index, "scene")}
+          @pointermove=${this.onEntryMove}
+          @pointerup=${this.onEntryUp}
+          @pointercancel=${this.onEntryUp}
+          @wheel=${(e: WheelEvent) => this.onEntryWheel(e, index, "scene")}
+        >${entry.scene + 1}</span>
+        <span class="e-x">×</span>
+        <span
+          class="e-field e-bars"
+          @pointerdown=${(e: PointerEvent) => this.onEntryDown(e, index, "bars")}
+          @pointermove=${this.onEntryMove}
+          @pointerup=${this.onEntryUp}
+          @pointercancel=${this.onEntryUp}
+          @wheel=${(e: WheelEvent) => this.onEntryWheel(e, index, "bars")}
+        >${entry.bars}</span>
+        <div class="e-progress"></div>
+      </div>
+    `;
+  }
+
+  private stepper(
+    label: string,
+    text: string,
+    enabled: boolean,
+    onStep: (delta: number) => void,
+    title = ""
+  ) {
+    return html`
+      <div class="stepper-row" title=${title}>
+        <label class="stepper-label">${label}</label>
+        <div class="stepper">
+          <button class="inc-btn" ?disabled=${!enabled} @click=${() => { onStep(-1); }}>-</button>
+          <lcd-element .text=${text}></lcd-element>
+          <button class="inc-btn" ?disabled=${!enabled} @click=${() => { onStep(1); }}>+</button>
         </div>
       </div>
     `;
@@ -377,12 +533,134 @@ export class SongElement extends LitElement {
       opacity: 0.7;
     }
 
+    .chain-zone {
+      background: var(--song-chain-panel-color, #292e33);
+      min-width: 150px;
+    }
+
+    .chain-zone.ghosted .lane,
+    .chain-zone.ghosted .pos-lcd {
+      opacity: 0.4;
+    }
+
+    .chain-zone.ghosted .e-field {
+      cursor: default;
+    }
+
+    /* The song lane: entry tiles reading scene × bars, playhead fill. */
+    .lane {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      max-width: 150px;
+    }
+
+    .entry {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 1px;
+      padding: 2px 5px 4px;
+      border-radius: 3px;
+      background: var(--lcd-screen-background, var(--darker));
+      color: var(--lcd-text-color, var(--song-accent, #6fb3e0));
+      font-family: monospace;
+      font-size: 0.62em;
+      overflow: hidden;
+    }
+
+    .entry.active {
+      outline: 1px solid var(--song-accent, #6fb3e0);
+    }
+
+    .e-field {
+      cursor: ns-resize;
+      touch-action: none;
+      user-select: none;
+      padding: 0 1px;
+    }
+
+    .e-x {
+      opacity: 0.5;
+    }
+
+    .e-progress {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 0;
+      height: 2px;
+      background: var(--song-accent, #6fb3e0);
+    }
+
+    .chain-btns {
+      display: flex;
+      gap: 0.4em;
+    }
+
+    .name-btn {
+      padding: 0.35em 0.9em;
+      border: 1px solid var(--light-secondary);
+      border-radius: 3px;
+      background: var(--dark-secondary);
+      color: var(--lighter);
+      font-size: 0.62em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background var(--ui-transition-time);
+    }
+
+    .name-btn:hover:not(:disabled) { background: var(--medium); }
+
+    .name-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .name-btn.active {
+      background: var(--song-accent, #6fb3e0);
+      border-color: var(--song-accent, #6fb3e0);
+      color: var(--darker);
+    }
+
     .pos-lcd {
       display: flex;
       align-items: center;
       gap: 0.4em;
-      --lcd-screen-width: 72px;
+      --lcd-screen-width: 110px;
       --lcd-font-size: 9px;
+    }
+
+    .stepper-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25em;
+    }
+
+    .stepper {
+      display: flex;
+      align-items: center;
+      gap: 0.3em;
+      --lcd-screen-width: 36px;
+      --lcd-font-size: 9px;
+    }
+
+    .inc-btn {
+      width: 20px;
+      height: 20px;
+      border: 1px solid var(--light-secondary);
+      border-radius: 3px;
+      background: var(--dark-secondary);
+      color: var(--lighter);
+      font-size: 0.8em;
+      cursor: pointer;
+    }
+
+    .inc-btn:hover:not(:disabled) { background: var(--medium); }
+
+    .inc-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
     }
 
     .stepper-label {
