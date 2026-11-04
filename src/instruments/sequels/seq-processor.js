@@ -109,6 +109,20 @@ class SeqProcessor extends AudioWorkletProcessor {
     this._stepOrigin = 0;
     this._lastRawStep = -1;
 
+    // Song-mode addressing: a frame-targeted pattern switch and a
+    // scheduler-level mute (note-ons gated, frame-stamped note-offs still
+    // flow; an open slide is released at the boundary). The worklet is the
+    // single authority: the main thread writes ACTIVE_PATTERN only after
+    // __pattern_applied comes back, and `_targetedSwitch` suppresses the
+    // per-block config check until that write catches up — otherwise the
+    // stale config value would queue a switch BACK during the round-trip.
+    this._muted = false;
+    this._pendingPatternAt = -1; // target frame (mod 2^24); -1 = none
+    this._pendingPatternIndex = -1;
+    this._pendingMuteAt = -1; // target frame (mod 2^24); -1 = none
+    this._pendingMuteVal = false;
+    this._targetedSwitch = false;
+
     // Metronome click voice
     this._clickLeft = 0;
     this._clickTotal = 1;
@@ -194,6 +208,7 @@ class SeqProcessor extends AudioWorkletProcessor {
         this._clickQueueRead = 0;
         this._clickQueueWrite = 0;
         this._pendingPattern = -1;
+        this._clearTargets();
         this._activePattern = this._configView ? Math.round(this._configView[ACTIVE_PATTERN]) : 0;
         this._running = true;
         break;
@@ -211,6 +226,9 @@ class SeqProcessor extends AudioWorkletProcessor {
         this._running = false;
         this._countInLeft = 0;
         this._pendingStartFrame = 0;
+        // Targeted switches die with the timeline; the mute flag itself
+        // survives — the song module owns re-applying or lifting it.
+        this._clearTargets();
         // _clickLeft deliberately NOT zeroed: the burst rings out through the
         // stopped-transport path instead of truncating mid-sine (a pop).
         // Queued (not yet audible) clicks are dropped, though.
@@ -220,6 +238,28 @@ class SeqProcessor extends AudioWorkletProcessor {
         this._lastReportedStep = -1;
         this.port.postMessage({ type: "__position", step: -1 });
         break;
+      case "__pattern_at":
+        // Frame-targeted switch (song mode): applied by the scheduler at the
+        // first step boundary at/past the frame, landing the new pattern's
+        // step 0 exactly there. Replaces any pending target — last wins.
+        this._pendingPatternIndex = msg.index;
+        this._pendingPatternAt = msg.frame % FRAME_WRAP;
+        this._targetedSwitch = true;
+        this._pendingPattern = -1;
+        break;
+      case "__pattern_cancel":
+        this._pendingPatternAt = -1;
+        this._pendingPatternIndex = -1;
+        break;
+      case "__mute":
+        if (msg.frame > 0) {
+          this._pendingMuteAt = msg.frame % FRAME_WRAP;
+          this._pendingMuteVal = !!msg.muted;
+        } else {
+          this._pendingMuteAt = -1;
+          this._applyMute(!!msg.muted, 0);
+        }
+        break;
       case "__dispose":
         // Returning false from process() lets the node be garbage collected.
         this._running = false;
@@ -227,6 +267,13 @@ class SeqProcessor extends AudioWorkletProcessor {
         this._alive = false;
         break;
     }
+  }
+
+  _clearTargets() {
+    this._pendingPatternAt = -1;
+    this._pendingPatternIndex = -1;
+    this._pendingMuteAt = -1;
+    this._targetedSwitch = false;
   }
 
   process(inputs, outputs) {
@@ -258,7 +305,13 @@ class SeqProcessor extends AudioWorkletProcessor {
     // Queue a pattern change requested by the main thread; it is applied at
     // the next step boundary (or the next cycle end, depending on the mode).
     const requested = Math.round(this._configView[ACTIVE_PATTERN]);
-    if (requested !== this._activePattern) {
+    if (this._targetedSwitch) {
+      // A frame-targeted switch is in flight (or applied, awaiting the main
+      // thread's config sync): the config value is stale by design, so it
+      // must not queue a switch of its own. Clears once config catches up.
+      if (requested === this._activePattern) this._targetedSwitch = false;
+      this._pendingPattern = -1;
+    } else if (requested !== this._activePattern) {
       this._pendingPattern = requested;
     } else {
       this._pendingPattern = -1;
@@ -395,6 +448,7 @@ class SeqProcessor extends AudioWorkletProcessor {
     const boundaryOnset = Math.round(onsetFrame - (schedPos - schedRaw) * samplesPerStep);
 
     if (schedRaw !== this._schedLastRawStep) {
+      this._applyTargeted(schedRaw, boundaryOnset);
       this._applyPendingPattern(schedRaw, switchMode);
       // Metronome follows the SCHEDULED beat so click and notes stay
       // aligned; the click itself fires when its stamped frame arrives.
@@ -432,7 +486,11 @@ class SeqProcessor extends AudioWorkletProcessor {
         const played = note + transpose;
         const heldSlide = this._slideNote;
 
-        if (note > 0 && velocity > 0 && played > 0 && played < 128) {
+        if (this._muted) {
+          // Muted (song mode): no note-ons. Gated offs already in the ring
+          // flow out on their own; the open slide was released when the mute
+          // applied, so there is nothing to hold here.
+        } else if (note > 0 && velocity > 0 && played > 0 && played < 128) {
           // Fire the new note ON first. If the previous step slid, its note
           // is still held, so this overlap makes a legato monolog glide.
           this._enqueueNoteOn(played, velocity, channel, emitOnset);
@@ -464,6 +522,51 @@ class SeqProcessor extends AudioWorkletProcessor {
         }
       }
     }
+  }
+
+  /**
+   * Fires frame-targeted pattern/mute changes (song mode) when the scheduling
+   * clock reaches the first step boundary at or past the target frame. The
+   * grid rebases to land the new pattern's step 0 exactly there — the song's
+   * bar line — whatever the previous pattern's length or phase.
+   */
+  _applyTargeted(schedRaw, boundaryOnset) {
+    if (this._pendingPatternAt >= 0 && this._frameDue(boundaryOnset, this._pendingPatternAt)) {
+      this._stepOrigin = schedRaw;
+      this._activePattern = this._pendingPatternIndex;
+      this._pendingPatternAt = -1;
+      this._pendingPatternIndex = -1;
+      this._pendingPattern = -1;
+      // The landing step must not be swallowed as a repeat by either clock.
+      this._currentStep = -1;
+      this._schedCurrentStep = -1;
+      this.port.postMessage({ type: "__pattern_applied", index: this._activePattern });
+    }
+    if (this._pendingMuteAt >= 0 && this._frameDue(boundaryOnset, this._pendingMuteAt)) {
+      const muted = this._pendingMuteVal;
+      this._pendingMuteAt = -1;
+      this._applyMute(muted, boundaryOnset);
+    }
+  }
+
+  /** Signed wrap-fold distance (the __start idiom): due when target <= now. */
+  _frameDue(nowFrame, target) {
+    let d = (target - (nowFrame % FRAME_WRAP)) % FRAME_WRAP;
+    if (d < -(1 << 23)) d += FRAME_WRAP;
+    if (d > (1 << 23)) d -= FRAME_WRAP;
+    return d <= 0;
+  }
+
+  _applyMute(muted, frame) {
+    this._muted = muted;
+    if (muted && this._slideNote >= 0) {
+      const channel = this._configView
+        ? Math.round(this._configView[OUTPUT_CHANNEL]) & 0x0f
+        : 0;
+      this._enqueueNoteOff(this._slideNote, channel, frame);
+      this._slideNote = -1;
+    }
+    this.port.postMessage({ type: "__mute_applied", muted });
   }
 
   /**

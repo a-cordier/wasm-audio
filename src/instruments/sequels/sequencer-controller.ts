@@ -38,7 +38,7 @@ import {
   SwitchMode,
   TransportState,
 } from "./types";
-import { MidiSourcePlugin, MidiConsumer, PluginDescriptor, Learnable, LearnableParam, PresetEntry, HasPresets, TransportAnchor, TransportChild } from "../../core/types";
+import { MidiSourcePlugin, MidiConsumer, PatternAddressable, PluginDescriptor, Learnable, LearnableParam, PresetEntry, HasPresets, TransportAnchor, TransportChild } from "../../core/types";
 import { TransportController } from "../../midi/transport/transport-controller";
 import { ControlID } from "../../control/types";
 
@@ -51,7 +51,7 @@ const AUTOSAVE_DEBOUNCE_MS = 500;
  * Owns the worklet node, drains MIDI output from the worklet ring buffer,
  * and dispatches events into the MidiBus.
  */
-export class SequencerController extends EventTarget implements MidiSourcePlugin, MidiConsumer, Learnable, HasPresets, TransportChild {
+export class SequencerController extends EventTarget implements MidiSourcePlugin, MidiConsumer, Learnable, HasPresets, TransportChild, PatternAddressable {
   readonly descriptor: PluginDescriptor = {
     id: "sequels",
     name: "SEQUELS",
@@ -79,6 +79,10 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
   private slotId: string | null = null;
   // The master transport, wired by the shell while this slot's SYNC is on.
   private masterTransport: TransportController | null = null;
+  // PatternAddressable (song mode): mute state echoed back by the worklet,
+  // and whether a frame-targeted switch is still in flight.
+  private _muted = false;
+  private _targetInFlight = false;
   // Notes forwarded as ON and not yet released, packed (channel << 8) | note —
   // what allNotesOff() must release on stop.
   private soundingNotes = new Set<number>();
@@ -113,6 +117,21 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
       // backgrounded tab delivered sequenced notes in one-second batches.
       this.drain();
       this.dispatchEvent(new CustomEvent("position", { detail: { step } }));
+    });
+
+    // A frame-targeted switch landed on its boundary: NOW sync the config
+    // buffer (the worklet suppressed its per-block check until this write
+    // catches up) and run the ordinary selection bookkeeping — recorder,
+    // pattern-change (the panel highlight flips exactly on the bar), autosave.
+    this.node.onPatternApplied((index) => {
+      this._targetInFlight = false;
+      this.selectPattern(index);
+    });
+
+    this.node.onMuteApplied((muted) => {
+      if (muted === this._muted) return;
+      this._muted = muted;
+      this.dispatchEvent(new CustomEvent("mute-change", { detail: { muted } }));
     });
 
     const stored = loadStoredState(this.slotId ?? undefined);
@@ -276,6 +295,7 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
   stop(): void {
     if (!this.node) return;
     this.transport = TransportState.STOPPED;
+    this._targetInFlight = false; // the worklet drops targets on __stop
     this.node.stop();
     this.stopDrain();
     this.allNotesOff();
@@ -398,6 +418,49 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
     this.recorder.setCursor(0, this.getPatternSteps(clamped));
     this.scheduleAutosave();
     this.dispatchEvent(new CustomEvent("pattern-change", { detail: { index: clamped } }));
+  }
+
+  // --- PatternAddressable (song mode) ---
+
+  /**
+   * Frame-targeted pattern switch: the worklet lands the new pattern's step 0
+   * exactly on `frame` — the song's bar line — and only THEN reports back for
+   * the config/UI sync (writing ACTIVE_PATTERN up front would race the
+   * per-block config check and could switch a step early). Re-asserting the
+   * playing pattern leaves its phase alone (polymeter-safe) and cancels any
+   * switch still in flight; frame 0 or a stopped clock falls back to the
+   * ordinary immediate path.
+   */
+  selectPatternAt(index: number, frame = 0): void {
+    if (!this.node) return;
+    const clamped = Math.max(0, Math.min(PATTERN_COUNT - 1, Math.round(index)));
+    if (frame <= 0 || !this.isPlaying) {
+      this.selectPattern(clamped);
+      return;
+    }
+    if (clamped === this.selectedPattern) {
+      if (this._targetInFlight) {
+        this.node.cancelPatternTarget();
+        this._targetInFlight = false;
+      }
+      return;
+    }
+    this._targetInFlight = true;
+    this.node.patternAt(clamped, frame);
+  }
+
+  /**
+   * Scheduler-level mute: note-ons stop (an open slide is released at the
+   * boundary), frame-stamped note-offs still flow, the metronome click is
+   * untouched. frame 0 — or a stopped clock — applies immediately. Mute is
+   * deliberately volatile: never persisted, owned by the song module.
+   */
+  setMuteAt(muted: boolean, frame = 0): void {
+    this.node?.setMute(muted, this.isPlaying ? frame : 0);
+  }
+
+  isMuted(): boolean {
+    return this._muted;
   }
 
   getPatternSteps(index = this.selectedPattern): number {

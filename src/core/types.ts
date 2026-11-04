@@ -96,6 +96,21 @@ export interface SlotAware {
 }
 
 /**
+ * Sequencer-kind devices whose playing pattern and mute state can be driven
+ * externally (the song module), optionally targeted at an exact AudioContext
+ * frame (mod 2^24; 0 or omitted = apply now through the ordinary path). The
+ * device's worklet applies a targeted change sample-exactly on its own grid,
+ * so a scene boundary lands on the bar regardless of main-thread timing.
+ */
+export interface PatternAddressable {
+  readonly patternCount: number;
+  selectPatternAt(index: number, frame?: number): void;
+  setMuteAt(muted: boolean, frame?: number): void;
+  isMuted(): boolean;
+  patternHasContent(index: number): boolean;
+}
+
+/**
  * A shared timing reference from the master transport: beat 0 sits at
  * `contextTime` on the AudioContext clock (`startFrame` is the same instant
  * as a frame, for sample-aligned worklet starts). Children derive every beat
@@ -165,4 +180,8 @@ export function isAudioEffect(plugin: Plugin): plugin is Plugin & AudioEffect {
 
 export function isTransportChild(plugin: Plugin): plugin is Plugin & TransportChild {
   return "onMasterStart" in plugin && "onMasterTempo" in plugin;
+}
+
+export function isPatternAddressable(plugin: Plugin): plugin is Plugin & PatternAddressable {
+  return "selectPatternAt" in plugin && "setMuteAt" in plugin;
 }
