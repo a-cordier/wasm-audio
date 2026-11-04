@@ -19,10 +19,15 @@ export const CHAIN_CAPACITY = 8;
 export const MIN_ENTRY_BARS = 1;
 export const MAX_ENTRY_BARS = 32;
 
-/** Cell value meaning "mute this sequencer in this scene". 0..39 selects a
+/** Cell value meaning "mute this sequencer in this scene". 0..n selects a
  * pattern (and implies unmute); an ABSENT key is "—" (no-change): the scene
  * leaves that sequencer exactly as it was. */
 export const CELL_MUTE = -1;
+
+/** Generic storage ceiling for pattern indices. The real domain is per
+ * device (`patternCount`): the panel walks that, and the device clamps its
+ * own dispatches — state just needs a sane bound for malformed saves. */
+export const MAX_PATTERN_INDEX = 127;
 
 /** One scene row: per-sequencer cells keyed by SLOT id (slot ids survive
  * reloads; cells for unmounted slots persist invisibly and come back with
@@ -67,7 +72,7 @@ function mergeScene(partial?: Partial<SongScene>): SongScene {
   if (partial?.cells && typeof partial.cells === "object") {
     for (const [slotId, value] of Object.entries(partial.cells)) {
       if (typeof value !== "number" || !Number.isFinite(value)) continue;
-      cells[slotId] = Math.max(CELL_MUTE, Math.min(39, Math.round(value)));
+      cells[slotId] = Math.max(CELL_MUTE, Math.min(MAX_PATTERN_INDEX, Math.round(value)));
     }
   }
   return { cells };

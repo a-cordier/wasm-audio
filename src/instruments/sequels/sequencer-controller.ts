@@ -26,6 +26,8 @@ import { CONTOUR_NAMES, Contour, SCALES, contourDegree, degreeToNote, foldIntoRa
 import { applyState, loadStoredState, saveState, serializeState } from "./storage";
 import {
   BANK_COUNT,
+  BANK_NAMES,
+  BANK_SIZE,
   BEATS_PER_BAR,
   DEFAULT_CONFIG,
   DEFAULT_PATTERN_STEPS,
@@ -461,6 +463,13 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
 
   isMuted(): boolean {
     return this._muted;
+  }
+
+  /** Bank letter + pad digit, the selector's own vocabulary ("B1" = bank B,
+   * pad 1) — what the selector's address LCD and song-mode cells display. */
+  patternLabel(index: number): string {
+    const clamped = Math.max(0, Math.min(PATTERN_COUNT - 1, Math.round(index)));
+    return `${BANK_NAMES[Math.floor(clamped / BANK_SIZE)]}${clamped % BANK_SIZE}`;
   }
 
   getPatternSteps(index = this.selectedPattern): number {

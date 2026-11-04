@@ -90,6 +90,9 @@ export const SLIDE_BIT = 0x80;
 export const BANK_COUNT = 4;
 export const BANK_SIZE = 10; // one per digit key
 export const PATTERN_COUNT = BANK_COUNT * BANK_SIZE; // 40
+/** The pattern address vocabulary ("B1" = bank B, pad 1) — shared by the
+ * selector's bank buttons, its address LCD, and patternLabel (song mode). */
+export const BANK_NAMES = ["A", "B", "C", "D"] as const;
 
 /** Pattern buffer layout: [ 40 patterns x 128 bytes ][ 40 length bytes ] */
 export const PATTERN_BYTES = MAX_STEPS * STEP_SLOT_SIZE; // 128

@@ -104,6 +104,10 @@ export interface SlotAware {
  */
 export interface PatternAddressable {
   readonly patternCount: number;
+  /** The pattern's name in the DEVICE's own vocabulary ("B1" on sequels'
+   * bank×pad selector) — conductors like SONG render cells and pickers from
+   * this, so every column speaks its device's dialect, never a baked-in one. */
+  patternLabel(index: number): string;
   selectPatternAt(index: number, frame?: number): void;
   setMuteAt(muted: boolean, frame?: number): void;
   isMuted(): boolean;

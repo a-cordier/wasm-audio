@@ -26,8 +26,9 @@ import { SongEvent } from "../types/song-event";
 import "../../../components/common/lcd/lcd-element";
 import type { LCD } from "../../../components/common/lcd/lcd-element";
 
-const BANK_NAMES = ["A", "B", "C", "D"];
-/** Cell editing walks one ordered domain: — , M, A0..D9 (ordinal -2..39). */
+/** Cell editing walks one ordered domain per COLUMN: — , M, then that
+ * device's own patterns (ordinal -2 .. patternCount-1, labels from
+ * `patternLabel` — each column speaks its device's dialect). */
 const ORD_CLEAR = -2;
 /** Vertical pixels per cell increment (the knob-drag feel, grid-coarse). */
 const DRAG_PX = 5;
@@ -67,8 +68,11 @@ export class SongElement extends LitElement {
   private lastChainIndex = -2;
   private lastChainPct = -1;
 
-  /** The in-flight cell drag; one composed change per gesture. */
-  private drag: { scene: number; slotId: string; startY: number; startOrd: number; edited: boolean } | null = null;
+  /** The in-flight cell drag; one composed change per gesture. A press that
+   * never moves is a CLICK and opens the pattern picker on release. */
+  private drag: { scene: number; target: SceneTargetEntry; startY: number; startOrd: number; edited: boolean } | null = null;
+  /** The open pattern picker (anchored to its cell's rect at open time). */
+  @state() private picker: { scene: number; target: SceneTargetEntry; left: number; top: number } | null = null;
   /** The in-flight chain-entry drag (scene or bars field). */
   private entryDrag: { index: number; field: "scene" | "bars"; startY: number; startVal: number; edited: boolean } | null = null;
 
@@ -80,7 +84,14 @@ export class SongElement extends LitElement {
   private onScenes = (e: Event) => { this.scenes = (e as CustomEvent).detail; };
   private onChain = (e: Event) => { this.chain = (e as CustomEvent).detail; };
   private onSelection = (e: Event) => { this.selectedScene = (e as CustomEvent).detail.selectedScene; };
-  private onDirectory = () => { this.targets = this.controller.sceneTargets(); };
+  private onDirectory = () => {
+    this.targets = this.controller.sceneTargets();
+    this.picker = null; // its column may be gone
+  };
+  /** Any press outside this element closes the picker. */
+  private onDocDown = (e: Event) => {
+    if (this.picker && !e.composedPath().includes(this)) this.picker = null;
+  };
 
   connectedCallback() {
     super.connectedCallback();
@@ -93,12 +104,14 @@ export class SongElement extends LitElement {
     this.controller.addEventListener(SongEvent.CHAIN, this.onChain);
     this.controller.addEventListener(SongEvent.SELECTION, this.onSelection);
     getParamDirectory().addEventListener("directory-change", this.onDirectory);
+    document.addEventListener("pointerdown", this.onDocDown);
     this.rafId = requestAnimationFrame(this.tickReadout);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     cancelAnimationFrame(this.rafId);
+    document.removeEventListener("pointerdown", this.onDocDown);
     getParamDirectory().removeEventListener("directory-change", this.onDirectory);
     if (!this.plugin) return;
     this.controller.removeEventListener(SongEvent.SCENES, this.onScenes);
@@ -157,50 +170,65 @@ export class SongElement extends LitElement {
     }
   };
 
-  // --- Cell editing: one ordered domain, drag or wheel ---
+  // --- Cell editing: per-column domain — click picks, drag/wheel steps ---
 
   private cellOrd(scene: number, slotId: string): number {
     const v = this.scenes?.[scene]?.cells[slotId];
     return v === undefined ? ORD_CLEAR : v;
   }
 
-  private static cellText(ord: number): string {
+  private cellText(ord: number, target: SceneTargetEntry): string {
     if (ord === ORD_CLEAR) return "—";
     if (ord === CELL_MUTE) return "M";
-    return `${BANK_NAMES[Math.floor(ord / 10)]}${ord % 10}`;
+    return target.plugin.patternLabel(ord);
   }
 
-  private setCellOrd(scene: number, slotId: string, ord: number) {
-    const clamped = Math.max(ORD_CLEAR, Math.min(39, ord));
-    if (clamped === this.cellOrd(scene, slotId)) return false;
-    this.controller.setCell(scene, slotId, clamped === ORD_CLEAR ? null : clamped);
+  private setCellOrd(scene: number, target: SceneTargetEntry, ord: number) {
+    const clamped = Math.max(ORD_CLEAR, Math.min(target.plugin.patternCount - 1, ord));
+    if (clamped === this.cellOrd(scene, target.slotId)) return false;
+    this.controller.setCell(scene, target.slotId, clamped === ORD_CLEAR ? null : clamped);
     return true;
   }
 
-  private onCellDown(e: PointerEvent, scene: number, slotId: string) {
+  private onCellDown(e: PointerEvent, scene: number, target: SceneTargetEntry) {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    this.drag = { scene, slotId, startY: e.clientY, startOrd: this.cellOrd(scene, slotId), edited: false };
+    this.drag = { scene, target, startY: e.clientY, startOrd: this.cellOrd(scene, target.slotId), edited: false };
   }
 
   private onCellMove(e: PointerEvent) {
     const d = this.drag;
     if (!d) return;
     const ord = d.startOrd + Math.round((d.startY - e.clientY) / DRAG_PX);
-    if (this.setCellOrd(d.scene, d.slotId, ord)) d.edited = true;
+    if (this.setCellOrd(d.scene, d.target, ord)) d.edited = true;
   }
 
   private onCellUp(e: PointerEvent) {
-    if (!this.drag) return;
+    const d = this.drag;
+    if (!d) return;
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    if (this.drag.edited) this.notifyChanged();
     this.drag = null;
+    if (d.edited) {
+      this.notifyChanged();
+      return;
+    }
+    // A press that never stepped is a click: open the pattern picker.
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - 300));
+    this.picker = { scene: d.scene, target: d.target, left, top: rect.bottom + 4 };
   }
 
-  private onCellWheel(e: WheelEvent, scene: number, slotId: string) {
+  private onCellWheel(e: WheelEvent, scene: number, target: SceneTargetEntry) {
     e.preventDefault();
-    if (this.setCellOrd(scene, slotId, this.cellOrd(scene, slotId) + (e.deltaY < 0 ? 1 : -1))) {
+    if (this.setCellOrd(scene, target, this.cellOrd(scene, target.slotId) + (e.deltaY < 0 ? 1 : -1))) {
       this.notifyChanged();
     }
+  }
+
+  private pickOrd(ord: number) {
+    const p = this.picker;
+    if (!p) return;
+    if (this.setCellOrd(p.scene, p.target, ord)) this.notifyChanged();
+    this.picker = null;
   }
 
   private onPad(scene: number) {
@@ -313,6 +341,7 @@ export class SongElement extends LitElement {
             <lcd-element .text=${"—"}></lcd-element>
           </div>
         </div>
+        ${this.renderPicker()}
       </div>
     `;
   }
@@ -384,15 +413,53 @@ export class SongElement extends LitElement {
     return html`
       <div
         class=${classMap({ cell: true, empty: ord === ORD_CLEAR, mute: ord === CELL_MUTE })}
-        title="Drag or wheel: — (no change), M (mute), A0–D9 (pattern)"
-        @pointerdown=${(e: PointerEvent) => this.onCellDown(e, scene, target.slotId)}
+        title="Click to pick — drag or wheel steps — (no change), M (mute), then ${target.name}'s patterns"
+        @pointerdown=${(e: PointerEvent) => this.onCellDown(e, scene, target)}
         @pointermove=${this.onCellMove}
         @pointerup=${this.onCellUp}
         @pointercancel=${this.onCellUp}
-        @wheel=${(e: WheelEvent) => this.onCellWheel(e, scene, target.slotId)}
+        @wheel=${(e: WheelEvent) => this.onCellWheel(e, scene, target)}
       >
-        <span class="cell-text">${SongElement.cellText(ord)}</span>
+        <span class="cell-text">${this.cellText(ord, target)}</span>
         ${hasNotes ? html`<span class="dot"></span>` : nothing}
+      </div>
+    `;
+  }
+
+  /** The pattern picker: the column's device vocabulary as a pad grid —
+   * — / M, then every pattern by its own label, content-dotted. */
+  private renderPicker() {
+    const p = this.picker;
+    if (!p) return nothing;
+    const current = this.cellOrd(p.scene, p.target.slotId);
+    const count = p.target.plugin.patternCount;
+    const tiles = [];
+    for (let i = 0; i < count; i++) tiles.push(i);
+    return html`
+      <div class="picker" style="left: ${p.left}px; top: ${p.top}px">
+        <div class="picker-head">${p.target.name} · SCENE ${p.scene + 1}</div>
+        <div class="picker-row">
+          <button
+            class=${classMap({ tile: true, wide: true, active: current === ORD_CLEAR })}
+            title="No change — the scene leaves this sequencer as it was"
+            @click=${() => this.pickOrd(ORD_CLEAR)}
+          >—</button>
+          <button
+            class=${classMap({ tile: true, wide: true, mute: true, active: current === CELL_MUTE })}
+            title="Muted in this scene"
+            @click=${() => this.pickOrd(CELL_MUTE)}
+          >M</button>
+        </div>
+        <div class="picker-grid">
+          ${tiles.map(
+            (i) => html`
+              <button
+                class=${classMap({ tile: true, active: current === i, filled: p.target.plugin.patternHasContent(i) })}
+                @click=${() => this.pickOrd(i)}
+              >${p.target.plugin.patternLabel(i)}</button>
+            `
+          )}
+        </div>
       </div>
     `;
   }
@@ -629,6 +696,65 @@ export class SongElement extends LitElement {
       gap: 0.4em;
       --lcd-screen-width: 110px;
       --lcd-font-size: 9px;
+    }
+
+    /* The pattern picker: a floating pad grid in the column device's own
+     * vocabulary (for sequels, rows read as banks A–D × pads 0–9). */
+    .picker {
+      position: fixed;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid var(--medium);
+      background: var(--browser-menu-bg, #141414);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+    }
+
+    .picker-head {
+      font-size: 0.55em;
+      font-weight: bold;
+      letter-spacing: 0.06em;
+      color: var(--light-secondary);
+    }
+
+    .picker-row {
+      display: flex;
+      gap: 3px;
+    }
+
+    .picker-grid {
+      display: grid;
+      grid-template-columns: repeat(10, 26px);
+      gap: 3px;
+    }
+
+    .tile {
+      height: 20px;
+      padding: 0;
+      border: 1px solid var(--medium);
+      border-radius: 3px;
+      background: var(--lcd-screen-background, var(--darker));
+      color: var(--lcd-text-color, var(--song-accent, #6fb3e0));
+      font-family: monospace;
+      font-size: 9px;
+      cursor: pointer;
+      opacity: 0.55;
+    }
+
+    .tile.filled { opacity: 1; }
+
+    .tile.wide { width: 55px; }
+
+    .tile.mute { color: var(--mixer-mute-active, #c44a3a); }
+
+    .tile:hover { border-color: var(--light-secondary); opacity: 1; }
+
+    .tile.active {
+      border-color: var(--song-accent, #6fb3e0);
+      opacity: 1;
     }
 
     .stepper-row {

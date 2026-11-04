@@ -22,6 +22,10 @@ export interface PluginRegistration {
   elementTag: string;
   workletModules?: string[];
   keyboardOctaveShift?: number;
+  /** Mount with the slot's SYNC already on. For devices that are meaningless
+   * without the master clock (SONG), so their panel isn't born ghosted;
+   * free-running-capable devices (MOTION, sequencers) leave it off. */
+  defaultSync?: boolean;
 }
 
 class PluginRegistry {

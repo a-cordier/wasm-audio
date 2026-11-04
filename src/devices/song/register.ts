@@ -18,4 +18,7 @@ pluginRegistry.register({
   controllerFactory: (audioContext: AudioContext) => new SongController(audioContext),
   elementTag: "song-element",
   workletModules: ["song-processor.js"],
+  // SONG has no free-run mode — unsynced it is only snapshot recall — so it
+  // mounts with the slot's SYNC already on instead of a half-ghosted panel.
+  defaultSync: true,
 });

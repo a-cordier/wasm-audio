@@ -431,9 +431,13 @@ export class Daw extends LitElement {
       return null;
     }
     const id = `slot-${++this.slotCounter}`;
-    const slot = createLeafSlot(id, this.uniqueSlotName(reg.descriptor.name), pluginId, this.defaultChannelsFor(reg));
+    const slot = createLeafSlot(id, this.uniqueSlotName(reg.descriptor.name), pluginId, {
+      ...this.defaultChannelsFor(reg),
+      sync: reg.defaultSync === true,
+    });
     await this.instantiateSlot(slot);
     this.routeSlot(slot);
+    if (slot.sync) this.wireSync(slot.id, true);
     const rows = [...(this.slotTree.children ?? [])];
     if (rows.length === 0) {
       rows.push(this.newRow([slot]));

@@ -95,14 +95,21 @@ GLIDE slew, and a 400 ms settle after retargeting so stepping the DEVICE
 stepper across a device never slams its params in passing.
 
 **SONG** (`src/devices/song`) is the arrangement module: 8 scenes
-(per-sequencer cells — pattern `A0–D9` in the device's own bank language,
-`M`, or `—` no-change, keyed by slot id) plus a chain of scene×bars entries
+(per-sequencer cells — a pattern named by the device's own
+`patternLabel()` (sequels: bank×pad, "B1"), `M`, or `—` no-change, keyed by
+slot id; click a cell for the pattern picker, drag/wheel to step; each
+column walks ITS device's `patternCount`, so sequencer kinds mix freely)
+plus a chain of scene×bars entries
 mapped from the **absolute master bar** — a pure function of `beatsAt()`,
 never a counter, so manual launch takes over (CHAIN off) and re-engaging
 rejoins the song position. It drives sequencers through
 **PatternAddressable** (`core/types.ts`): `selectPatternAt(index, frame)` /
 `setMuteAt(muted, frame)` land sample-exactly on the frame (mod 2^24; 0 =
-now) — implement it on any new sequencer to make it song-addressable. The
+now), `patternLabel(i)` names patterns in the device's own vocabulary —
+implement it on any new sequencer to make it song-addressable. SONG mounts
+with SYNC already on (`defaultSync` in its registration): it has no
+free-run mode, so a half-ghosted birth would be wrong — devices that can
+free-run (MOTION, sequencers) keep SYNC off at mount. The
 rule that makes it bar-exact: **the target's worklet is the single
 authority** — it confirms with `__pattern_applied`, and only then does the
 controller write `ACTIVE_PATTERN` (the config-driven switch path stays

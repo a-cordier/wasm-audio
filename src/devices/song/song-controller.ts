@@ -19,6 +19,7 @@ import {
   SongScene,
   createSongState,
   CELL_MUTE,
+  MAX_PATTERN_INDEX,
   SCENE_COUNT,
   CHAIN_CAPACITY,
   MIN_ENTRY_BARS,
@@ -353,7 +354,7 @@ export class SongController extends EventTarget implements Plugin, TransportChil
     const s = this.state.scenes[scene];
     if (!s) return;
     if (value === null) delete s.cells[slotId];
-    else s.cells[slotId] = Math.max(CELL_MUTE, Math.min(39, Math.round(value)));
+    else s.cells[slotId] = Math.max(CELL_MUTE, Math.min(MAX_PATTERN_INDEX, Math.round(value)));
     this.dispatch(SongEvent.SCENES, this.copyScenes());
     if (scene !== this.playingScene && scene !== this.queuedScene) return;
     if (this.isRunning()) {

@@ -17,7 +17,7 @@ import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { ChangeDetail } from "../../../../types/events";
-import { BANK_COUNT, BANK_SIZE, SwitchMode } from "../../types";
+import { BANK_COUNT, BANK_NAMES, BANK_SIZE, SwitchMode } from "../../types";
 import { CONTOUR_NAMES, SCALES } from "../../scales";
 import "../../../../components/common/controls/knob-element";
 
@@ -33,8 +33,6 @@ export const enum PatternEvent {
   VELOCITY_RANDOM = "velocity-random",
   SLIDE_RANDOM = "slide-random",
 }
-
-const BANK_NAMES = ["A", "B", "C", "D"];
 
 // Display order of the ten slots: 1-9 then 0, matching a keyboard number row.
 // Each button still carries its own slot number (label, index and the number
@@ -89,6 +87,11 @@ export class PatternSelectorPanel extends LitElement {
         <div class="panel bank-panel">
           <label class="ctrl-label">BANK</label>
           ${Array.from({ length: BANK_COUNT }, (_, i) => this.renderBank(i))}
+          <div class="addr" title="Selected pattern — bank × pad, the address song mode cells use">
+            <lcd-element
+              .text=${`${BANK_NAMES[Math.floor(this.selectedPattern / BANK_SIZE)]}${this.selectedPattern % BANK_SIZE}`}
+            ></lcd-element>
+          </div>
         </div>
         <div class="panel slot-panel">
           ${SLOT_ORDER.map((slot) => this.renderSlot(slot))}
@@ -289,6 +292,14 @@ export class PatternSelectorPanel extends LitElement {
 
     .bank-panel {
       grid-area: bank;
+    }
+
+    /* The selected pattern's address (bank × pad) — the same name song-mode
+     * cells display, so the two panels visibly share one vocabulary. */
+    .addr {
+      --lcd-screen-width: 26px;
+      --lcd-font-size: 9px;
+      margin-left: 0.2em;
     }
 
     .mode-panel {
