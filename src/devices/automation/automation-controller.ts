@@ -19,6 +19,7 @@ import { AutomationEvent } from "./types/automation-event";
 import {
   Plugin,
   PluginDescriptor,
+  PresetEntry,
   TransportChild,
   TransportAnchor,
 } from "../../core/types";
@@ -81,6 +82,11 @@ export class AutomationController extends EventTarget implements Plugin, Transpo
   private lastSentRaw = -1;
   /** 0 = settled (restored targets dispatch at once); setTarget re-arms it. */
   private targetSetAt = 0;
+
+  // What the panel's rAF indicator reads (playhead + output meter) — display
+  // state only, written every tick whether or not a dispatch goes out.
+  private motionRaw = -1;
+  private motionStep = -1;
 
   constructor(audioContext: AudioContext) {
     super();
@@ -213,14 +219,20 @@ export class AutomationController extends EventTarget implements Plugin, Transpo
       this.slewY += (1 - Math.exp(-dtSec / tau)) * (v - this.slewY);
     }
 
+    // [MIN, MAX] in raw 0..127 (MIN > MAX inverts); quantization gates the
+    // dispatch, so an idle shape costs nothing downstream.
+    const raw = Math.round(s.min.value + this.slewY * (s.max.value - s.min.value));
+    this.motionRaw = raw;
+    this.motionStep =
+      SHAPES[s.shape.value] === "STEP"
+        ? Math.floor(phase * this.state.steps.count) % this.state.steps.count
+        : -1;
+
     // The motion keeps running through the settle window — only the
     // dispatch holds, and lastSentRaw stays -1 so the first settled tick
     // lands the current value immediately.
     if (performance.now() - this.targetSetAt < TARGET_SETTLE_MS) return;
 
-    // [MIN, MAX] in raw 0..127 (MIN > MAX inverts); quantization gates the
-    // dispatch, so an idle shape costs nothing downstream.
-    const raw = Math.round(s.min.value + this.slewY * (s.max.value - s.min.value));
     if (raw !== this.lastSentRaw) {
       this.lastSentRaw = raw;
       getParamDirectory()
@@ -305,10 +317,20 @@ export class AutomationController extends EventTarget implements Plugin, Transpo
     this.dispatch(AutomationEvent.STEPS, this.copySteps());
   }
 
+  getFactoryPresets(): PresetEntry[] {
+    return [{ name: "INIT", state: createAutomationState() }];
+  }
+
   // --- Reads the panel renders from ---
 
   getTarget() {
     return { ...this.state.target };
+  }
+
+  /** Display snapshot for the panel's rAF indicator — raw is the current
+   * output (-1 before the first tick), step the lit bar in STEP mode. */
+  getMotion() {
+    return { raw: this.motionRaw, step: this.motionStep, running: this.clockGateOn };
   }
 
   isMasterRunning() {

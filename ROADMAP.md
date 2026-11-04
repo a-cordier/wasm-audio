@@ -107,13 +107,28 @@ aware sends) deliberately deferred** — items 8+.
 
 ## Phase 2 — DAW modules
 
-### 6. [ ] Automation routing module
-- Design an automation (curve/steps/shape) and route it to any control of
-  any mounted device; the control moves accordingly.
-- Rides the existing param path: controllers already expose learnable
-  params (MIDI-learn registry) — automation is another signal source
-  targeting the same addresses.
-- A module, not an instrument feature: mounted only when wanted.
+### 6. [x] Automation routing module — done 2026-11-03
+Four QA'd batches. MOTION is the first `kind:"module"` device (descriptor
+`type:"control"`: no audio, no MIDI, no mixer channel) — an automation
+source routed to any learnable param of any mounted device through the new
+**ParamDirectory** (`src/control/param-directory.ts`): the shell registers
+every Learnable mount, and automation dispatches straight to
+`handleControlChange(ControlID, raw)` — the MIDI-learn addresses — so the
+target's engine AND panel knob follow, with zero session-save churn
+(knob-element now fires `change` on user gestures only). Timing rides a
+silent worklet tick clock (port messages — hidden-tab-proof); synced, the
+cycle reads `transport.beatsAt()` live off the shared downbeat (DIV
+4B…1/32, tempo changes free), free-running it's a RATE accumulator
+(0.02–20 Hz) — SYNC ghosts RATE/RUN, free ghosts DIV. Shapes
+SIN/TRI/RMP/SQR/S&H plus a 16-step drag-bar lane (paint across with gap
+interpolation, COUNT 2–16), universal GLIDE slew (one-pole, 2 ms–2 s),
+MIN/MAX range (inverts), playhead + output meter (rAF, value-quantized),
+INIT preset. One target per module — mount more MOTIONs for more lanes
+(they cost no channel). Rode along: sequels gates SEQ_BPM control writes
+under SYNC (the ghosted stepper's rule now covers MIDI-learn/automation
+too) and a 400 ms retarget settle so browsing the DEVICE stepper can't
+slam params in passing. **Mixer-param targets and module-as-target
+deferred** — dispositions in [docs/scalability-audit.md](docs/scalability-audit.md).
 
 ### 7. [ ] Song mode module
 - Arrangement/composition over the master transport (scenes or timeline —

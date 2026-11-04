@@ -44,19 +44,27 @@ was measured running away ×10^8 before the guard), and the dead
 `wireAudio()` branch-summing path was deleted. `MixerEngine.dispose()`
 still has no caller (engine lives for the page) — fine.
 
-## For item 6 — automation module
-- `getLearnableParams()` exists on all controllers and has **zero callers**;
-  entries are `{id, name}` only — no setter, no range, no current value, no
-  continuous/discrete flag, no section. Automation needs a real param
-  metadata surface (and the `reg(...)` closure is where ControlID ↔ ParamId
-  join — currently not introspectable).
-- Learnable coverage is a subset of actual params (modes/destinations mostly
-  missing; sequels exposes only BPM/SWING/GATE).
-- `getState()` returns shallow copies — nested section objects are aliased to
-  live controller state. Any consumer that snapshots must deep-clone
-  (device-slot's USER snapshot already does).
-- Value domain is raw 0–127 end to end; real units live only in the engines'
-  `Range`. An automation UI showing real values needs declared ranges.
+## For item 6 — automation module — RESOLVED 2026-11-03
+Item 6 shipped against this list; what it proved and what stays open:
+- `getLearnableParams()` got its first caller: the **ParamDirectory**
+  (`src/control/param-directory.ts`) caches entries per Learnable mount and
+  feeds MOTION's target steppers. `{id, name}` **sufficed** — automation
+  targets stay in the raw 0–127 domain (the engines' `Range` owns real
+  units), so ranges/current values/section metadata never became needed.
+  If a future module must display real units, that's the point to grow the
+  entry shape.
+- Learnable coverage is still a subset of actual params (modes/destinations
+  mostly missing; sequels exposes BPM/SWING/GATE) — now user-visible in the
+  PARAM stepper; widen per device when it bites. Related: sequels' SEQ_BPM
+  is inert under SYNC (gated in `handleControlChange`, matching its ghosted
+  panel stepper).
+- `getState()` aliasing: not hit — automation deep-copies its own state
+  (`createAutomationState` on get/set) and the directory never snapshots
+  target state.
+- Raw 0–127 end to end confirmed as the design, not a gap.
+- Follow-ups recorded, deferred by design: mixer params (fader/EQ/sends) as
+  automation targets, and module-as-Learnable (a MOTION automating a MOTION
+  needs a feedback-cycle story — modules stay out of their own directory).
 
 ## MIDI-learn (later item)
 - No persistence is wired (`exportBindings`/`importBindings` have no callers),

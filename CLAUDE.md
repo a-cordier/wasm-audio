@@ -77,6 +77,23 @@ getUserMedia behind the standard `getOutputNode()`, gesture-driven ENABLE
 and a MONITOR gate that defaults OFF (feedback protection — the panel LED
 reads level pre-monitor).
 
+**Modules are control-plane devices** (`kind:"module"`, descriptor
+`type:"control"`): no audio, no MIDI channels, no mixer channel —
+`routeSlot`/`defaultChannelsFor` skip them. The **ParamDirectory**
+(`src/control/param-directory.ts`) is the automation address book: the
+shell registers every Learnable plugin on mount (and unregisters first
+thing on eject, before teardown), and automation dispatches straight to
+`plugin.handleControlChange(ControlID, raw)` — the same addresses
+MIDI-learn uses, so the target's engine AND panel knob follow. Dispatch
+deliberately bypasses the BindingManager event bus: a control-rate tick
+stream must not fan out through slot listeners or trigger session saves.
+Modules are not Learnable themselves (no self-modulation feedback). MOTION
+(`src/devices/automation`) is the reference: silent worklet tick clock
+(port messages — hidden tabs clamp timers, not ports), `transport.beatsAt()`
+read live when synced / phase accumulator when free, universal one-pole
+GLIDE slew, and a 400 ms settle after retargeting so stepping the DEVICE
+stepper across a device never slams its params in passing.
+
 Parameter signal path (one direction, lock-free):
 
 ```
@@ -102,13 +119,20 @@ Any **new worklet file** (`*-processor.js`, `*.wasmmodule.js`) must be added to 
 - **Discrete choice → LCD stepper** (label + `[-] lcd [+]`): SCALE, SHAPE, EUCL, ROT…
 - **Mode selector → full-width name buttons** spanning the panel (MOOG｜ACID｜SCREAM｜KORG).
 - Labels sit on a shared baseline; knobs are centered in the band above them.
+- **knob-element fires `change` only on user gestures** (drag/wheel);
+  programmatic `.value` writes re-render silently. External writers
+  (MIDI-learn, automation) go through controller setters — never rely on a
+  knob echoing a programmatic set back as `change`.
 - **Conditional relevance**: a control that does nothing in the current mode
   stays in place and GHOSTS — `?disabled` on `knob-element`/buttons, plus a
   title saying why; never remove it from the layout. The gate lives where
-  both input paths converge (e.g. sequels' play/stop handlers gate SYNC for
-  toolbar AND Space). Examples: FM knob outside FM routing, CYCLE off
-  non-square waves, sequels local transport & BPM under SYNC, bus strips'
-  pan/M/S, send knobs on return strips.
+  ALL input paths converge (e.g. sequels' play/stop handlers gate SYNC for
+  toolbar AND Space; its `handleControlChange` gates BPM under SYNC so
+  MIDI-learn/automation writes are as inert as the ghosted stepper).
+  Examples: FM knob outside FM routing, CYCLE off non-square waves, sequels
+  local transport & BPM under SYNC, bus strips' pan/M/S, send knobs on
+  return strips, MOTION's RATE/RUN↔DIV under SYNC and its step lane
+  outside the STEP shape.
 - **No explainer copy in panels**: if a device panel or strip needs a caption
   to explain routing or behavior, the UX is wrong — fix the affordance
   (label, placement, ghosting, accent link) instead. `title=` tooltips on

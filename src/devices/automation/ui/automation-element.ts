@@ -50,6 +50,13 @@ export class AutomationElement extends LitElement {
 
   /** True between lane pointer-down and up — one session save per gesture. */
   private painting = false;
+
+  // rAF indicator (playhead + output meter) — mixer-meter idiom: direct,
+  // value-quantized DOM writes outside Lit's render loop. The browser
+  // already parks rAF while the tab is hidden, and disconnect cancels it.
+  private rafId = 0;
+  private lastMeterPct = -1;
+  private lastPlayStep = -2; // -1 is the legal "no playhead" value
   /** Last painted bar — a fast drag hops bars between samples, so the gap
    * is filled by interpolating from here. */
   private lastPaint: { index: number; value: number } | null = null;
@@ -76,10 +83,12 @@ export class AutomationElement extends LitElement {
     this.controller.addEventListener(AutomationEvent.STEPS, this.onSteps);
     this.controller.addEventListener(AutomationEvent.TARGET, this.onTarget);
     getParamDirectory().addEventListener("directory-change", this.onDirectory);
+    this.rafId = requestAnimationFrame(this.tickIndicator);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    cancelAnimationFrame(this.rafId);
     getParamDirectory().removeEventListener("directory-change", this.onDirectory);
     if (!this.plugin) return;
     this.controller.removeEventListener(AutomationEvent.SIGNAL, this.onSignal);
@@ -91,6 +100,32 @@ export class AutomationElement extends LitElement {
   private notifyChanged() {
     this.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
   }
+
+  // A render rebuilds the meter fill and the bars, wiping direct writes —
+  // forget the quantization so the next frame repaints them.
+  protected updated() {
+    this.lastMeterPct = -1;
+    this.lastPlayStep = -2;
+  }
+
+  private tickIndicator = () => {
+    this.rafId = requestAnimationFrame(this.tickIndicator);
+    if (!this.plugin) return;
+    const m = this.controller.getMotion();
+    const pct = m.raw < 0 ? 0 : Math.round((m.raw / 127) * 100);
+    if (pct !== this.lastMeterPct) {
+      this.lastMeterPct = pct;
+      const fill = this.shadowRoot?.querySelector<HTMLElement>(".out-fill");
+      if (fill) fill.style.width = `${pct}%`;
+    }
+    const step = m.running ? m.step : -1;
+    if (step !== this.lastPlayStep) {
+      this.lastPlayStep = step;
+      this.shadowRoot
+        ?.querySelectorAll(".bar")
+        .forEach((b, i) => b.classList.toggle("playing", i === step));
+    }
+  };
 
   // --- Target stepping (over the directory's mount-ordered entries) ---
 
@@ -242,6 +277,9 @@ export class AutomationElement extends LitElement {
               @click=${this.onRunToggle}
             >RUN</button>
           </div>
+          <div class="out-meter" title="Output — the value sent to the target">
+            <div class="out-fill"></div>
+          </div>
         </div>
         <div class="zone steps-zone">
           <label class="zone-label">STEPS</label>
@@ -389,6 +427,23 @@ export class AutomationElement extends LitElement {
     .bar .fill {
       width: 100%;
       min-height: 2px; /* a zeroed step still reads as a step */
+      background: var(--automation-accent, #f28c28);
+    }
+
+    .bar.playing {
+      background: var(--medium);
+    }
+
+    .out-meter {
+      height: 3px;
+      border-radius: 2px;
+      background: var(--dark-secondary);
+      overflow: hidden;
+    }
+
+    .out-fill {
+      width: 0;
+      height: 100%;
       background: var(--automation-accent, #f28c28);
     }
 
