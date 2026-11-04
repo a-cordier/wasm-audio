@@ -130,10 +130,29 @@ too) and a 400 ms retarget settle so browsing the DEVICE stepper can't
 slam params in passing. **Mixer-param targets and module-as-target
 deferred** — dispositions in [docs/scalability-audit.md](docs/scalability-audit.md).
 
-### 7. [ ] Song mode module
-- Arrangement/composition over the master transport (scenes or timeline —
-  to decide at plan time).
-- A module, not part of the shell: absent in live mode by default.
+### 7. [x] Song mode module — done 2026-11-04
+Three QA'd batches. SONG (`src/devices/song`) is scenes + chain — groovebox
+song row, not timeline, decided at plan time: the transport stays beats-only
+(no bars/locate API), so arrangement lives entirely in the module.
+Groundwork: sequels grew frame-targeted addressing (**PatternAddressable**,
+`core/types.ts`, resolved through ParamDirectory entries) —
+`selectPatternAt(i, frame)` lands the pattern's step 0 sample-exactly on the
+bar with the WORKLET as single authority (config syncs only on
+`__pattern_applied`; the config-driven path stays suppressed until it
+catches up), plus a scheduler-level mute (note-ons gated, frame-stamped offs
+flow, the open slide releases ON the bar; volatile by design). A scene =
+per-sequencer cells (pattern `A0–D9` / `M` / `—` no-change, slot-keyed, so
+cells survive ejects invisibly); launches are instant when stopped or
+unsynced (snapshot recall) and bar-quantized under a running master (~80 ms
+dispatch lead, 64-frame boundary safety, measured ~20 ms scheduling lead at
+120–180 BPM). The chain plays scenes in order, N bars each, mapped from the
+**absolute** master bar: manual launch takes over (CHAIN off), re-engaging
+rejoins the song position, LOOP wraps or holds at the end (a module never
+stops the master), stop/start restarts at entry 0, tempo changes re-aim the
+pending dispatch. Eject lifts every mute SONG set. **SEQ_PATTERN/SEQ_MUTE
+ControlIDs (MIDI pattern-launch) and scene-mute re-apply after reload
+deferred** — dispositions in
+[docs/scalability-audit.md](docs/scalability-audit.md).
 
 ## Phase 3 — Devices & niceties
 

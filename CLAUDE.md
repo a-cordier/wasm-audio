@@ -94,6 +94,25 @@ read live when synced / phase accumulator when free, universal one-pole
 GLIDE slew, and a 400 ms settle after retargeting so stepping the DEVICE
 stepper across a device never slams its params in passing.
 
+**SONG** (`src/devices/song`) is the arrangement module: 8 scenes
+(per-sequencer cells — pattern `A0–D9` in the device's own bank language,
+`M`, or `—` no-change, keyed by slot id) plus a chain of scene×bars entries
+mapped from the **absolute master bar** — a pure function of `beatsAt()`,
+never a counter, so manual launch takes over (CHAIN off) and re-engaging
+rejoins the song position. It drives sequencers through
+**PatternAddressable** (`core/types.ts`): `selectPatternAt(index, frame)` /
+`setMuteAt(muted, frame)` land sample-exactly on the frame (mod 2^24; 0 =
+now) — implement it on any new sequencer to make it song-addressable. The
+rule that makes it bar-exact: **the target's worklet is the single
+authority** — it confirms with `__pattern_applied`, and only then does the
+controller write `ACTIVE_PATTERN` (the config-driven switch path stays
+suppressed until that write catches up; writing up front races a switch
+back). Dispatches go out ~80 ms before the bar with the target frame
+computed from the anchor, backed off 64 frames, so dispatch jitter never
+moves the boundary. Re-asserting the playing pattern is a no-op
+(polymeter-safe). Mute is volatile everywhere: sequels never persists it,
+SONG re-applies it per scene and lifts every mute it set on dispose.
+
 Parameter signal path (one direction, lock-free):
 
 ```

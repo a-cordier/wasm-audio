@@ -66,6 +66,32 @@ Item 6 shipped against this list; what it proved and what stays open:
   automation targets, and module-as-Learnable (a MOTION automating a MOTION
   needs a feedback-cycle story — modules stay out of their own directory).
 
+## For item 7 — song mode module — RESOLVED 2026-11-04
+Item 7 shipped (SONG, `src/devices/song`); dispositions:
+- **PatternAddressable** (`core/types.ts`) is the song-mode surface,
+  duck-typed on sequencer controllers and resolved through ParamDirectory
+  entries. The directory registers **Learnable plugins only**
+  (`param-directory.ts`), so a non-Learnable sequencer would be invisible to
+  SONG — revisit with item 10 (chord sequencer): implement Learnable there
+  or widen directory registration.
+- **SEQ_PATTERN/SEQ_MUTE ControlIDs deliberately not added**: a frameless CC
+  write defeats the bar-exact mechanism item 7 exists for, and MIDI
+  pattern-launch is its own design (momentary vs latch, bank paging, the
+  SYNC convergence gate). If added later they append at the END of the
+  ControlID enum — MOTION persists controlId numbers.
+- **Mute is volatile by design**: sequels never persists it (it has no mute
+  UI of its own), SONG lifts every mute on dispose, and a mid-song reload
+  comes back unmuted even where a scene says M. If it bites, SONG can
+  re-apply the selected scene on its first directory-change after restore.
+- **Late SYNC joiners** (synced while the master runs) start at step 0 with
+  arbitrary phase vs master bars (`addChild` replays a past anchor), so
+  targeted switches land on THAT sequencer's nearest step boundary at/past
+  the bar — up to one step off-grid. Restart the master to realign. Accepted.
+- **Two mounted SONGs** both dispatch; last writer wins (the two-MOTIONs
+  acceptance).
+- Each applied switch triggers sequels' debounced slot autosave
+  (`activePattern` is persisted state) — confirmed harmless.
+
 ## MIDI-learn (later item)
 - No persistence is wired (`exportBindings`/`importBindings` have no callers),
   and `importBindings` drops `slotBindings` — restored bindings would resolve
