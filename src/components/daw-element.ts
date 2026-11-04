@@ -45,6 +45,7 @@ import "../instruments/sequels/register";
 import "../devices/echo/register";
 import "../devices/audio-in/register";
 import "../devices/automation/register";
+import "../devices/song/register";
 
 const SESSION_SAVE_DEBOUNCE_MS = 500;
 

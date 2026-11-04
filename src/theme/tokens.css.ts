@@ -133,6 +133,11 @@ export const darkTheme = `
     --automation-signal-panel-color: #322e28;
     --automation-steps-panel-color: #353028;
 
+    /* SONG (song-mode module): steel-blue accent + two-zone camaïeu. */
+    --song-accent: #6fb3e0;
+    --song-scenes-panel-color: #2a2f35;
+    --song-chain-panel-color: #292e33;
+
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);
     --transport-label-color: var(--moonbeam);
@@ -261,6 +266,11 @@ export const retroTheme = `
     --automation-target-panel-color: #352c20;
     --automation-signal-panel-color: #332b22;
     --automation-steps-panel-color: #372e1e;
+
+    /* SONG (song-mode module): dusty slate accent, warmed zone tints. */
+    --song-accent: #8fa8bd;
+    --song-scenes-panel-color: #342c24;
+    --song-chain-panel-color: #322b25;
 
     /* Master transport bar */
     --transport-bar-bg: var(--main-panel-color);
