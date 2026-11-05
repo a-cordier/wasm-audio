@@ -45,6 +45,7 @@ import "../instruments/sequels/register";
 import "../devices/echo/register";
 import "../devices/drive/register";
 import "../devices/chorus/register";
+import "../devices/verb/register";
 import "../devices/audio-in/register";
 import "../devices/automation/register";
 import "../devices/song/register";

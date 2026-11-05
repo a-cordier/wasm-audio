@@ -99,6 +99,11 @@ export enum ControlID {
   CHORUS_RATE,
   CHORUS_DEPTH,
   CHORUS_SPREAD,
+
+  // Verb (effect)
+  VERB_SIZE,
+  VERB_DECAY,
+  VERB_DAMP,
 }
 
 export interface ControlSignal {
