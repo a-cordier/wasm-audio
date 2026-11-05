@@ -83,6 +83,23 @@ const LVL_ALPHA = 1 - Math.exp(-1 / (0.01 * sampleRate));
 const KICK_PITCH_K = decayK(0.06);
 const KICK_CLICK_K = decayK(0.008);
 
+// Snare: the tonal pair rings ~110 ms regardless of DECAY (DECAY shapes the
+// noise tail, like the 808's SNAPPY); noise is bandpassed wide around 2 kHz.
+const SNARE_TONE_K = decayK(0.11);
+const SN_BP = (() => {
+  const w0 = (TWO_PI * 2000) / sampleRate;
+  const alpha = Math.sin(w0) / (2 * 0.8);
+  const a0 = 1 + alpha;
+  return { b0: alpha / a0, a1: (-2 * Math.cos(w0)) / a0, a2: (1 - alpha) / a0 };
+})();
+
+// Clap: three re-strikes 11 ms apart (fast chop ~45 ms T60), then the tail.
+const CLAP_SPACING = Math.round(0.011 * sampleRate);
+const CLAP_STRIKE_K = decayK(0.045);
+
+// Feedback-state denormal flush (the VERB idiom — JS has no FTZ either).
+const flush = (v) => (v > -1e-15 && v < 1e-15 ? 0 : v);
+
 // Dead-voice floor: −80 dB. Exponential tails then deactivate instead of
 // rendering forever in subnormal territory (JS has no FTZ either).
 const ENV_FLOOR = 1e-4;
@@ -114,10 +131,45 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     this._kGain = 0;
     this._kNoise = makeNoise(0xd1ce5eed);
 
-    // SNARE / CLAP — land in batch 2; HATS / TOM — batch 3.
+    // SNARE — two detuned sines + bandpassed noise, SNAP balances them.
+    this._sActive = false;
+    this._sTEnv = 0;
+    this._sNEnv = 0;
+    this._sP1 = 0;
+    this._sP2 = 0;
+    this._sF1 = 180;
+    this._sF2 = 330;
+    this._sSnap = 0.5;
+    this._sAmpK = 0;
+    this._sGain = 0;
+    this._sZ1 = 0;
+    this._sZ2 = 0;
+    this._sNoise = makeNoise(0x5ead00d5);
+
+    // CLAP — noise → resonant bandpass, 3 re-strikes then an exp tail.
+    this._cActive = false;
+    this._cEnv = 0;
+    this._cK = 0;
+    this._cTailK = 0;
+    this._cStrike = 0;
+    this._cT = 0;
+    this._cGain = 0;
+    this._cB0 = 0;
+    this._cA1 = 0;
+    this._cA2 = 0;
+    this._cZ1 = 0;
+    this._cZ2 = 0;
+    this._cNoise = makeNoise(0xc1a9c1a9);
+
+    // Biquad coefficient scratch (bandpass; preallocated, written at trigger).
+    this._bq = new Float32Array(3);
+
+    // HATS / TOM — land in batch 3.
 
     // Smoothed per-voice levels (kick, snare, clap, ch, oh, tom).
     this._lvlKick = 0;
+    this._lvlSnare = 0;
+    this._lvlClap = 0;
 
     this.port.onmessage = (e) => {
       if (e.data && e.data.type === "__init_sab") {
@@ -180,10 +232,10 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         break;
       case 38:
       case 40:
-        // SNARE — batch 2
+        this._triggerSnare(p, gain);
         break;
       case 39:
-        // CLAP — batch 2
+        this._triggerClap(p, gain);
         break;
       case 42:
       case 44:
@@ -203,6 +255,44 @@ class DrumlinProcessor extends AudioWorkletProcessor {
       default:
         break; // unmapped notes are silent by design
     }
+  }
+
+  // RBJ bandpass (constant 0 dB peak gain): b0 = alpha, b1 = 0, b2 = -b0.
+  _bandpass(f, q) {
+    const w0 = (TWO_PI * f) / sampleRate;
+    const alpha = Math.sin(w0) / (2 * q);
+    const a0 = 1 + alpha;
+    this._bq[0] = alpha / a0;
+    this._bq[1] = (-2 * Math.cos(w0)) / a0;
+    this._bq[2] = (1 - alpha) / a0;
+  }
+
+  _triggerSnare(p, gain) {
+    const f1 = expMap(p[SNARE_TUNE], 160, 260);
+    this._sF1 = f1;
+    this._sF2 = f1 * 1.83; // inharmonic 808-ish partner mode
+    this._sSnap = p[SNARE_SNAP] / 127;
+    this._sAmpK = decayK(expMap(p[SNARE_DECAY], 0.06, 0.5));
+    this._sP1 = 0;
+    this._sP2 = 0;
+    this._sTEnv = 1;
+    this._sNEnv = 1;
+    this._sGain = gain;
+    this._sActive = true;
+  }
+
+  _triggerClap(p, gain) {
+    this._bandpass(expMap(p[CLAP_TONE], 600, 2000), 2.0);
+    this._cB0 = this._bq[0];
+    this._cA1 = this._bq[1];
+    this._cA2 = this._bq[2];
+    this._cTailK = decayK(expMap(p[CLAP_DECAY], 0.05, 0.6));
+    this._cK = CLAP_STRIKE_K;
+    this._cStrike = 0;
+    this._cT = 0;
+    this._cEnv = 1;
+    this._cGain = gain;
+    this._cActive = true;
   }
 
   _triggerKick(p, gain) {
@@ -233,10 +323,14 @@ class DrumlinProcessor extends AudioWorkletProcessor {
 
     // Level targets, read once per block (smoothed per sample below).
     const tKick = p[KICK_LEVEL] / 127;
+    const tSnare = p[SNARE_LEVEL] / 127;
+    const tClap = p[CLAP_LEVEL] / 127;
 
-    if (pn === 0 && !this._kActive) {
+    if (pn === 0 && !this._kActive && !this._sActive && !this._cActive) {
       // Nothing ringing, nothing due: output buffers are already zero.
       this._lvlKick = tKick; // keep smoothers current for the next hit
+      this._lvlSnare = tSnare;
+      this._lvlClap = tClap;
       return true;
     }
 
@@ -248,6 +342,8 @@ class DrumlinProcessor extends AudioWorkletProcessor {
       }
 
       this._lvlKick += LVL_ALPHA * (tKick - this._lvlKick);
+      this._lvlSnare += LVL_ALPHA * (tSnare - this._lvlSnare);
+      this._lvlClap += LVL_ALPHA * (tClap - this._lvlClap);
 
       let sum = 0;
 
@@ -264,6 +360,40 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         const body = Math.tanh(1.8 * Math.sin(TWO_PI * this._kPhase));
         sum += (body + this._kClick * this._kNoise()) * this._kEnv * this._kGain * this._lvlKick;
         if (this._kEnv < ENV_FLOOR) this._kActive = false;
+      }
+
+      if (this._sActive) {
+        this._sTEnv *= SNARE_TONE_K;
+        this._sNEnv *= this._sAmpK;
+        this._sP1 += this._sF1 / sampleRate;
+        if (this._sP1 >= 1) this._sP1 -= 1;
+        this._sP2 += this._sF2 / sampleRate;
+        if (this._sP2 >= 1) this._sP2 -= 1;
+        const tone = (Math.sin(TWO_PI * this._sP1) + 0.8 * Math.sin(TWO_PI * this._sP2)) * 0.55;
+        const x = this._sNoise();
+        const y = SN_BP.b0 * x + this._sZ1;
+        this._sZ1 = flush(-SN_BP.a1 * y + this._sZ2);
+        this._sZ2 = flush(-SN_BP.b0 * x - SN_BP.a2 * y);
+        const snr = tone * (1 - this._sSnap) * this._sTEnv + 1.6 * y * this._sSnap * this._sNEnv;
+        sum += snr * this._sGain * this._lvlSnare;
+        if (this._sTEnv < ENV_FLOOR && this._sNEnv < ENV_FLOOR) this._sActive = false;
+      }
+
+      if (this._cActive) {
+        this._cEnv *= this._cK;
+        this._cT++;
+        if (this._cStrike < 2 && this._cT >= CLAP_SPACING) {
+          this._cStrike++;
+          this._cT = 0;
+          this._cEnv = 1; // re-strike — the 808 clap's pre-echoes
+          if (this._cStrike === 2) this._cK = this._cTailK;
+        }
+        const x = this._cNoise();
+        const y = this._cB0 * x + this._cZ1;
+        this._cZ1 = flush(-this._cA1 * y + this._cZ2);
+        this._cZ2 = flush(-this._cB0 * x - this._cA2 * y);
+        sum += 1.8 * y * this._cEnv * this._cGain * this._lvlClap;
+        if (this._cStrike === 2 && this._cEnv < ENV_FLOOR) this._cActive = false;
       }
 
       const y = sum * OUT_GAIN;
