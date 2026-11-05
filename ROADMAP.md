@@ -212,6 +212,30 @@ EIGHT (boomy/loose) and NINE (punchy/bright) factory kits ride
 timing, tom pitch ratios, SNAP/TONE spectra, a 23-event polymetric bus
 burst, MIDI-learn + automation dispatch, kit persistence across reload.
 
+### 9b. [x] DRUMLIN expansion — new voices, note selectors, split hat tone, separate outs — done 2026-11-05
+Four QA'd batches, user-requested after the kit's first sessions. **RIM,
+RIDE and CRASH** join (9 voices): the 808 rimshot (two Q8 resonant bands
+rung by a 4 ms burst) and two cymbals, each owning a **MetalBank** — the
+hats' six-square polyBLEP bank extracted into a per-voice class, so
+retuning one metallic voice never bends another's ringing tail (which is
+also what let **CH and OH split their TONEs**: param 11 stays the CH tone
+old sessions saved, OH_TONE appends). **Per-voice receive notes**: nine
+LCD steppers (C4 = 60 names — the sequels convention), processor-resolved
+from params, tom answers base ±2 at ∓/±5 st, and two voices on one note
+BOTH fire (layering by design) — the multi-alias GM map retired with the
+selectors. **Separate outs** landed as the first `HasAuxOutputs` device
+(`core/types.ts`, optional contract): a STRIP toggle per voice moves it
+onto its own mixer channel keyed `slot:voice` (full EQ/pan/sends/solo) —
+the shell reconciles strips against the device's routed set and confirms
+each via `setAuxActive` (a full board bounces the toggle), the processor
+crossfades route flips over 10 ms (never a click), aux strips persist per
+voice (`RackSlotEntry.auxMixer`) and sweep on eject, multi-instance
+clean. PARAM_COUNT 20 → 48 (append-only throughout); the panel reflowed
+to two zone rows to stay inside `--rack-slot-width`. Verified live:
+isolation (routed kick 0.000 on main, full on its strip), strip + pan +
+toggle surviving reload, second-instance eject with zero leftover
+channels, independent hat combs, tom pitch ratios, layered flashes.
+
 ### 10. [ ] Chord sequencer
 - Sequencer device emitting chords to other devices over the MIDI bus —
   the routing pattern sequels→monolog already proves.

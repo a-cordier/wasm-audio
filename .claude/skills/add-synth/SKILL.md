@@ -67,6 +67,14 @@ done. The list here is the contract it satisfies:
   returns on its own ⏎ channel, which **never sends**). A `kind:"input"`
   device never auto-opens capture on mount — acquisition is gesture-driven
   from its panel.
+- **Separate outs (optional)** — a multi-voice instrument can implement
+  `HasAuxOutputs` (`core/types.ts`) to route voices onto their own mixer
+  strips: `getAuxOutputs()` returns only the ROUTED voices, the device
+  dispatches `"aux-outputs-changed"`, and the shell confirms each strip via
+  `setAuxActive` (a full board reverts the toggle). The worklet renders one
+  extra output per voice and crossfades route flips (~10 ms) so they never
+  click; route flags live in device state, aux strip settings persist as
+  `RackSlotEntry.auxMixer`. Reference: `drumlin`.
 - **Serve the worklet** — add each `workletModules` file to the `workletFiles` map in `vite.config.ts`, or `addModule()` 404s in dev and build.
 - **Params** — a `ParamId` enum ending in `PARAM_COUNT`; the alignment trio above.
 - **Node** — sizes a `SharedParamBuffer(ParamId.PARAM_COUNT)`, loads the worklet module, owns `setParam`.

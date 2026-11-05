@@ -72,6 +72,13 @@ linear amplitude. **Effect loops**: one send bus per mounted `kind:"effect"`
 device (`getInputNode()` in — the `AudioEffect` contract; output returns on
 the device's own ⏎ channel). The suite: ECHO (native delay), DRIVE (native
 saturation), CHORUS (native doubling), VERB (worklet FDN reverb).
+**Separate outs** (`HasAuxOutputs` in `core/types.ts`, optional): a
+multi-voice device routes individual voices onto their own strips — the
+shell reconciles channels keyed `slot:voice` against the device's routed
+set (`getAuxOutputs()` = desired, `"aux-outputs-changed"` announces,
+`setAuxActive` confirms — a full board bounces the toggle), persists aux
+strips per voice (`RackSlotEntry.auxMixer`) and sweeps them on eject;
+drumlin is the reference (route flips crossfade in-processor, no clicks).
 **Chaining is cycle-aware — the DAG rule**: a send tap on a return strip
 exists ⇔ that effect→effect edge keeps the send graph acyclic (`canSend`
 DFS). Return taps build lazily and are DELETED when zeroed (node existence
