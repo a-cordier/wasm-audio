@@ -18,6 +18,7 @@ import { DrumlinNode } from "./drumlin-node";
 import { DrumlinParamId as P } from "./types/drumlin-params";
 import { DrumlinState, Field, createDrumlinState } from "./types/drumlin-state";
 import { DrumlinEvent } from "./types/drumlin-event";
+import { DrumlinFactoryPresets } from "./presets";
 import { voiceForNote } from "./types/drumlin-notes";
 import { MidiEvent, MidiTarget } from "../../midi/types";
 import { noteFrequency } from "../../midi/codec/notes";
@@ -156,7 +157,7 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
   }
 
   getFactoryPresets(): PresetEntry[] {
-    return [{ name: "INIT", state: createDrumlinState() }];
+    return DrumlinFactoryPresets;
   }
 
   private sendParam(id: number, value: number) {
