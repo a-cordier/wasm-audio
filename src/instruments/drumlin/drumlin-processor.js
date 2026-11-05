@@ -97,6 +97,46 @@ const SN_BP = (() => {
 const CLAP_SPACING = Math.round(0.011 * sampleRate);
 const CLAP_STRIKE_K = decayK(0.045);
 
+// PolyBLEP residual — the house band-limiting idiom (template-processor.js /
+// dsp/oscillator.h). The hats' six squares alias audibly without it.
+const polyBlep = (t, dt) => {
+  if (t < dt) { t /= dt; return t + t - t * t - 1; }
+  if (t > 1 - dt) { t = (t - 1) / dt; return t * t + t + t + 1; }
+  return 0;
+};
+
+// Hats: ONE shared metallic bank — six squares at the 808-ish inharmonic set,
+// scaled together by TONE — through fixed bandpass (10 kHz) and highpass
+// (7 kHz) stages. CH and OH are two VCAs on the same signal; a CH hit chokes
+// the OH tail through a ~3 ms fade (dsp-audit's two-stage-fade idiom).
+const HAT_FREQS = [205.3, 304.4, 369.99, 522.7, 540, 800];
+const HAT_BP = (() => {
+  const w0 = (TWO_PI * 10000) / sampleRate;
+  const alpha = Math.sin(w0) / (2 * 1.1);
+  const a0 = 1 + alpha;
+  return { b0: alpha / a0, a1: (-2 * Math.cos(w0)) / a0, a2: (1 - alpha) / a0 };
+})();
+const HAT_HP = (() => {
+  const w0 = (TWO_PI * 7000) / sampleRate;
+  const cw = Math.cos(w0);
+  const alpha = Math.sin(w0) / (2 * Math.SQRT1_2);
+  const a0 = 1 + alpha;
+  return {
+    b0: (1 + cw) / 2 / a0, // b2 === b0 for an RBJ highpass
+    b1: -(1 + cw) / a0,
+    a1: (-2 * cw) / a0,
+    a2: (1 - alpha) / a0,
+  };
+})();
+const HAT_CHOKE_K = decayK(0.003);
+const HAT_MAKEUP = 3.0; // the 10 kHz band keeps little of a square's energy
+
+// Tom: mild fixed pitch envelope (~4 st over ~80 ms) + a lowpassed noise skin
+// transient (~50 ms) over the tunable sine body.
+const TOM_PITCH_K = decayK(0.08);
+const TOM_NOISE_K = decayK(0.05);
+const TOM_NOISE_ALPHA = 1 - Math.exp((-TWO_PI * 2000) / sampleRate);
+
 // Feedback-state denormal flush (the VERB idiom — JS has no FTZ either).
 const flush = (v) => (v > -1e-15 && v < 1e-15 ? 0 : v);
 
@@ -164,12 +204,43 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     // Biquad coefficient scratch (bandpass; preallocated, written at trigger).
     this._bq = new Float32Array(3);
 
-    // HATS / TOM — land in batch 3.
+    // HATS — shared six-square bank (free-running phases: per-hit variation,
+    // and no click on the bank while the other VCA is still open) + two VCAs.
+    this._hPhases = new Float64Array(6);
+    this._hInc = new Float64Array(6);
+    for (let k = 0; k < 6; k++) this._hInc[k] = HAT_FREQS[k] / sampleRate;
+    this._hBpZ1 = 0;
+    this._hBpZ2 = 0;
+    this._hHpZ1 = 0;
+    this._hHpZ2 = 0;
+    this._chActive = false;
+    this._chEnv = 0;
+    this._chK = 0;
+    this._chGain = 0;
+    this._ohActive = false;
+    this._ohEnv = 0;
+    this._ohK = 0;
+    this._ohGain = 0;
+
+    // TOM — one mono voice, three pitches by note (a retrigger takes it over).
+    this._tActive = false;
+    this._tEnv = 0;
+    this._tPEnv = 0;
+    this._tNEnv = 0;
+    this._tPhase = 0;
+    this._tF0 = 120;
+    this._tAmpK = 0;
+    this._tGain = 0;
+    this._tNz = 0;
+    this._tNoise = makeNoise(0x70a070a1);
 
     // Smoothed per-voice levels (kick, snare, clap, ch, oh, tom).
     this._lvlKick = 0;
     this._lvlSnare = 0;
     this._lvlClap = 0;
+    this._lvlCh = 0;
+    this._lvlOh = 0;
+    this._lvlTom = 0;
 
     this.port.onmessage = (e) => {
       if (e.data && e.data.type === "__init_sab") {
@@ -239,18 +310,22 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         break;
       case 42:
       case 44:
-        // CLOSED HAT (+ chokes OH) — batch 3
+        this._triggerHat(p, gain, true);
         break;
       case 46:
-        // OPEN HAT — batch 3
+        this._triggerHat(p, gain, false);
         break;
       case 41:
       case 43:
+        this._triggerTom(p, gain, -5);
+        break;
       case 45:
       case 47:
+        this._triggerTom(p, gain, 0);
+        break;
       case 48:
       case 50:
-        // TOM (−5/0/+5 st by note pair) — batch 3
+        this._triggerTom(p, gain, 5);
         break;
       default:
         break; // unmapped notes are silent by design
@@ -295,6 +370,36 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     this._cActive = true;
   }
 
+  _triggerHat(p, gain, closed) {
+    // TONE scales the whole bank together (×0.5 .. ×2, unity at center).
+    const scale = expMap(p[HAT_TONE], 0.5, 2.0);
+    for (let k = 0; k < 6; k++) this._hInc[k] = (HAT_FREQS[k] * scale) / sampleRate;
+    if (closed) {
+      this._chK = decayK(expMap(p[CH_DECAY], 0.025, 0.2));
+      this._chEnv = 1;
+      this._chGain = gain;
+      this._chActive = true;
+      // Choke: a ~3 ms fade, never a hard cut (the two-stage-fade idiom).
+      if (this._ohActive) this._ohK = HAT_CHOKE_K;
+    } else {
+      this._ohK = decayK(expMap(p[OH_DECAY], 0.15, 1.2));
+      this._ohEnv = 1;
+      this._ohGain = gain;
+      this._ohActive = true;
+    }
+  }
+
+  _triggerTom(p, gain, semis) {
+    this._tF0 = expMap(p[TOM_TUNE], 70, 240) * Math.pow(2, semis / 12);
+    this._tAmpK = decayK(expMap(p[TOM_DECAY], 0.08, 0.9));
+    this._tPhase = 0; // sine restarts at a zero crossing
+    this._tEnv = 1;
+    this._tPEnv = 1;
+    this._tNEnv = 1;
+    this._tGain = gain;
+    this._tActive = true;
+  }
+
   _triggerKick(p, gain) {
     this._kF0 = expMap(p[KICK_TUNE], 35, 90);
     const punch = p[KICK_PUNCH] / 127;
@@ -325,12 +430,26 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     const tKick = p[KICK_LEVEL] / 127;
     const tSnare = p[SNARE_LEVEL] / 127;
     const tClap = p[CLAP_LEVEL] / 127;
+    const tCh = p[CH_LEVEL] / 127;
+    const tOh = p[OH_LEVEL] / 127;
+    const tTom = p[TOM_LEVEL] / 127;
 
-    if (pn === 0 && !this._kActive && !this._sActive && !this._cActive) {
+    if (
+      pn === 0 &&
+      !this._kActive &&
+      !this._sActive &&
+      !this._cActive &&
+      !this._chActive &&
+      !this._ohActive &&
+      !this._tActive
+    ) {
       // Nothing ringing, nothing due: output buffers are already zero.
       this._lvlKick = tKick; // keep smoothers current for the next hit
       this._lvlSnare = tSnare;
       this._lvlClap = tClap;
+      this._lvlCh = tCh;
+      this._lvlOh = tOh;
+      this._lvlTom = tTom;
       return true;
     }
 
@@ -344,6 +463,9 @@ class DrumlinProcessor extends AudioWorkletProcessor {
       this._lvlKick += LVL_ALPHA * (tKick - this._lvlKick);
       this._lvlSnare += LVL_ALPHA * (tSnare - this._lvlSnare);
       this._lvlClap += LVL_ALPHA * (tClap - this._lvlClap);
+      this._lvlCh += LVL_ALPHA * (tCh - this._lvlCh);
+      this._lvlOh += LVL_ALPHA * (tOh - this._lvlOh);
+      this._lvlTom += LVL_ALPHA * (tTom - this._lvlTom);
 
       let sum = 0;
 
@@ -394,6 +516,58 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         this._cZ2 = flush(-this._cB0 * x - this._cA2 * y);
         sum += 1.8 * y * this._cEnv * this._cGain * this._lvlClap;
         if (this._cStrike === 2 && this._cEnv < ENV_FLOOR) this._cActive = false;
+      }
+
+      if (this._chActive || this._ohActive) {
+        // One shared bank render feeds both VCAs.
+        let metal = 0;
+        for (let k = 0; k < 6; k++) {
+          const inc = this._hInc[k];
+          let t = this._hPhases[k];
+          let s = t < 0.5 ? 1 : -1;
+          s += polyBlep(t, inc); // rising edge at 0
+          let t2 = t - 0.5;
+          if (t2 < 0) t2 += 1;
+          s -= polyBlep(t2, inc); // falling edge at 0.5
+          metal += s;
+          t += inc;
+          if (t >= 1) t -= 1;
+          this._hPhases[k] = t;
+        }
+        metal /= 6;
+        const yb = HAT_BP.b0 * metal + this._hBpZ1;
+        this._hBpZ1 = flush(-HAT_BP.a1 * yb + this._hBpZ2);
+        this._hBpZ2 = flush(-HAT_BP.b0 * metal - HAT_BP.a2 * yb);
+        const yh = HAT_HP.b0 * yb + this._hHpZ1;
+        this._hHpZ1 = flush(HAT_HP.b1 * yb - HAT_HP.a1 * yh + this._hHpZ2);
+        this._hHpZ2 = flush(HAT_HP.b0 * yb - HAT_HP.a2 * yh); // b2 === b0
+        const sizzle = HAT_MAKEUP * yh;
+        if (this._chActive) {
+          this._chEnv *= this._chK;
+          sum += sizzle * this._chEnv * this._chGain * this._lvlCh;
+          if (this._chEnv < ENV_FLOOR) this._chActive = false;
+        }
+        if (this._ohActive) {
+          this._ohEnv *= this._ohK;
+          sum += sizzle * this._ohEnv * this._ohGain * this._lvlOh;
+          if (this._ohEnv < ENV_FLOOR) this._ohActive = false;
+        }
+      }
+
+      if (this._tActive) {
+        this._tPEnv *= TOM_PITCH_K;
+        this._tNEnv *= TOM_NOISE_K;
+        this._tEnv *= this._tAmpK;
+        // Mild exponential pitch envelope (4 st). Same tanh-body reasoning as
+        // the kick: at ≤ ~320 Hz the shaped harmonics die out far below
+        // Nyquist, so the waveshaper needs no oversampling here either.
+        const f = this._tF0 * Math.pow(2, (4 * this._tPEnv) / 12);
+        this._tPhase += f / sampleRate;
+        if (this._tPhase >= 1) this._tPhase -= 1;
+        const body = Math.tanh(1.2 * Math.sin(TWO_PI * this._tPhase));
+        this._tNz += TOM_NOISE_ALPHA * (this._tNoise() - this._tNz); // skin noise, lowpassed
+        sum += (body + 0.5 * this._tNz * this._tNEnv) * this._tEnv * this._tGain * this._lvlTom;
+        if (this._tEnv < ENV_FLOOR) this._tActive = false;
       }
 
       const y = sum * OUT_GAIN;
