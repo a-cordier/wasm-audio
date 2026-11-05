@@ -18,7 +18,7 @@
 // switch (worklets can't import TS) — change BOTH or pads and audio disagree.
 // Toms span three note pairs at −5/0/+5 semitones; unmapped notes are ignored.
 
-export type DrumVoice = "kick" | "snare" | "clap" | "ch" | "oh" | "tom";
+export type DrumVoice = "kick" | "snare" | "clap" | "ch" | "oh" | "tom" | "rim" | "ride" | "crash";
 
 /** Canonical note per pad (the one the panel triggers). */
 export const PAD_NOTES: Record<DrumVoice, number> = {
@@ -28,6 +28,9 @@ export const PAD_NOTES: Record<DrumVoice, number> = {
   ch: 42,
   oh: 46,
   tom: 45,
+  rim: 37,
+  ride: 51,
+  crash: 49,
 };
 
 export function voiceForNote(note: number): DrumVoice | null {
@@ -52,6 +55,14 @@ export function voiceForNote(note: number): DrumVoice | null {
     case 48:
     case 50:
       return "tom";
+    case 37:
+      return "rim";
+    case 49:
+    case 57:
+      return "crash";
+    case 51:
+    case 53:
+      return "ride";
     default:
       return null;
   }

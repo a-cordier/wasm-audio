@@ -24,5 +24,8 @@ export enum DrumlinEvent {
   CLAP = "drumlin:clap",
   HATS = "drumlin:hats",
   TOM = "drumlin:tom",
+  RIM = "drumlin:rim",
+  RIDE = "drumlin:ride",
+  CRASH = "drumlin:crash",
   OUT = "drumlin:out",
 }

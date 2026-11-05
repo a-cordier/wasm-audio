@@ -45,7 +45,16 @@ const TOM_TUNE = 16;
 const TOM_DECAY = 17;
 const TOM_LEVEL = 18;
 const ACCENT = 19;
-const PARAM_COUNT = 20;
+const RIM_TUNE = 20;
+const RIM_DECAY = 21;
+const RIM_LEVEL = 22;
+const RIDE_TONE = 23;
+const RIDE_DECAY = 24;
+const RIDE_LEVEL = 25;
+const CRASH_TONE = 26;
+const CRASH_DECAY = 27;
+const CRASH_LEVEL = 28;
+const PARAM_COUNT = 29;
 
 const TWO_PI = 2 * Math.PI;
 
@@ -131,6 +140,17 @@ const HAT_HP = (() => {
 const HAT_CHOKE_K = decayK(0.003);
 const HAT_MAKEUP = 3.0; // the 10 kHz band keeps little of a square's energy
 
+// Rim: two parallel resonant bandpasses (f0 + 3.4·f0, Q 8) rung by a ~4 ms
+// noise burst — the 808 rimshot's clicky pitched knock.
+const RIM_BURST = Math.round(0.004 * sampleRate);
+const RIM_MAKEUP = 10.0; // Q8 bands pass little of the burst; tanh soft-caps the onset
+
+// Cymbals: each voice OWNS a metallic bank (retuning one never bends another
+// voice's ringing tail) with a fast transient env over the main tail.
+const RIDE_PING_K = decayK(0.08);
+const CRASH_BLOOM_K = decayK(0.15);
+const CYM_MAKEUP = 2.5;
+
 // Tom: mild fixed pitch envelope (~4 st over ~80 ms) + a lowpassed noise skin
 // transient (~50 ms) over the tunable sine body.
 const TOM_PITCH_K = decayK(0.08);
@@ -143,6 +163,64 @@ const flush = (v) => (v > -1e-15 && v < 1e-15 ? 0 : v);
 // Dead-voice floor: −80 dB. Exponential tails then deactivate instead of
 // rendering forever in subnormal territory (JS has no FTZ either).
 const ENV_FLOOR = 1e-4;
+
+// One metallic bank: six free-running polyBLEP squares through fixed
+// bandpass + highpass stages. Instantiated per VOICE (constructor only —
+// process() stays allocation-free). Hats migrate onto this in a later batch.
+class MetalBank {
+  constructor(bpF, bpQ, hpF) {
+    this._phases = new Float64Array(6);
+    this._inc = new Float64Array(6);
+    for (let k = 0; k < 6; k++) this._inc[k] = HAT_FREQS[k] / sampleRate;
+    const w0 = (TWO_PI * bpF) / sampleRate;
+    const alpha = Math.sin(w0) / (2 * bpQ);
+    const a0 = 1 + alpha;
+    this._bpB0 = alpha / a0;
+    this._bpA1 = (-2 * Math.cos(w0)) / a0;
+    this._bpA2 = (1 - alpha) / a0;
+    const w1 = (TWO_PI * hpF) / sampleRate;
+    const cw = Math.cos(w1);
+    const al = Math.sin(w1) / (2 * Math.SQRT1_2);
+    const h0 = 1 + al;
+    this._hpB0 = (1 + cw) / 2 / h0; // b2 === b0 for an RBJ highpass
+    this._hpB1 = -(1 + cw) / h0;
+    this._hpA1 = (-2 * cw) / h0;
+    this._hpA2 = (1 - al) / h0;
+    this._bpZ1 = 0;
+    this._bpZ2 = 0;
+    this._hpZ1 = 0;
+    this._hpZ2 = 0;
+  }
+
+  setScale(scale) {
+    for (let k = 0; k < 6; k++) this._inc[k] = (HAT_FREQS[k] * scale) / sampleRate;
+  }
+
+  render() {
+    let metal = 0;
+    for (let k = 0; k < 6; k++) {
+      const inc = this._inc[k];
+      let t = this._phases[k];
+      let s = t < 0.5 ? 1 : -1;
+      s += polyBlep(t, inc); // rising edge at 0
+      let t2 = t - 0.5;
+      if (t2 < 0) t2 += 1;
+      s -= polyBlep(t2, inc); // falling edge at 0.5
+      metal += s;
+      t += inc;
+      if (t >= 1) t -= 1;
+      this._phases[k] = t;
+    }
+    metal /= 6;
+    const yb = this._bpB0 * metal + this._bpZ1;
+    this._bpZ1 = flush(-this._bpA1 * yb + this._bpZ2);
+    this._bpZ2 = flush(-this._bpB0 * metal - this._bpA2 * yb);
+    const yh = this._hpB0 * yb + this._hpZ1;
+    this._hpZ1 = flush(this._hpB1 * yb - this._hpA1 * yh + this._hpZ2);
+    this._hpZ2 = flush(this._hpB0 * yb - this._hpA2 * yh);
+    return yh;
+  }
+}
 
 const MAX_PENDING = 64;
 const OUT_GAIN = 0.35; // fixed headroom — the mixer strip owns the rest
@@ -234,13 +312,48 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     this._tNz = 0;
     this._tNoise = makeNoise(0x70a070a1);
 
-    // Smoothed per-voice levels (kick, snare, clap, ch, oh, tom).
+    // RIM — two parallel resonant bandpasses rung by a short noise burst.
+    this._rimActive = false;
+    this._rimEnv = 0;
+    this._rimK = 0;
+    this._rimGain = 0;
+    this._rimBurst = 0;
+    this._rimB0a = 0;
+    this._rimA1a = 0;
+    this._rimA2a = 0;
+    this._rimZ1a = 0;
+    this._rimZ2a = 0;
+    this._rimB0b = 0;
+    this._rimA1b = 0;
+    this._rimA2b = 0;
+    this._rimZ1b = 0;
+    this._rimZ2b = 0;
+    this._rimNoise = makeNoise(0x21b50ff5);
+
+    // RIDE / CRASH — each owns a metallic bank.
+    this._rideBank = new MetalBank(6500, 1.0, 4000);
+    this._rdActive = false;
+    this._rdEnv = 0;
+    this._rdK = 0;
+    this._rdPing = 0;
+    this._rdGain = 0;
+    this._crashBank = new MetalBank(4500, 0.7, 3000);
+    this._crActive = false;
+    this._crEnv = 0;
+    this._crK = 0;
+    this._crBloom = 0;
+    this._crGain = 0;
+
+    // Smoothed per-voice levels.
     this._lvlKick = 0;
     this._lvlSnare = 0;
     this._lvlClap = 0;
     this._lvlCh = 0;
     this._lvlOh = 0;
     this._lvlTom = 0;
+    this._lvlRim = 0;
+    this._lvlRide = 0;
+    this._lvlCrash = 0;
 
     this.port.onmessage = (e) => {
       if (e.data && e.data.type === "__init_sab") {
@@ -327,6 +440,17 @@ class DrumlinProcessor extends AudioWorkletProcessor {
       case 50:
         this._triggerTom(p, gain, 5);
         break;
+      case 37:
+        this._triggerRim(p, gain);
+        break;
+      case 49:
+      case 57:
+        this._triggerCrash(p, gain);
+        break;
+      case 51:
+      case 53:
+        this._triggerRide(p, gain);
+        break;
       default:
         break; // unmapped notes are silent by design
     }
@@ -368,6 +492,42 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     this._cEnv = 1;
     this._cGain = gain;
     this._cActive = true;
+  }
+
+  _triggerRim(p, gain) {
+    const f0 = expMap(p[RIM_TUNE], 300, 900);
+    this._bandpass(f0, 8);
+    this._rimB0a = this._bq[0];
+    this._rimA1a = this._bq[1];
+    this._rimA2a = this._bq[2];
+    this._bandpass(f0 * 3.4, 8); // ≤ 3.06 kHz — far from Nyquist
+    this._rimB0b = this._bq[0];
+    this._rimA1b = this._bq[1];
+    this._rimA2b = this._bq[2];
+    this._rimK = decayK(expMap(p[RIM_DECAY], 0.025, 0.12));
+    this._rimEnv = 1;
+    this._rimBurst = RIM_BURST;
+    this._rimGain = gain;
+    this._rimActive = true;
+  }
+
+  _triggerRide(p, gain) {
+    this._rideBank.setScale(expMap(p[RIDE_TONE], 0.6, 2.0));
+    this._rdK = decayK(expMap(p[RIDE_DECAY], 0.4, 3.0));
+    this._rdEnv = 1;
+    this._rdPing = 1;
+    this._rdGain = gain;
+    this._rdActive = true;
+  }
+
+  _triggerCrash(p, gain) {
+    // ×1.13 seats the crash bank apart from a same-TONE ride.
+    this._crashBank.setScale(expMap(p[CRASH_TONE], 0.6, 2.0) * 1.13);
+    this._crK = decayK(expMap(p[CRASH_DECAY], 0.8, 4.0));
+    this._crEnv = 1;
+    this._crBloom = 1;
+    this._crGain = gain;
+    this._crActive = true;
   }
 
   _triggerHat(p, gain, closed) {
@@ -433,6 +593,9 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     const tCh = p[CH_LEVEL] / 127;
     const tOh = p[OH_LEVEL] / 127;
     const tTom = p[TOM_LEVEL] / 127;
+    const tRim = p[RIM_LEVEL] / 127;
+    const tRide = p[RIDE_LEVEL] / 127;
+    const tCrash = p[CRASH_LEVEL] / 127;
 
     if (
       pn === 0 &&
@@ -441,7 +604,10 @@ class DrumlinProcessor extends AudioWorkletProcessor {
       !this._cActive &&
       !this._chActive &&
       !this._ohActive &&
-      !this._tActive
+      !this._tActive &&
+      !this._rimActive &&
+      !this._rdActive &&
+      !this._crActive
     ) {
       // Nothing ringing, nothing due: output buffers are already zero.
       this._lvlKick = tKick; // keep smoothers current for the next hit
@@ -450,6 +616,9 @@ class DrumlinProcessor extends AudioWorkletProcessor {
       this._lvlCh = tCh;
       this._lvlOh = tOh;
       this._lvlTom = tTom;
+      this._lvlRim = tRim;
+      this._lvlRide = tRide;
+      this._lvlCrash = tCrash;
       return true;
     }
 
@@ -466,6 +635,9 @@ class DrumlinProcessor extends AudioWorkletProcessor {
       this._lvlCh += LVL_ALPHA * (tCh - this._lvlCh);
       this._lvlOh += LVL_ALPHA * (tOh - this._lvlOh);
       this._lvlTom += LVL_ALPHA * (tTom - this._lvlTom);
+      this._lvlRim += LVL_ALPHA * (tRim - this._lvlRim);
+      this._lvlRide += LVL_ALPHA * (tRide - this._lvlRide);
+      this._lvlCrash += LVL_ALPHA * (tCrash - this._lvlCrash);
 
       let sum = 0;
 
@@ -568,6 +740,40 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         this._tNz += TOM_NOISE_ALPHA * (this._tNoise() - this._tNz); // skin noise, lowpassed
         sum += (body + 0.5 * this._tNz * this._tNEnv) * this._tEnv * this._tGain * this._lvlTom;
         if (this._tEnv < ENV_FLOOR) this._tActive = false;
+      }
+
+      if (this._rimActive) {
+        this._rimEnv *= this._rimK;
+        let x = 0;
+        if (this._rimBurst > 0) {
+          x = this._rimNoise();
+          this._rimBurst--;
+        }
+        const y1 = this._rimB0a * x + this._rimZ1a;
+        this._rimZ1a = flush(-this._rimA1a * y1 + this._rimZ2a);
+        this._rimZ2a = flush(-this._rimB0a * x - this._rimA2a * y1);
+        const y2 = this._rimB0b * x + this._rimZ1b;
+        this._rimZ1b = flush(-this._rimA1b * y2 + this._rimZ2b);
+        this._rimZ2b = flush(-this._rimB0b * x - this._rimA2b * y2);
+        const knock = Math.tanh(RIM_MAKEUP * (y1 + 0.7 * y2));
+        sum += knock * this._rimEnv * this._rimGain * this._lvlRim;
+        if (this._rimEnv < ENV_FLOOR) this._rimActive = false;
+      }
+
+      if (this._rdActive) {
+        this._rdEnv *= this._rdK;
+        this._rdPing *= RIDE_PING_K;
+        const m = this._rideBank.render();
+        sum += CYM_MAKEUP * m * (this._rdEnv + 0.5 * this._rdPing) * this._rdGain * this._lvlRide;
+        if (this._rdEnv < ENV_FLOOR) this._rdActive = false;
+      }
+
+      if (this._crActive) {
+        this._crEnv *= this._crK;
+        this._crBloom *= CRASH_BLOOM_K;
+        const m = this._crashBank.render();
+        sum += CYM_MAKEUP * m * (this._crEnv + 0.6 * this._crBloom) * this._crGain * this._lvlCrash;
+        if (this._crEnv < ENV_FLOOR) this._crActive = false;
       }
 
       const y = sum * OUT_GAIN;

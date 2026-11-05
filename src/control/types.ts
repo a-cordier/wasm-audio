@@ -126,6 +126,15 @@ export enum ControlID {
   DRM_TOM_DECAY,
   DRM_TOM_LEVEL,
   DRM_ACCENT,
+  DRM_RIM_TUNE,
+  DRM_RIM_DECAY,
+  DRM_RIM_LEVEL,
+  DRM_RIDE_TONE,
+  DRM_RIDE_DECAY,
+  DRM_RIDE_LEVEL,
+  DRM_CRASH_TONE,
+  DRM_CRASH_DECAY,
+  DRM_CRASH_LEVEL,
 }
 
 export interface ControlSignal {

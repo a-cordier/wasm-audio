@@ -26,6 +26,9 @@ export interface DrumlinState {
   clap: { tone: Field; decay: Field; level: Field };
   hats: { tone: Field; chDecay: Field; chLevel: Field; ohDecay: Field; ohLevel: Field };
   tom: { tune: Field; decay: Field; level: Field };
+  rim: { tune: Field; decay: Field; level: Field };
+  ride: { tone: Field; decay: Field; level: Field };
+  crash: { tone: Field; decay: Field; level: Field };
   out: { accent: Field };
 }
 
@@ -41,6 +44,9 @@ const DEFAULTS: DrumlinState = {
     ohLevel: { value: 90 },
   },
   tom: { tune: { value: 60 }, decay: { value: 60 }, level: { value: 95 } },
+  rim: { tune: { value: 50 }, decay: { value: 40 }, level: { value: 95 } },
+  ride: { tone: { value: 64 }, decay: { value: 55 }, level: { value: 85 } },
+  crash: { tone: { value: 64 }, decay: { value: 60 }, level: { value: 90 } },
   out: { accent: { value: 100 } },
 };
 
@@ -70,6 +76,9 @@ export function createDrumlinState(partial: Partial<DrumlinState> = {}): Drumlin
     clap: mergeSection(DEFAULTS.clap, partial.clap),
     hats: mergeSection(DEFAULTS.hats, partial.hats),
     tom: mergeSection(DEFAULTS.tom, partial.tom),
+    rim: mergeSection(DEFAULTS.rim, partial.rim),
+    ride: mergeSection(DEFAULTS.ride, partial.ride),
+    crash: mergeSection(DEFAULTS.crash, partial.crash),
     out: mergeSection(DEFAULTS.out, partial.out),
   };
 }

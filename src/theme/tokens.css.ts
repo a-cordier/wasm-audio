@@ -97,6 +97,9 @@ export const darkTheme = `
     --drumlin-clap-panel-color: #33312a;  /* sand           — hand noise */
     --drumlin-hats-panel-color: #2c3133;  /* cold metal     — the bank */
     --drumlin-tom-panel-color: #312e2a;   /* earth          — skins */
+    --drumlin-rim-panel-color: #33302e;   /* wood on metal  — the stick */
+    --drumlin-ride-panel-color: #2e3231;  /* cool bronze    — the ping */
+    --drumlin-crash-panel-color: #343129; /* bright brass   — the wash */
     --drumlin-out-panel-color: #2f2f31;   /* neutral        — output */
 
     --panel-wrapper-label-color: var(--moonbeam);
@@ -243,6 +246,9 @@ export const retroTheme = `
     --drumlin-clap-panel-color: #353026;  /* sand           — hand noise */
     --drumlin-hats-panel-color: #2f2f2b;  /* tarnished metal — the bank */
     --drumlin-tom-panel-color: #342e27;   /* earth          — skins */
+    --drumlin-rim-panel-color: #35302b;   /* wood on metal  — the stick */
+    --drumlin-ride-panel-color: #30322d;  /* tarnished bronze — the ping */
+    --drumlin-crash-panel-color: #363127; /* aged brass     — the wash */
     --drumlin-out-panel-color: #322e29;   /* neutral warm   — output */
 
     --panel-wrapper-label-color: var(--moonbeam);

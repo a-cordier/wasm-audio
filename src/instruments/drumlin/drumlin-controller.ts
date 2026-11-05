@@ -175,6 +175,9 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
     this.dispatch(DrumlinEvent.CLAP, { ...s.clap });
     this.dispatch(DrumlinEvent.HATS, { ...s.hats });
     this.dispatch(DrumlinEvent.TOM, { ...s.tom });
+    this.dispatch(DrumlinEvent.RIM, { ...s.rim });
+    this.dispatch(DrumlinEvent.RIDE, { ...s.ride });
+    this.dispatch(DrumlinEvent.CRASH, { ...s.crash });
     this.dispatch(DrumlinEvent.OUT, { ...s.out });
   }
 
@@ -216,5 +219,14 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
     reg(C.DRM_TOM_DECAY, P.TOM_DECAY, E.TOM, (s) => s.tom.decay, (s) => s.tom);
     reg(C.DRM_TOM_LEVEL, P.TOM_LEVEL, E.TOM, (s) => s.tom.level, (s) => s.tom);
     reg(C.DRM_ACCENT, P.ACCENT, E.OUT, (s) => s.out.accent, (s) => s.out);
+    reg(C.DRM_RIM_TUNE, P.RIM_TUNE, E.RIM, (s) => s.rim.tune, (s) => s.rim);
+    reg(C.DRM_RIM_DECAY, P.RIM_DECAY, E.RIM, (s) => s.rim.decay, (s) => s.rim);
+    reg(C.DRM_RIM_LEVEL, P.RIM_LEVEL, E.RIM, (s) => s.rim.level, (s) => s.rim);
+    reg(C.DRM_RIDE_TONE, P.RIDE_TONE, E.RIDE, (s) => s.ride.tone, (s) => s.ride);
+    reg(C.DRM_RIDE_DECAY, P.RIDE_DECAY, E.RIDE, (s) => s.ride.decay, (s) => s.ride);
+    reg(C.DRM_RIDE_LEVEL, P.RIDE_LEVEL, E.RIDE, (s) => s.ride.level, (s) => s.ride);
+    reg(C.DRM_CRASH_TONE, P.CRASH_TONE, E.CRASH, (s) => s.crash.tone, (s) => s.crash);
+    reg(C.DRM_CRASH_DECAY, P.CRASH_DECAY, E.CRASH, (s) => s.crash.decay, (s) => s.crash);
+    reg(C.DRM_CRASH_LEVEL, P.CRASH_LEVEL, E.CRASH, (s) => s.crash.level, (s) => s.crash);
   }
 }

@@ -47,6 +47,9 @@ export class DrumlinElement extends LitElement {
   @state() private clap: DrumlinState["clap"] | null = null;
   @state() private hats: DrumlinState["hats"] | null = null;
   @state() private tom: DrumlinState["tom"] | null = null;
+  @state() private rim: DrumlinState["rim"] | null = null;
+  @state() private ride: DrumlinState["ride"] | null = null;
+  @state() private crash: DrumlinState["crash"] | null = null;
   @state() private out: DrumlinState["out"] | null = null;
   @state() private flashing = new Set<DrumVoice>();
 
@@ -60,6 +63,9 @@ export class DrumlinElement extends LitElement {
   private onClap = (e: Event) => { this.clap = { ...(e as CustomEvent).detail }; };
   private onHats = (e: Event) => { this.hats = { ...(e as CustomEvent).detail }; };
   private onTom = (e: Event) => { this.tom = { ...(e as CustomEvent).detail }; };
+  private onRim = (e: Event) => { this.rim = { ...(e as CustomEvent).detail }; };
+  private onRide = (e: Event) => { this.ride = { ...(e as CustomEvent).detail }; };
+  private onCrash = (e: Event) => { this.crash = { ...(e as CustomEvent).detail }; };
   private onOut = (e: Event) => { this.out = { ...(e as CustomEvent).detail }; };
   private onTrigger = (e: Event) => {
     const voice = (e as CustomEvent).detail.voice as DrumVoice;
@@ -82,6 +88,9 @@ export class DrumlinElement extends LitElement {
     this.clap = s.clap;
     this.hats = s.hats;
     this.tom = s.tom;
+    this.rim = s.rim;
+    this.ride = s.ride;
+    this.crash = s.crash;
     this.out = s.out;
     const c = this.controller;
     c.addEventListener(DrumlinEvent.KICK, this.onKick);
@@ -89,6 +98,9 @@ export class DrumlinElement extends LitElement {
     c.addEventListener(DrumlinEvent.CLAP, this.onClap);
     c.addEventListener(DrumlinEvent.HATS, this.onHats);
     c.addEventListener(DrumlinEvent.TOM, this.onTom);
+    c.addEventListener(DrumlinEvent.RIM, this.onRim);
+    c.addEventListener(DrumlinEvent.RIDE, this.onRide);
+    c.addEventListener(DrumlinEvent.CRASH, this.onCrash);
     c.addEventListener(DrumlinEvent.OUT, this.onOut);
     c.addEventListener(DrumlinEvent.TRIGGER, this.onTrigger);
   }
@@ -102,12 +114,16 @@ export class DrumlinElement extends LitElement {
     c.removeEventListener(DrumlinEvent.CLAP, this.onClap);
     c.removeEventListener(DrumlinEvent.HATS, this.onHats);
     c.removeEventListener(DrumlinEvent.TOM, this.onTom);
+    c.removeEventListener(DrumlinEvent.RIM, this.onRim);
+    c.removeEventListener(DrumlinEvent.RIDE, this.onRide);
+    c.removeEventListener(DrumlinEvent.CRASH, this.onCrash);
     c.removeEventListener(DrumlinEvent.OUT, this.onOut);
     c.removeEventListener(DrumlinEvent.TRIGGER, this.onTrigger);
   }
 
   render() {
     if (!this.kick || !this.snare || !this.clap || !this.hats || !this.tom || !this.out) return html``;
+    if (!this.rim || !this.ride || !this.crash) return html``;
     return html`
       <div class="synth">
         <div class="zone kick">
@@ -170,6 +186,33 @@ export class DrumlinElement extends LitElement {
           </div>
         </div>
 
+        <div class="zone rim">
+          ${this.pad("RIM", "rim")}
+          <div class="knobs">
+            ${this.knob("TUN", ControlID.DRM_RIM_TUNE, this.rim.tune.value)}
+            ${this.knob("DEC", ControlID.DRM_RIM_DECAY, this.rim.decay.value)}
+            ${this.knob("LVL", ControlID.DRM_RIM_LEVEL, this.rim.level.value)}
+          </div>
+        </div>
+
+        <div class="zone ride">
+          ${this.pad("RIDE", "ride")}
+          <div class="knobs">
+            ${this.knob("TON", ControlID.DRM_RIDE_TONE, this.ride.tone.value)}
+            ${this.knob("DEC", ControlID.DRM_RIDE_DECAY, this.ride.decay.value)}
+            ${this.knob("LVL", ControlID.DRM_RIDE_LEVEL, this.ride.level.value)}
+          </div>
+        </div>
+
+        <div class="zone crash">
+          ${this.pad("CRASH", "crash")}
+          <div class="knobs">
+            ${this.knob("TON", ControlID.DRM_CRASH_TONE, this.crash.tone.value)}
+            ${this.knob("DEC", ControlID.DRM_CRASH_DECAY, this.crash.decay.value)}
+            ${this.knob("LVL", ControlID.DRM_CRASH_LEVEL, this.crash.level.value)}
+          </div>
+        </div>
+
         <div class="zone out">
           <label class="zone-label">OUT</label>
           <div class="knobs">
@@ -215,7 +258,7 @@ export class DrumlinElement extends LitElement {
 
     .synth {
       display: grid;
-      grid-template-columns: 1fr 1fr 0.82fr 1.62fr 0.82fr 0.52fr;
+      grid-template-columns: 1fr 1fr 0.82fr 1.62fr 0.82fr 0.82fr 0.82fr 0.82fr 0.52fr;
       gap: 0.5em;
       background: var(--main-panel-color);
       border-radius: 0 0 0.5rem 0.5rem;
@@ -237,6 +280,9 @@ export class DrumlinElement extends LitElement {
     .zone.clap { background: var(--drumlin-clap-panel-color, #2f2f31); }
     .zone.hats { background: var(--drumlin-hats-panel-color, #2f2f31); }
     .zone.tom { background: var(--drumlin-tom-panel-color, #2f2f31); }
+    .zone.rim { background: var(--drumlin-rim-panel-color, #2f2f31); }
+    .zone.ride { background: var(--drumlin-ride-panel-color, #2f2f31); }
+    .zone.crash { background: var(--drumlin-crash-panel-color, #2f2f31); }
     .zone.out { background: var(--drumlin-out-panel-color, #2f2f31); }
 
     .zone-label {
