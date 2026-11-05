@@ -27,6 +27,9 @@ export interface StripSend {
   level: number;
   /** True on the loop's own return strip — that knob ghosts (feedback guard). */
   self: boolean;
+  /** Engine's cycle check (canSend): false ghosts the knob — on a return
+   * strip, an edge into this loop would close a feedback loop. */
+  allowed: boolean;
 }
 
 // The FREQ knob sweeps the mid exponentially — equal throw per octave.
@@ -89,12 +92,16 @@ export class ChannelStrip extends LitElement {
   }
 
   private renderSendKnob(send: StripSend) {
-    const ghosted = this.master || this.isReturn || send.self;
+    // Returns DO send now (item 8, cycle-aware): only the edges that would
+    // close a feedback loop ghost — conditional relevance, never removed.
+    const ghosted = this.master || send.self || !send.allowed;
     const title = this.master
       ? "not available on this bus"
-      : this.isReturn || send.self
-        ? "a return strip never sends (feedback guard)"
-        : `send to ${send.label} — ${Math.round(send.level * 100)}%`;
+      : send.self
+        ? "a return never sends to its own loop (feedback guard)"
+        : !send.allowed
+          ? "would close a feedback loop"
+          : `send to ${send.label} — ${Math.round(send.level * 100)}%`;
     return html`
       <knob-element
         style=${send.accent ? `--control-cursor-color: ${send.accent}` : ""}

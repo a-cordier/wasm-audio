@@ -293,14 +293,23 @@ export class MixerEngine extends EventTarget {
     this.sends.push(bus);
     this.sendsById.set(effectSlotId, bus);
     // The effect's own channel predates its bus (routeSlot orders channel →
-    // routing → bus): strip any send gains it acquired while it was a plain
-    // channel — it is a RETURN now, and returns never send (see below).
+    // routing → bus): it mounted as a plain channel and may hold eager taps
+    // from restored levels. It is a RETURN now — re-validate each tap under
+    // the DAG rule, dropping refused edges and zeroing their stale levels.
     const own = this.byId.get(effectSlotId);
     if (own) {
-      for (const send of own.nodes.sends.values()) send.disconnect();
-      own.nodes.sends.clear();
+      for (const [busId, tap] of [...own.nodes.sends]) {
+        const level = own.strip.sends[busId] ?? 0;
+        if (level > 0 && !this.reaches(busId, effectSlotId)) continue;
+        tap.disconnect();
+        own.nodes.sends.delete(busId);
+        own.strip.sends[busId] = 0;
+      }
     }
     for (const channel of this.channels) this.createChannelSend(channel, bus);
+    // A channel that just became a return may have been solo-gated — the
+    // solo exemption (returns stay audible) must take effect now.
+    this.applyAllChannelGains();
     this.dispatchEvent(new Event("channels-changed"));
     return bus;
   }
@@ -320,6 +329,9 @@ export class MixerEngine extends EventTarget {
     const index = this.sends.indexOf(bus);
     if (index >= 0) this.sends.splice(index, 1);
     this.sendsById.delete(effectSlotId);
+    // Its channel (if it outlives the bus) is a plain strip again — plain
+    // strips take the normal solo gate.
+    this.applyAllChannelGains();
     this.dispatchEvent(new Event("channels-changed"));
   }
 
@@ -327,13 +339,85 @@ export class MixerEngine extends EventTarget {
     return this.sendsById.has(effectSlotId);
   }
 
+  /**
+   * Whether this strip may open a send into the given loop. Plain channels
+   * always may (nothing feeds them from effects, so no cycle is possible);
+   * a return may iff the effect→effect edge keeps the send graph acyclic.
+   * The board ghosts the knob when this says no.
+   */
+  canSend(channelSlotId: string, effectSlotId: string): boolean {
+    if (channelSlotId === effectSlotId) return false;
+    if (!this.byId.has(channelSlotId)) return false; // MASTER/CLICK/unknown
+    if (!this.sendsById.has(effectSlotId)) return false; // no such loop
+    if (!this.sendsById.has(channelSlotId)) return true; // plain channel
+    const channel = this.byId.get(channelSlotId)!;
+    if (channel.nodes.sends.has(effectSlotId)) return true; // edge already open
+    return !this.reaches(effectSlotId, channelSlotId);
+  }
+
+  /**
+   * DFS over the effect→effect edges (a return's live taps ARE the edges —
+   * node existence is the single source of truth): does `from`'s signal
+   * reach `target`'s bus? Used to refuse any edge that would close a loop:
+   * even a zero-gain tap is a real audio cycle (the forward paths hold
+   * DelayNodes, so Web Audio would run it) — the ×10^8 runaway of item 5,
+   * now guarded per edge instead of per strip.
+   */
+  private reaches(from: string, target: string): boolean {
+    if (from === target) return true;
+    const stack = [from];
+    const seen = new Set<string>();
+    while (stack.length) {
+      const id = stack.pop()!;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const channel = this.byId.get(id);
+      if (!channel) continue;
+      for (const busId of channel.nodes.sends.keys()) {
+        if (busId === target) return true;
+        if (this.sendsById.has(busId)) stack.push(busId);
+      }
+    }
+    return false;
+  }
+
   setSend(channelSlotId: string, effectSlotId: string, value: number): void {
     const channel = this.byId.get(channelSlotId);
-    const send = channel?.nodes.sends.get(effectSlotId);
-    if (!channel || !send) return;
+    if (!channel) return;
     const level = Math.max(0, Math.min(1, value));
+    const existing = channel.nodes.sends.get(effectSlotId);
+    const isReturn = this.sendsById.has(channelSlotId);
+
+    if (!existing) {
+      // No tap: a return edge being opened (plain channels keep eager taps
+      // while their bus lives). Build it only if the DAG stays acyclic.
+      const bus = this.sendsById.get(effectSlotId);
+      if (!bus || level <= 0) return;
+      if (isReturn && !this.canSend(channelSlotId, effectSlotId)) return;
+      const send = new GainNode(this.ctx, { gain: 0 });
+      channel.nodes.pan.connect(send);
+      send.connect(bus.input);
+      channel.nodes.sends.set(effectSlotId, send);
+      channel.strip.sends[effectSlotId] = level;
+      send.gain.setTargetAtTime(level, this.ctx.currentTime, RAMP_TC);
+      this.dispatchEvent(new Event("send-edges-changed"));
+      return;
+    }
+
     channel.strip.sends[effectSlotId] = level;
-    send.gain.setTargetAtTime(level, this.ctx.currentTime, RAMP_TC);
+    existing.gain.setTargetAtTime(level, this.ctx.currentTime, RAMP_TC);
+    if (isReturn && level <= 0) {
+      // Zeroing a return's send frees the edge: ramp out, then drop the tap
+      // (node existence = edge), so the reverse direction is legal again.
+      setTimeout(() => {
+        if ((channel.strip.sends[effectSlotId] ?? 0) > 0) return; // reopened
+        const tap = channel.nodes.sends.get(effectSlotId);
+        if (!tap) return;
+        tap.disconnect();
+        channel.nodes.sends.delete(effectSlotId);
+        this.dispatchEvent(new Event("send-edges-changed"));
+      }, REMOVE_RAMP_MS);
+    }
   }
 
   /** Drop send entries whose effect loop is gone — called at save time. */
@@ -342,15 +426,22 @@ export class MixerEngine extends EventTarget {
   }
 
   private createChannelSend(channel: MixerChannel, bus: SendBus): void {
-    // Feedback guard: RETURN strips never send — not to their own loop and
-    // not to another's. Two cross-sending returns close a cycle through
-    // both delays and run away (measured ×10^8 in seconds); the send node
-    // simply does not exist (the UI ghosts the knobs to match). Chained
-    // effects are item 8's cycle-aware problem.
+    // Feedback guard, cycle-aware (item 8): a send tap on a RETURN strip
+    // exists ⇔ that effect→effect edge is in the DAG. Self-sends stay
+    // forbidden; plain channels keep eager taps (they can never cycle).
+    // A return's tap is built lazily — here only when a persisted level
+    // says so AND the edge keeps the graph acyclic; a refused edge zeroes
+    // the stale level so a saved session can't smuggle a cycle back in.
+    // Mount order makes the winner deterministic.
     if (channel.slotId === bus.effectSlotId) return;
-    if (this.sendsById.has(channel.slotId)) return;
     if (channel.nodes.sends.has(bus.effectSlotId)) return;
     const level = channel.strip.sends[bus.effectSlotId] ?? 0;
+    if (this.sendsById.has(channel.slotId)) {
+      if (level <= 0 || this.reaches(bus.effectSlotId, channel.slotId)) {
+        channel.strip.sends[bus.effectSlotId] = 0;
+        return;
+      }
+    }
     channel.strip.sends[bus.effectSlotId] = level;
     const send = new GainNode(this.ctx, { gain: level });
     channel.nodes.pan.connect(send);
@@ -457,7 +548,11 @@ export class MixerEngine extends EventTarget {
     let effectiveGain = s.gain;
     if (s.mute) {
       effectiveGain = 0;
-    } else if (this.soloActive && !s.solo) {
+    } else if (this.soloActive && !s.solo && !this.sendsById.has(channel.slotId)) {
+      // Solo-safe returns (item 7's open flag): soloing a synth must keep
+      // its effect tails audible, so returns are exempt from the solo gate.
+      // Mute stays explicit — muting a return silences it as ever, and
+      // soloing a return itself behaves like any strip.
       effectiveGain = 0;
     }
 

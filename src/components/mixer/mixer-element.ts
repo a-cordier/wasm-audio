@@ -31,6 +31,7 @@ export class MixerElement extends LitElement {
     super.disconnectedCallback();
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
     this.engine?.removeEventListener("channels-changed", this.onChannelsChanged);
+    this.engine?.removeEventListener("send-edges-changed", this.onChannelsChanged);
     cancelAnimationFrame(this.rafId);
   }
 
@@ -39,7 +40,9 @@ export class MixerElement extends LitElement {
     if (!document.hidden && !this.collapsed) this.startMetering();
   };
 
-  /** Strips follow mount/unmount — the engine says when the list moved. */
+  /** Strips follow mount/unmount — the engine says when the list moved.
+   * The send-edge set rides the same handler: a freed or opened edge
+   * re-ghosts the knobs (canSend is re-asked on every render). */
   private onChannelsChanged = () => {
     this.requestUpdate();
   };
@@ -48,11 +51,11 @@ export class MixerElement extends LitElement {
   // but spends no frames on analysers.
   protected updated(changed: PropertyValues): void {
     if (changed.has("engine")) {
-      (changed.get("engine") as MixerEngine | undefined)?.removeEventListener(
-        "channels-changed",
-        this.onChannelsChanged
-      );
+      const previous = changed.get("engine") as MixerEngine | undefined;
+      previous?.removeEventListener("channels-changed", this.onChannelsChanged);
+      previous?.removeEventListener("send-edges-changed", this.onChannelsChanged);
       this.engine?.addEventListener("channels-changed", this.onChannelsChanged);
+      this.engine?.addEventListener("send-edges-changed", this.onChannelsChanged);
     }
     if (changed.has("collapsed")) {
       cancelAnimationFrame(this.rafId);
@@ -158,7 +161,8 @@ export class MixerElement extends LitElement {
     this.requestUpdate();
   }
 
-  /** One SEND knob per effect loop; the loop's own return strip ghosts its. */
+  /** One SEND knob per effect loop. Ghosting is per edge: self, and any
+   * return→effect edge the engine's cycle check refuses (canSend). */
   private stripSends(slotId: string, levels: Record<string, number>) {
     return (this.engine?.sends ?? []).map((bus) => ({
       busId: bus.effectSlotId,
@@ -166,6 +170,7 @@ export class MixerElement extends LitElement {
       accent: bus.accent,
       level: levels[bus.effectSlotId] ?? 0,
       self: bus.effectSlotId === slotId,
+      allowed: this.engine?.canSend(slotId, bus.effectSlotId) ?? false,
     }));
   }
 
