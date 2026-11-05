@@ -25,13 +25,14 @@ export interface DrumlinState {
   snare: { tune: Field; snap: Field; decay: Field; level: Field; note: Field };
   clap: { tone: Field; decay: Field; level: Field; note: Field };
   hats: {
-    tone: Field;
+    tone: Field; // the CH tone — born as the shared bank tone, key kept for old sessions
     chDecay: Field;
     chLevel: Field;
     ohDecay: Field;
     ohLevel: Field;
     chNote: Field;
     ohNote: Field;
+    ohTone: Field;
   };
   tom: { tune: Field; decay: Field; level: Field; note: Field };
   rim: { tune: Field; decay: Field; level: Field; note: Field };
@@ -53,6 +54,7 @@ const DEFAULTS: DrumlinState = {
     ohLevel: { value: 90 },
     chNote: { value: 42 },
     ohNote: { value: 46 },
+    ohTone: { value: 64 },
   },
   tom: { tune: { value: 60 }, decay: { value: 60 }, level: { value: 95 }, note: { value: 45 } },
   rim: { tune: { value: 50 }, decay: { value: 40 }, level: { value: 95 }, note: { value: 37 } },

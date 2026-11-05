@@ -29,7 +29,7 @@ export const DrumlinParamId = Object.freeze({
   CLAP_TONE: 8,
   CLAP_DECAY: 9,
   CLAP_LEVEL: 10,
-  HAT_TONE: 11,
+  CH_TONE: 11, // born HAT_TONE — the index is baked into saved presets
   CH_DECAY: 12,
   CH_LEVEL: 13,
   OH_DECAY: 14,
@@ -57,5 +57,6 @@ export const DrumlinParamId = Object.freeze({
   RIM_NOTE: 35,
   RIDE_NOTE: 36,
   CRASH_NOTE: 37,
-  PARAM_COUNT: 38,
+  OH_TONE: 38, // CH kept index 11 when the hats' shared TONE split
+  PARAM_COUNT: 39,
 });

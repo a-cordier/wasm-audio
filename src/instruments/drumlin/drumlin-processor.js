@@ -36,7 +36,7 @@ const SNARE_LEVEL = 7;
 const CLAP_TONE = 8;
 const CLAP_DECAY = 9;
 const CLAP_LEVEL = 10;
-const HAT_TONE = 11;
+const CH_TONE = 11; // born HAT_TONE — index baked into saved presets
 const CH_DECAY = 12;
 const CH_LEVEL = 13;
 const OH_DECAY = 14;
@@ -64,7 +64,8 @@ const TOM_NOTE = 34;
 const RIM_NOTE = 35;
 const RIDE_NOTE = 36;
 const CRASH_NOTE = 37;
-const PARAM_COUNT = 38;
+const OH_TONE = 38; // CH kept index 11 when the hats' shared TONE split
+const PARAM_COUNT = 39;
 
 const TWO_PI = 2 * Math.PI;
 
@@ -124,29 +125,11 @@ const polyBlep = (t, dt) => {
   return 0;
 };
 
-// Hats: ONE shared metallic bank — six squares at the 808-ish inharmonic set,
-// scaled together by TONE — through fixed bandpass (10 kHz) and highpass
-// (7 kHz) stages. CH and OH are two VCAs on the same signal; a CH hit chokes
+// Hats: six squares at the 808-ish inharmonic set through 10 kHz/7 kHz
+// sizzle stages. CH and OH each own a MetalBank since their TONEs split —
+// retuning one never bends the other's ringing tail; a CH hit still chokes
 // the OH tail through a ~3 ms fade (dsp-audit's two-stage-fade idiom).
 const HAT_FREQS = [205.3, 304.4, 369.99, 522.7, 540, 800];
-const HAT_BP = (() => {
-  const w0 = (TWO_PI * 10000) / sampleRate;
-  const alpha = Math.sin(w0) / (2 * 1.1);
-  const a0 = 1 + alpha;
-  return { b0: alpha / a0, a1: (-2 * Math.cos(w0)) / a0, a2: (1 - alpha) / a0 };
-})();
-const HAT_HP = (() => {
-  const w0 = (TWO_PI * 7000) / sampleRate;
-  const cw = Math.cos(w0);
-  const alpha = Math.sin(w0) / (2 * Math.SQRT1_2);
-  const a0 = 1 + alpha;
-  return {
-    b0: (1 + cw) / 2 / a0, // b2 === b0 for an RBJ highpass
-    b1: -(1 + cw) / a0,
-    a1: (-2 * cw) / a0,
-    a2: (1 - alpha) / a0,
-  };
-})();
 const HAT_CHOKE_K = decayK(0.003);
 const HAT_MAKEUP = 3.0; // the 10 kHz band keeps little of a square's energy
 
@@ -292,15 +275,9 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     // Biquad coefficient scratch (bandpass; preallocated, written at trigger).
     this._bq = new Float32Array(3);
 
-    // HATS — shared six-square bank (free-running phases: per-hit variation,
-    // and no click on the bank while the other VCA is still open) + two VCAs.
-    this._hPhases = new Float64Array(6);
-    this._hInc = new Float64Array(6);
-    for (let k = 0; k < 6; k++) this._hInc[k] = HAT_FREQS[k] / sampleRate;
-    this._hBpZ1 = 0;
-    this._hBpZ2 = 0;
-    this._hHpZ1 = 0;
-    this._hHpZ2 = 0;
+    // HATS — a MetalBank per hat (free-running phases: per-hit variation).
+    this._chBank = new MetalBank(10000, 1.1, 7000);
+    this._ohBank = new MetalBank(10000, 1.1, 7000);
     this._chActive = false;
     this._chEnv = 0;
     this._chK = 0;
@@ -510,10 +487,9 @@ class DrumlinProcessor extends AudioWorkletProcessor {
   }
 
   _triggerHat(p, gain, closed) {
-    // TONE scales the whole bank together (×0.5 .. ×2, unity at center).
-    const scale = expMap(p[HAT_TONE], 0.5, 2.0);
-    for (let k = 0; k < 6; k++) this._hInc[k] = (HAT_FREQS[k] * scale) / sampleRate;
+    // Each hat scales ITS bank from its own TONE (×0.5 .. ×2, unity center).
     if (closed) {
+      this._chBank.setScale(expMap(p[CH_TONE], 0.5, 2.0));
       this._chK = decayK(expMap(p[CH_DECAY], 0.025, 0.2));
       this._chEnv = 1;
       this._chGain = gain;
@@ -521,6 +497,7 @@ class DrumlinProcessor extends AudioWorkletProcessor {
       // Choke: a ~3 ms fade, never a hard cut (the two-stage-fade idiom).
       if (this._ohActive) this._ohK = HAT_CHOKE_K;
     } else {
+      this._ohBank.setScale(expMap(p[OH_TONE], 0.5, 2.0));
       this._ohK = decayK(expMap(p[OH_DECAY], 0.15, 1.2));
       this._ohEnv = 1;
       this._ohGain = gain;
@@ -669,40 +646,16 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         if (this._cStrike === 2 && this._cEnv < ENV_FLOOR) this._cActive = false;
       }
 
-      if (this._chActive || this._ohActive) {
-        // One shared bank render feeds both VCAs.
-        let metal = 0;
-        for (let k = 0; k < 6; k++) {
-          const inc = this._hInc[k];
-          let t = this._hPhases[k];
-          let s = t < 0.5 ? 1 : -1;
-          s += polyBlep(t, inc); // rising edge at 0
-          let t2 = t - 0.5;
-          if (t2 < 0) t2 += 1;
-          s -= polyBlep(t2, inc); // falling edge at 0.5
-          metal += s;
-          t += inc;
-          if (t >= 1) t -= 1;
-          this._hPhases[k] = t;
-        }
-        metal /= 6;
-        const yb = HAT_BP.b0 * metal + this._hBpZ1;
-        this._hBpZ1 = flush(-HAT_BP.a1 * yb + this._hBpZ2);
-        this._hBpZ2 = flush(-HAT_BP.b0 * metal - HAT_BP.a2 * yb);
-        const yh = HAT_HP.b0 * yb + this._hHpZ1;
-        this._hHpZ1 = flush(HAT_HP.b1 * yb - HAT_HP.a1 * yh + this._hHpZ2);
-        this._hHpZ2 = flush(HAT_HP.b0 * yb - HAT_HP.a2 * yh); // b2 === b0
-        const sizzle = HAT_MAKEUP * yh;
-        if (this._chActive) {
-          this._chEnv *= this._chK;
-          sum += sizzle * this._chEnv * this._chGain * this._lvlCh;
-          if (this._chEnv < ENV_FLOOR) this._chActive = false;
-        }
-        if (this._ohActive) {
-          this._ohEnv *= this._ohK;
-          sum += sizzle * this._ohEnv * this._ohGain * this._lvlOh;
-          if (this._ohEnv < ENV_FLOOR) this._ohActive = false;
-        }
+      if (this._chActive) {
+        this._chEnv *= this._chK;
+        sum += HAT_MAKEUP * this._chBank.render() * this._chEnv * this._chGain * this._lvlCh;
+        if (this._chEnv < ENV_FLOOR) this._chActive = false;
+      }
+
+      if (this._ohActive) {
+        this._ohEnv *= this._ohK;
+        sum += HAT_MAKEUP * this._ohBank.render() * this._ohEnv * this._ohGain * this._lvlOh;
+        if (this._ohEnv < ENV_FLOOR) this._ohActive = false;
       }
 
       if (this._tActive) {

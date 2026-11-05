@@ -283,7 +283,8 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
     reg(C.DRM_CLAP_TONE, P.CLAP_TONE, E.CLAP, (s) => s.clap.tone, (s) => s.clap);
     reg(C.DRM_CLAP_DECAY, P.CLAP_DECAY, E.CLAP, (s) => s.clap.decay, (s) => s.clap);
     reg(C.DRM_CLAP_LEVEL, P.CLAP_LEVEL, E.CLAP, (s) => s.clap.level, (s) => s.clap);
-    reg(C.DRM_HAT_TONE, P.HAT_TONE, E.HATS, (s) => s.hats.tone, (s) => s.hats);
+    reg(C.DRM_CH_TONE, P.CH_TONE, E.HATS, (s) => s.hats.tone, (s) => s.hats);
+    reg(C.DRM_OH_TONE, P.OH_TONE, E.HATS, (s) => s.hats.ohTone, (s) => s.hats);
     reg(C.DRM_CH_DECAY, P.CH_DECAY, E.HATS, (s) => s.hats.chDecay, (s) => s.hats);
     reg(C.DRM_CH_LEVEL, P.CH_LEVEL, E.HATS, (s) => s.hats.chLevel, (s) => s.hats);
     reg(C.DRM_OH_DECAY, P.OH_DECAY, E.HATS, (s) => s.hats.ohDecay, (s) => s.hats);

@@ -117,7 +117,7 @@ export enum ControlID {
   DRM_CLAP_TONE,
   DRM_CLAP_DECAY,
   DRM_CLAP_LEVEL,
-  DRM_HAT_TONE,
+  DRM_CH_TONE, // born DRM_HAT_TONE — ordinal unchanged, learn bindings persist by id
   DRM_CH_DECAY,
   DRM_CH_LEVEL,
   DRM_OH_DECAY,
@@ -135,6 +135,7 @@ export enum ControlID {
   DRM_CRASH_TONE,
   DRM_CRASH_DECAY,
   DRM_CRASH_LEVEL,
+  DRM_OH_TONE,
 }
 
 export interface ControlSignal {

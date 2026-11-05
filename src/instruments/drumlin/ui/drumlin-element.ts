@@ -170,6 +170,7 @@ export class DrumlinElement extends LitElement {
               ${this.pad("CH", "ch")}
               ${this.noteSel("ch", this.hats.chNote.value)}
               <div class="knobs">
+                ${this.knob("TON", ControlID.DRM_CH_TONE, this.hats.tone.value, "metal bank tuning")}
                 ${this.knob("DEC", ControlID.DRM_CH_DECAY, this.hats.chDecay.value)}
                 ${this.knob("LVL", ControlID.DRM_CH_LEVEL, this.hats.chLevel.value)}
               </div>
@@ -178,13 +179,11 @@ export class DrumlinElement extends LitElement {
               ${this.pad("OH", "oh")}
               ${this.noteSel("oh", this.hats.ohNote.value)}
               <div class="knobs">
+                ${this.knob("TON", ControlID.DRM_OH_TONE, this.hats.ohTone.value, "metal bank tuning")}
                 ${this.knob("DEC", ControlID.DRM_OH_DECAY, this.hats.ohDecay.value)}
                 ${this.knob("LVL", ControlID.DRM_OH_LEVEL, this.hats.ohLevel.value)}
               </div>
             </div>
-          </div>
-          <div class="knobs hat-tone">
-            ${this.knob("TON", ControlID.DRM_HAT_TONE, this.hats.tone.value, "shared metal bank tuning")}
           </div>
         </div>
         </div>
@@ -374,10 +373,6 @@ export class DrumlinElement extends LitElement {
       align-items: center;
       gap: 0.6em;
     }
-    .hat-tone {
-      margin-top: 0.1em;
-    }
-
     /* Receive-note stepper: discrete choice → LCD, per the control idioms.
        The LCD's 120px default width would blow the zone's min-content — the
        token shrinks it to the zone instead. */
