@@ -22,6 +22,10 @@ MIDI events carry their audible AudioContext frame (mod 2^24) in ring slot
 +3** — the sequencer emits from a 24 ms-lookahead scheduling clock and
 instrument processors take only events due in the current block
 (`dequeueBefore`); live sources stamp frame 0 = play now, zero added latency.
+Melodic instruments apply events at block start (constant ≤2.9 ms quantum —
+accepted, see docs/dsp-audit.md); **drumlin renders sample-exactly** — its
+per-sample loop fires each trigger at its in-block offset, the pattern for
+any future percussive voice.
 
 **The workspace is a fixed-chrome grid**: daw-element is a 100vh grid —
 device-browser rail docked left (collapsible tab), an independently

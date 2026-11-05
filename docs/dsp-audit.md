@@ -33,7 +33,11 @@ before acting on old line numbers.
   rendering was evaluated and deliberately NOT built**: it would require
   variable-length renders in all three engines to shave a constant ≤2.9 ms,
   and the measured result is jitter-free. Revisit only if drums make the
-  block quantum audible. **Play-press latency**: the transport lead is 25 ms
+  block quantum audible. *(Picked up 2026-11-05 by item 9: DRUMLIN was born
+  with sample-accurate in-block triggering — a greenfield per-sample render
+  loop fires each frame-stamped trigger at its in-block offset, so drums
+  carry zero quantum. The melodic engines stay block-quantized by the
+  original decision.)* **Play-press latency**: the transport lead is 25 ms
   and the sequencer pre-rolls its scheduling clock through it, stamping the
   BOUNDARY's grid frame (not the tick's position time) — first notes land
   exactly ON the anchor (measured 0.00 ms, 3/3 runs; two synced children
@@ -69,7 +73,10 @@ before acting on old line numbers.
   got S&H; poly uses raw kernels as LFOs — align when poly grows an LFO
   refactor).
 - Voice stealing is retrigger-based (continuous but instant); a 2–5 ms
-  two-stage fade would be strictly cleaner.
+  two-stage fade would be strictly cleaner. *(The idiom now has a reference
+  implementation: DRUMLIN's hat choke — a CH trigger re-aims the OH envelope
+  at a ~3 ms decay instead of hard-cutting it, `drumlin-processor.js`
+  HAT_CHOKE_K. The poly voice-stealing retrofit itself remains open.)*
 - Sub-oscillator crossfade conventions differ between engines (poly `SubOsc`
   helper vs monolog inline); the drum synth should pick one and promote it to
   `dsp/`.

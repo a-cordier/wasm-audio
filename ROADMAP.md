@@ -185,9 +185,32 @@ reload, eject prunes edges. **PHASER and send-knob drag resolution
 deferred** — dispositions in
 [docs/scalability-audit.md](docs/scalability-audit.md).
 
-### 9. [ ] Drum synthesizer
-- New instrument, born into the post-shell plugin contract. Engine flavour
-  (C++/wasm vs JS worklet) decided at plan time, informed by item 2.
+### 9. [x] Drum synthesizer — done 2026-11-05
+Four QA'd batches. DRUMLIN (`src/instruments/drumlin`) is the first
+instrument born into the post-shell plugin contract — six analog-modeled
+one-shot voices (KICK, SNARE, CLAP, closed/open HAT, 3-pitch TOM),
+**pure-JS worklet by item 8's flavour rule** (a fixed 6-voice one-shot box
+is the opposite of the SIMD/many-instance crossover; the processor can
+become a wasm-kernel shim later at zero contract cost). **Triggers land
+sample-accurately inside the block** — frame-stamped events keep their
+in-block offset into a per-sample render loop — retiring dsp-audit's
+deferred block quantum for exactly the case it was deferred for. GM-mapped
+(35/36 kick … 41–50 toms at −5/0/+5 st; note-offs never enter the ring —
+sequels' GATE is inert on drums by design), keyboard-playable
+(`keyboardOctaveShift: -12`). House DSP throughout: exp decays by
+recursive multiply with a −80 dB deactivation floor, kick/tom exponential
+pitch envelopes, perceptual velocity under a global ACCENT depth law
+(gain = 1−a + a·(v/127)^0.6), trigger-time params snap while LEVELs ride
+10 ms one-poles, and the hats are ONE shared six-square polyBLEP bank
+(TONE scales the inharmonic set) through fixed 10 kHz/7 kHz sizzle
+filters into two VCAs — **a CH hit chokes OH through a ~3 ms fade**, the
+dsp-audit two-stage-fade idiom's first implementation. The control plane
+is one table: 20 ControlSpecs drive panel setters, MIDI-learn,
+ParamDirectory/MOTION and syncParams through a single `setControl` gate.
+EIGHT (boomy/loose) and NINE (punchy/bright) factory kits ride
+`createDrumlinState` defaults (append-only safe). Verified live: choke
+timing, tom pitch ratios, SNAP/TONE spectra, a 23-event polymetric bus
+burst, MIDI-learn + automation dispatch, kit persistence across reload.
 
 ### 10. [ ] Chord sequencer
 - Sequencer device emitting chords to other devices over the MIDI bus —
