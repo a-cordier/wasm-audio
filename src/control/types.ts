@@ -136,6 +136,10 @@ export enum ControlID {
   DRM_CRASH_DECAY,
   DRM_CRASH_LEVEL,
   DRM_OH_TONE,
+  DIS_BPM,
+  DIS_SWING,
+  DIS_GATE,
+  DIS_STRUM,
 }
 
 export interface ControlSignal {

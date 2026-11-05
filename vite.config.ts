@@ -12,6 +12,7 @@ const workletFiles: Record<string, string> = {
   "monolog-kernel.wasmmodule.js": "src/instruments/monolog/engine",
   "template-processor.js": "src/instruments/template",
   "drumlin-processor.js": "src/instruments/drumlin",
+  "dischord-processor.js": "src/instruments/dischord",
   "automation-processor.js": "src/devices/automation",
   "song-processor.js": "src/devices/song",
   "verb-processor.js": "src/devices/verb",

@@ -102,6 +102,14 @@ export const darkTheme = `
     --drumlin-crash-panel-color: #343129; /* bright brass   — the wash */
     --drumlin-out-panel-color: #2f2f31;   /* neutral        — output */
 
+    /* DISCHORD (chord sequencer): indigo-violet accent + per-zone camaïeu. */
+    --dischord-accent: #8e7cf0;
+    --dischord-panel-color: #2f2f31;
+    --dischord-transport-panel-color: #33302a; /* warm   — transport / clock */
+    --dischord-harmony-panel-color: #312e37;   /* violet — key, scale, voicing */
+    --dischord-pattern-panel-color: #2b2f34;   /* steel  — pattern banks & slots */
+    --dischord-steps-panel-color: #2f2f35;     /* cool   — step canvas */
+
     --panel-wrapper-label-color: var(--moonbeam);
 
     --control-size-lg: 50px;
@@ -250,6 +258,14 @@ export const retroTheme = `
     --drumlin-ride-panel-color: #30322d;  /* tarnished bronze — the ping */
     --drumlin-crash-panel-color: #363127; /* aged brass     — the wash */
     --drumlin-out-panel-color: #322e29;   /* neutral warm   — output */
+
+    /* DISCHORD (chord sequencer): warmed violet accent + per-zone camaïeu. */
+    --dischord-accent: #9f8ae0;
+    --dischord-panel-color: #342e27;
+    --dischord-transport-panel-color: #3a2f28; /* warm red   — transport / clock */
+    --dischord-harmony-panel-color: #332d33;   /* mauve      — key, scale, voicing */
+    --dischord-pattern-panel-color: #302d2c;   /* cool mauve — pattern banks & slots */
+    --dischord-steps-panel-color: #352f2d;     /* warm       — step canvas */
 
     --panel-wrapper-label-color: var(--moonbeam);
 
