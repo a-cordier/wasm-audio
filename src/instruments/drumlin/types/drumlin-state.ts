@@ -21,9 +21,9 @@ export interface Field {
 }
 
 export interface DrumlinState {
-  kick: { tune: Field; punch: Field; decay: Field; level: Field; note: Field };
-  snare: { tune: Field; snap: Field; decay: Field; level: Field; note: Field };
-  clap: { tone: Field; decay: Field; level: Field; note: Field };
+  kick: { tune: Field; punch: Field; decay: Field; level: Field; note: Field; route: Field };
+  snare: { tune: Field; snap: Field; decay: Field; level: Field; note: Field; route: Field };
+  clap: { tone: Field; decay: Field; level: Field; note: Field; route: Field };
   hats: {
     tone: Field; // the CH tone — born as the shared bank tone, key kept for old sessions
     chDecay: Field;
@@ -33,19 +33,21 @@ export interface DrumlinState {
     chNote: Field;
     ohNote: Field;
     ohTone: Field;
+    chRoute: Field;
+    ohRoute: Field;
   };
-  tom: { tune: Field; decay: Field; level: Field; note: Field };
-  rim: { tune: Field; decay: Field; level: Field; note: Field };
-  ride: { tone: Field; decay: Field; level: Field; note: Field };
-  crash: { tone: Field; decay: Field; level: Field; note: Field };
+  tom: { tune: Field; decay: Field; level: Field; note: Field; route: Field };
+  rim: { tune: Field; decay: Field; level: Field; note: Field; route: Field };
+  ride: { tone: Field; decay: Field; level: Field; note: Field; route: Field };
+  crash: { tone: Field; decay: Field; level: Field; note: Field; route: Field };
   out: { accent: Field };
 }
 
 const DEFAULTS: DrumlinState = {
   // Note defaults are the GM drum map (tom answers its base ±2 → 43/45/47).
-  kick: { tune: { value: 40 }, punch: { value: 70 }, decay: { value: 65 }, level: { value: 100 }, note: { value: 36 } },
-  snare: { tune: { value: 50 }, snap: { value: 70 }, decay: { value: 55 }, level: { value: 100 }, note: { value: 38 } },
-  clap: { tone: { value: 60 }, decay: { value: 50 }, level: { value: 100 }, note: { value: 39 } },
+  kick: { tune: { value: 40 }, punch: { value: 70 }, decay: { value: 65 }, level: { value: 100 }, note: { value: 36 }, route: { value: 0 } },
+  snare: { tune: { value: 50 }, snap: { value: 70 }, decay: { value: 55 }, level: { value: 100 }, note: { value: 38 }, route: { value: 0 } },
+  clap: { tone: { value: 60 }, decay: { value: 50 }, level: { value: 100 }, note: { value: 39 }, route: { value: 0 } },
   hats: {
     tone: { value: 64 },
     chDecay: { value: 40 },
@@ -55,11 +57,13 @@ const DEFAULTS: DrumlinState = {
     chNote: { value: 42 },
     ohNote: { value: 46 },
     ohTone: { value: 64 },
+    chRoute: { value: 0 },
+    ohRoute: { value: 0 },
   },
-  tom: { tune: { value: 60 }, decay: { value: 60 }, level: { value: 95 }, note: { value: 45 } },
-  rim: { tune: { value: 50 }, decay: { value: 40 }, level: { value: 95 }, note: { value: 37 } },
-  ride: { tone: { value: 64 }, decay: { value: 55 }, level: { value: 85 }, note: { value: 51 } },
-  crash: { tone: { value: 64 }, decay: { value: 60 }, level: { value: 90 }, note: { value: 49 } },
+  tom: { tune: { value: 60 }, decay: { value: 60 }, level: { value: 95 }, note: { value: 45 }, route: { value: 0 } },
+  rim: { tune: { value: 50 }, decay: { value: 40 }, level: { value: 95 }, note: { value: 37 }, route: { value: 0 } },
+  ride: { tone: { value: 64 }, decay: { value: 55 }, level: { value: 85 }, note: { value: 51 }, route: { value: 0 } },
+  crash: { tone: { value: 64 }, decay: { value: 60 }, level: { value: 90 }, note: { value: 49 }, route: { value: 0 } },
   out: { accent: { value: 100 } },
 };
 

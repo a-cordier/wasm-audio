@@ -29,6 +29,8 @@ import {
   PluginDescriptor,
   Learnable,
   HasPresets,
+  HasAuxOutputs,
+  AuxOutput,
   LearnableParam,
   PresetEntry,
 } from "../../core/types";
@@ -44,14 +46,17 @@ interface ControlSpec {
   section: (s: DrumlinState) => object;
 }
 
-// Receive notes are discrete selectors (LCD steppers): state + param, but no
-// ControlID and no MIDI-learn — knobs learn, selectors don't (house rule).
-interface NoteSpec {
+// Receive notes and route toggles are discrete selectors: state + param, but
+// no ControlID and no MIDI-learn — knobs learn, selectors don't (house rule).
+interface VoiceFieldSpec {
   param: number;
   event: DrumlinEvent;
   field: (s: DrumlinState) => Field;
   section: (s: DrumlinState) => object;
 }
+
+/** Aux output order = params 39–47 order = worklet outputs 1–9. */
+const AUX_ORDER: DrumVoice[] = ["kick", "snare", "clap", "ch", "oh", "tom", "rim", "ride", "crash"];
 
 const PAD_VELOCITY = 100;
 
@@ -60,7 +65,10 @@ const PAD_VELOCITY = 100;
  * trigger, note-offs are ignored (tails always ring out; sequels' GATE has no
  * effect by design, like any drum machine).
  */
-export class DrumlinController extends EventTarget implements InstrumentPlugin, MidiTarget, Learnable, HasPresets {
+export class DrumlinController
+  extends EventTarget
+  implements InstrumentPlugin, MidiTarget, Learnable, HasPresets, HasAuxOutputs
+{
   readonly descriptor: PluginDescriptor = {
     id: "drumlin",
     name: "DRUMLIN",
@@ -74,7 +82,9 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
   private audioContext: AudioContext;
   private state: DrumlinState;
   private specs = new Map<ControlID, ControlSpec>();
-  private noteSpecs = new Map<DrumVoice, NoteSpec>();
+  private noteSpecs = new Map<DrumVoice, VoiceFieldSpec>();
+  private routeSpecs = new Map<DrumVoice, VoiceFieldSpec>();
+  private auxGains = new Map<DrumVoice, GainNode>();
 
   constructor(audioContext: AudioContext) {
     super();
@@ -83,11 +93,19 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
     this.state = createDrumlinState();
     this.initControlSpecs();
     this.initNoteSpecs();
+    this.initRouteSpecs();
   }
 
   init() {
     this.node = new DrumlinNode(this.audioContext);
-    this.node.connect(this.output);
+    this.node.connect(this.output); // main mix = worklet output 0
+    // One permanently-connected gain per separate out (worklet outputs 1–9);
+    // the shell hangs a mixer channel off it only while the voice is routed.
+    AUX_ORDER.forEach((voice, k) => {
+      const gain = new GainNode(this.audioContext);
+      this.node!.connect(gain, k + 1, 0);
+      this.auxGains.set(voice, gain);
+    });
     this.syncParams();
   }
 
@@ -111,6 +129,48 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
     this.node?.dispose();
     this.node = null;
     this.output.disconnect();
+    for (const gain of this.auxGains.values()) gain.disconnect();
+    this.auxGains.clear();
+  }
+
+  // --- Separate outs (HasAuxOutputs) ---
+
+  /** The DESIRED set: only routed voices. The shell reconciles against it. */
+  getAuxOutputs(): AuxOutput[] {
+    const out: AuxOutput[] = [];
+    for (const voice of AUX_ORDER) {
+      const spec = this.routeSpecs.get(voice)!;
+      const gain = this.auxGains.get(voice);
+      if (spec.field(this.state).value > 0 && gain) {
+        out.push({ id: voice, label: voice.toUpperCase(), node: gain });
+      }
+    }
+    return out;
+  }
+
+  /** Shell confirmation — a cap refusal reverts the toggle here. */
+  setAuxActive(id: string, active: boolean): void {
+    const voice = id as DrumVoice;
+    const spec = this.routeSpecs.get(voice);
+    if (!spec) return;
+    const want = active ? 1 : 0;
+    if (spec.field(this.state).value === want) return;
+    spec.field(this.state).value = want;
+    this.sendParam(spec.param, want);
+    this.dispatch(spec.event, { ...spec.section(this.state) });
+  }
+
+  /** Panel toggle. The param only moves audio once the shell has a strip. */
+  setVoiceRouting(voice: DrumVoice, on: boolean): void {
+    const spec = this.routeSpecs.get(voice);
+    if (!spec) return;
+    const want = on ? 1 : 0;
+    if (spec.field(this.state).value === want) return;
+    spec.field(this.state).value = want;
+    this.sendParam(spec.param, want);
+    this.dispatch(spec.event, { ...spec.section(this.state) });
+    // The shell reconciles mixer channels synchronously off this event.
+    this.dispatch("aux-outputs-changed", { outputs: this.getAuxOutputs() });
   }
 
   receive(event: MidiEvent): void {
@@ -239,6 +299,29 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
     for (const spec of this.noteSpecs.values()) {
       this.sendParam(spec.param, spec.field(this.state).value);
     }
+    for (const spec of this.routeSpecs.values()) {
+      this.sendParam(spec.param, spec.field(this.state).value);
+    }
+  }
+
+  private initRouteSpecs() {
+    const E = DrumlinEvent;
+    const r = (
+      voice: DrumVoice,
+      param: number,
+      event: DrumlinEvent,
+      field: (s: DrumlinState) => Field,
+      section: (s: DrumlinState) => object
+    ) => this.routeSpecs.set(voice, { param, event, field, section });
+    r("kick", P.KICK_ROUTE, E.KICK, (s) => s.kick.route, (s) => s.kick);
+    r("snare", P.SNARE_ROUTE, E.SNARE, (s) => s.snare.route, (s) => s.snare);
+    r("clap", P.CLAP_ROUTE, E.CLAP, (s) => s.clap.route, (s) => s.clap);
+    r("ch", P.CH_ROUTE, E.HATS, (s) => s.hats.chRoute, (s) => s.hats);
+    r("oh", P.OH_ROUTE, E.HATS, (s) => s.hats.ohRoute, (s) => s.hats);
+    r("tom", P.TOM_ROUTE, E.TOM, (s) => s.tom.route, (s) => s.tom);
+    r("rim", P.RIM_ROUTE, E.RIM, (s) => s.rim.route, (s) => s.rim);
+    r("ride", P.RIDE_ROUTE, E.RIDE, (s) => s.ride.route, (s) => s.ride);
+    r("crash", P.CRASH_ROUTE, E.CRASH, (s) => s.crash.route, (s) => s.crash);
   }
 
   private initNoteSpecs() {

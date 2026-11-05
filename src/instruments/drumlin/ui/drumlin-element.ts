@@ -141,6 +141,7 @@ export class DrumlinElement extends LitElement {
             ${this.knob("DEC", ControlID.DRM_KICK_DECAY, this.kick.decay.value)}
             ${this.knob("LVL", ControlID.DRM_KICK_LEVEL, this.kick.level.value)}
           </div>
+          ${this.routeBtn("kick", this.kick.route.value)}
         </div>
 
         <div class="zone snare">
@@ -152,6 +153,7 @@ export class DrumlinElement extends LitElement {
             ${this.knob("DEC", ControlID.DRM_SNARE_DECAY, this.snare.decay.value)}
             ${this.knob("LVL", ControlID.DRM_SNARE_LEVEL, this.snare.level.value)}
           </div>
+          ${this.routeBtn("snare", this.snare.route.value)}
         </div>
 
         <div class="zone clap">
@@ -162,6 +164,7 @@ export class DrumlinElement extends LitElement {
             ${this.knob("DEC", ControlID.DRM_CLAP_DECAY, this.clap.decay.value)}
             ${this.knob("LVL", ControlID.DRM_CLAP_LEVEL, this.clap.level.value)}
           </div>
+          ${this.routeBtn("clap", this.clap.route.value)}
         </div>
 
         <div class="zone hats">
@@ -174,6 +177,7 @@ export class DrumlinElement extends LitElement {
                 ${this.knob("DEC", ControlID.DRM_CH_DECAY, this.hats.chDecay.value)}
                 ${this.knob("LVL", ControlID.DRM_CH_LEVEL, this.hats.chLevel.value)}
               </div>
+              ${this.routeBtn("ch", this.hats.chRoute.value)}
             </div>
             <div class="hat-col">
               ${this.pad("OH", "oh")}
@@ -183,6 +187,7 @@ export class DrumlinElement extends LitElement {
                 ${this.knob("DEC", ControlID.DRM_OH_DECAY, this.hats.ohDecay.value)}
                 ${this.knob("LVL", ControlID.DRM_OH_LEVEL, this.hats.ohLevel.value)}
               </div>
+              ${this.routeBtn("oh", this.hats.ohRoute.value)}
             </div>
           </div>
         </div>
@@ -197,6 +202,7 @@ export class DrumlinElement extends LitElement {
             ${this.knob("DEC", ControlID.DRM_TOM_DECAY, this.tom.decay.value)}
             ${this.knob("LVL", ControlID.DRM_TOM_LEVEL, this.tom.level.value)}
           </div>
+          ${this.routeBtn("tom", this.tom.route.value)}
         </div>
 
         <div class="zone rim">
@@ -207,6 +213,7 @@ export class DrumlinElement extends LitElement {
             ${this.knob("DEC", ControlID.DRM_RIM_DECAY, this.rim.decay.value)}
             ${this.knob("LVL", ControlID.DRM_RIM_LEVEL, this.rim.level.value)}
           </div>
+          ${this.routeBtn("rim", this.rim.route.value)}
         </div>
 
         <div class="zone ride">
@@ -217,6 +224,7 @@ export class DrumlinElement extends LitElement {
             ${this.knob("DEC", ControlID.DRM_RIDE_DECAY, this.ride.decay.value)}
             ${this.knob("LVL", ControlID.DRM_RIDE_LEVEL, this.ride.level.value)}
           </div>
+          ${this.routeBtn("ride", this.ride.route.value)}
         </div>
 
         <div class="zone crash">
@@ -227,6 +235,7 @@ export class DrumlinElement extends LitElement {
             ${this.knob("DEC", ControlID.DRM_CRASH_DECAY, this.crash.decay.value)}
             ${this.knob("LVL", ControlID.DRM_CRASH_LEVEL, this.crash.level.value)}
           </div>
+          ${this.routeBtn("crash", this.crash.route.value)}
         </div>
 
         <div class="zone out">
@@ -248,6 +257,20 @@ export class DrumlinElement extends LitElement {
         @pointerdown=${() => this.controller.triggerVoice(voice)}
       >
         ${label}
+      </button>
+    `;
+  }
+
+  /** Separate-out toggle: lit = the voice plays on its own mixer strip.
+   * A full board refuses — the shell reverts the state and this unlights. */
+  private routeBtn(voice: DrumVoice, routed: number) {
+    return html`
+      <button
+        class=${classMap({ "route-btn": true, on: routed > 0 })}
+        title="route to its own mixer strip"
+        @click=${() => this.controller.setVoiceRouting(voice, !(routed > 0))}
+      >
+        STRIP
       </button>
     `;
   }
@@ -402,6 +425,27 @@ export class DrumlinElement extends LitElement {
     .note-btn:hover {
       background: var(--medium);
       color: var(--lighter);
+    }
+
+    /* Separate-out toggle: lit = the voice sits on its own mixer strip. */
+    .route-btn {
+      width: 100%;
+      padding: 0.2em 0;
+      border: 1px solid var(--dark-secondary);
+      border-radius: 2px;
+      background: transparent;
+      color: var(--light-secondary);
+      font-size: 0.55em;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: background var(--ui-transition-time);
+    }
+    .route-btn:hover { background: var(--dark-secondary); }
+    .route-btn.on {
+      background: var(--drumlin-accent, #e8833a);
+      border-color: var(--drumlin-accent, #e8833a);
+      color: var(--darker);
     }
   `;
 }

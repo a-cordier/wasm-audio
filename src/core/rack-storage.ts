@@ -37,6 +37,9 @@ export interface RackSlotEntry {
    * (Replaces the retired fixed `mixerChannel` index — strip order follows
    * slot order now that channels are dynamic.) */
   mixer?: ChannelStripState;
+  /** Strip settings for the slot's separate-out channels, keyed by voice id
+   * (devices with `HasAuxOutputs` — the routed set itself lives in `state`). */
+  auxMixer?: Record<string, ChannelStripState>;
   collapsed: boolean;
   sync: boolean;
   /** Rack row index (rows are the arrangement unit — devices sit side by side). */
@@ -66,6 +69,16 @@ function clampChannel(value: unknown, fallback: number): number {
     : fallback;
 }
 
+function sanitizeAuxMixer(raw: unknown): Record<string, ChannelStripState> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  let out: Record<string, ChannelStripState> | undefined;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (value == null || typeof value !== "object") continue;
+    (out ??= {})[key] = sanitizeStripState(value as ChannelStripState);
+  }
+  return out;
+}
+
 function sanitizeEntry(raw: unknown, index: number): RackSlotEntry | null {
   const e = raw as Partial<RackSlotEntry> | null;
   if (!e || typeof e.id !== "string" || typeof e.pluginId !== "string") return null;
@@ -79,6 +92,7 @@ function sanitizeEntry(raw: unknown, index: number): RackSlotEntry | null {
     // Legacy sessions carry no strip snapshot — their channels boot from
     // defaults, exactly as the pre-item-5 mixer always did.
     mixer: e.mixer == null ? undefined : sanitizeStripState(e.mixer),
+    auxMixer: sanitizeAuxMixer(e.auxMixer),
     collapsed: e.collapsed === true,
     sync: e.sync === true,
     // Legacy sessions (no row) flow into ONE row — it wraps to fill the

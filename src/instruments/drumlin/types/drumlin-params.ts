@@ -58,5 +58,15 @@ export const DrumlinParamId = Object.freeze({
   RIDE_NOTE: 36,
   CRASH_NOTE: 37,
   OH_TONE: 38, // CH kept index 11 when the hats' shared TONE split
-  PARAM_COUNT: 39,
+  // Separate outs: 0/1 route flags, voice order = aux output order (1..9).
+  KICK_ROUTE: 39,
+  SNARE_ROUTE: 40,
+  CLAP_ROUTE: 41,
+  CH_ROUTE: 42,
+  OH_ROUTE: 43,
+  TOM_ROUTE: 44,
+  RIM_ROUTE: 45,
+  RIDE_ROUTE: 46,
+  CRASH_ROUTE: 47,
+  PARAM_COUNT: 48,
 });

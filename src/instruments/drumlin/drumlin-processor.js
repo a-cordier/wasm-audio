@@ -65,7 +65,10 @@ const RIM_NOTE = 35;
 const RIDE_NOTE = 36;
 const CRASH_NOTE = 37;
 const OH_TONE = 38; // CH kept index 11 when the hats' shared TONE split
-const PARAM_COUNT = 39;
+// Separate outs: 0/1 route flags, contiguous in voice order — a routed voice
+// renders to its own output (1 + voice index) instead of the main sum.
+const KICK_ROUTE = 39;
+const PARAM_COUNT = 48; // ..CRASH_ROUTE 47 (read as KICK_ROUTE + voice index)
 
 const TWO_PI = 2 * Math.PI;
 
@@ -331,6 +334,12 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     this._crBloom = 0;
     this._crGain = 0;
 
+    // Separate-out crossfades: per-voice main-mix share, one-pole smoothed
+    // toward its target (1 = main sum, 0 = own output) so route flips never
+    // click. Aux share is the complement.
+    this._mainMix = new Float32Array(9).fill(1);
+    this._mainTgt = new Float32Array(9).fill(1);
+
     // Smoothed per-voice levels.
     this._lvlKick = 0;
     this._lvlSnare = 0;
@@ -410,6 +419,22 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     if (note === (p[RIM_NOTE] | 0)) this._triggerRim(p, gain);
     if (note === (p[RIDE_NOTE] | 0)) this._triggerRide(p, gain);
     if (note === (p[CRASH_NOTE] | 0)) this._triggerCrash(p, gain);
+  }
+
+  // Split one voice's sample between the main sum and its own output along
+  // the smoothed route crossfade. Returns the main-sum share.
+  _mix(idx, v, outputs, i) {
+    const mm = (this._mainMix[idx] += LVL_ALPHA * (this._mainTgt[idx] - this._mainMix[idx]));
+    const am = 1 - mm;
+    if (am > 1e-4) {
+      const o = outputs[idx + 1];
+      if (o && o[0]) {
+        const y = v * am * OUT_GAIN;
+        o[0][i] = y;
+        if (o[1]) o[1][i] = y;
+      }
+    }
+    return v * mm;
   }
 
   // RBJ bandpass (constant 0 dB peak gain): b0 = alpha, b1 = 0, b2 = -b0.
@@ -552,6 +577,7 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     const tRim = p[RIM_LEVEL] / 127;
     const tRide = p[RIDE_LEVEL] / 127;
     const tCrash = p[CRASH_LEVEL] / 127;
+    for (let v = 0; v < 9; v++) this._mainTgt[v] = p[KICK_ROUTE + v] >= 0.5 ? 0 : 1;
 
     if (
       pn === 0 &&
@@ -575,6 +601,7 @@ class DrumlinProcessor extends AudioWorkletProcessor {
       this._lvlRim = tRim;
       this._lvlRide = tRide;
       this._lvlCrash = tCrash;
+      this._mainMix.set(this._mainTgt); // snap crossfades while silent
       return true;
     }
 
@@ -608,7 +635,7 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         this._kPhase += f / sampleRate;
         if (this._kPhase >= 1) this._kPhase -= 1;
         const body = Math.tanh(1.8 * Math.sin(TWO_PI * this._kPhase));
-        sum += (body + this._kClick * this._kNoise()) * this._kEnv * this._kGain * this._lvlKick;
+        sum += this._mix(0, (body + this._kClick * this._kNoise()) * this._kEnv * this._kGain * this._lvlKick, outputs, i);
         if (this._kEnv < ENV_FLOOR) this._kActive = false;
       }
 
@@ -625,7 +652,7 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         this._sZ1 = flush(-SN_BP.a1 * y + this._sZ2);
         this._sZ2 = flush(-SN_BP.b0 * x - SN_BP.a2 * y);
         const snr = tone * (1 - this._sSnap) * this._sTEnv + 1.6 * y * this._sSnap * this._sNEnv;
-        sum += snr * this._sGain * this._lvlSnare;
+        sum += this._mix(1, snr * this._sGain * this._lvlSnare, outputs, i);
         if (this._sTEnv < ENV_FLOOR && this._sNEnv < ENV_FLOOR) this._sActive = false;
       }
 
@@ -642,19 +669,19 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         const y = this._cB0 * x + this._cZ1;
         this._cZ1 = flush(-this._cA1 * y + this._cZ2);
         this._cZ2 = flush(-this._cB0 * x - this._cA2 * y);
-        sum += 1.8 * y * this._cEnv * this._cGain * this._lvlClap;
+        sum += this._mix(2, 1.8 * y * this._cEnv * this._cGain * this._lvlClap, outputs, i);
         if (this._cStrike === 2 && this._cEnv < ENV_FLOOR) this._cActive = false;
       }
 
       if (this._chActive) {
         this._chEnv *= this._chK;
-        sum += HAT_MAKEUP * this._chBank.render() * this._chEnv * this._chGain * this._lvlCh;
+        sum += this._mix(3, HAT_MAKEUP * this._chBank.render() * this._chEnv * this._chGain * this._lvlCh, outputs, i);
         if (this._chEnv < ENV_FLOOR) this._chActive = false;
       }
 
       if (this._ohActive) {
         this._ohEnv *= this._ohK;
-        sum += HAT_MAKEUP * this._ohBank.render() * this._ohEnv * this._ohGain * this._lvlOh;
+        sum += this._mix(4, HAT_MAKEUP * this._ohBank.render() * this._ohEnv * this._ohGain * this._lvlOh, outputs, i);
         if (this._ohEnv < ENV_FLOOR) this._ohActive = false;
       }
 
@@ -670,7 +697,7 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         if (this._tPhase >= 1) this._tPhase -= 1;
         const body = Math.tanh(1.2 * Math.sin(TWO_PI * this._tPhase));
         this._tNz += TOM_NOISE_ALPHA * (this._tNoise() - this._tNz); // skin noise, lowpassed
-        sum += (body + 0.5 * this._tNz * this._tNEnv) * this._tEnv * this._tGain * this._lvlTom;
+        sum += this._mix(5, (body + 0.5 * this._tNz * this._tNEnv) * this._tEnv * this._tGain * this._lvlTom, outputs, i);
         if (this._tEnv < ENV_FLOOR) this._tActive = false;
       }
 
@@ -688,7 +715,7 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         this._rimZ1b = flush(-this._rimA1b * y2 + this._rimZ2b);
         this._rimZ2b = flush(-this._rimB0b * x - this._rimA2b * y2);
         const knock = Math.tanh(RIM_MAKEUP * (y1 + 0.7 * y2));
-        sum += knock * this._rimEnv * this._rimGain * this._lvlRim;
+        sum += this._mix(6, knock * this._rimEnv * this._rimGain * this._lvlRim, outputs, i);
         if (this._rimEnv < ENV_FLOOR) this._rimActive = false;
       }
 
@@ -696,7 +723,7 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         this._rdEnv *= this._rdK;
         this._rdPing *= RIDE_PING_K;
         const m = this._rideBank.render();
-        sum += CYM_MAKEUP * m * (this._rdEnv + 0.5 * this._rdPing) * this._rdGain * this._lvlRide;
+        sum += this._mix(7, CYM_MAKEUP * m * (this._rdEnv + 0.5 * this._rdPing) * this._rdGain * this._lvlRide, outputs, i);
         if (this._rdEnv < ENV_FLOOR) this._rdActive = false;
       }
 
@@ -704,7 +731,7 @@ class DrumlinProcessor extends AudioWorkletProcessor {
         this._crEnv *= this._crK;
         this._crBloom *= CRASH_BLOOM_K;
         const m = this._crashBank.render();
-        sum += CYM_MAKEUP * m * (this._crEnv + 0.6 * this._crBloom) * this._crGain * this._lvlCrash;
+        sum += this._mix(8, CYM_MAKEUP * m * (this._crEnv + 0.6 * this._crBloom) * this._crGain * this._lvlCrash, outputs, i);
         if (this._crEnv < ENV_FLOOR) this._crActive = false;
       }
 

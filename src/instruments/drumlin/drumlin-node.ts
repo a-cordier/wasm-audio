@@ -36,7 +36,12 @@ export class DrumlinNode extends WasmProcessorNode implements MidiTarget {
   private midiRing: MidiRingBuffer;
 
   constructor(audioContext: AudioContext) {
-    super(audioContext, "drumlin", { outputChannelCount: [2] });
+    // Output 0 = main mix; 1..9 = one separate out per voice (route flags
+    // move a voice over; unrouted outs render silence).
+    super(audioContext, "drumlin", {
+      numberOfOutputs: 10,
+      outputChannelCount: Array(10).fill(2),
+    });
 
     this.params = new SharedParamBuffer(DrumlinParamId.PARAM_COUNT);
     this.midiRing = new MidiRingBuffer(MIDI_QUEUE_CAPACITY);

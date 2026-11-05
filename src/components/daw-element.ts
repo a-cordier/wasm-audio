@@ -25,7 +25,7 @@ import { Channel } from "../midi/types";
 import { SlotConfig, createBranchSlot, createLeafSlot, collectLeafSlots } from "../core/slot";
 import { pluginRegistry, PluginRegistration } from "../core/plugin-registry";
 import type { Plugin, InstrumentPlugin } from "../core/types";
-import { isInstrumentPlugin, isSlotAware, isAudioProducer, isAudioEffect, isMidiConsumer, isTransportChild } from "../core/types";
+import { isInstrumentPlugin, isSlotAware, isAudioProducer, isAudioEffect, isAuxOutputProvider, isMidiConsumer, isTransportChild } from "../core/types";
 import { RackSession, RackSlotEntry, loadRackSession, saveRackSession } from "../core/rack-storage";
 import { getBindingManager } from "../control/binding-manager";
 import { getParamDirectory } from "../control/param-directory";
@@ -73,6 +73,8 @@ export class Daw extends LitElement {
   private mixerEngine: MixerEngine;
 
   private plugins = new Map<string, Plugin>();
+  // One "aux-outputs-changed" listener per separate-outs device (by slot id).
+  private auxListeners = new Map<string, EventListener>();
   private midiAdapter: MidiControlAdapter | null = null;
 
   @state()
@@ -330,7 +332,7 @@ export class Daw extends LitElement {
         }
       }
       // Strip order follows slot order — the strip settings travel with it.
-      this.routeSlot(slot, entry.mixer);
+      this.routeSlot(slot, entry.mixer, entry.auxMixer);
       this.wireSync(slot.id, entry.sync);
     }
   }
@@ -352,7 +354,11 @@ export class Daw extends LitElement {
     return plugin;
   }
 
-  private routeSlot(slot: SlotConfig, restoredStrip?: ChannelStripState) {
+  private routeSlot(
+    slot: SlotConfig,
+    restoredStrip?: ChannelStripState,
+    restoredAux?: Record<string, ChannelStripState>
+  ) {
     const plugin = this.plugins.get(slot.id);
     if (!plugin) return;
     // Sequencers never take an instrument channel: their only audio is the
@@ -383,6 +389,45 @@ export class Daw extends LitElement {
     if (isAudioEffect(plugin)) {
       this.mixerEngine.addSendBus(slot.id, slot.name, plugin.getInputNode(), plugin.descriptor.accent);
     }
+    // Separate outs: open a strip per routed voice and follow the device's
+    // announcements from here on.
+    if (isAuxOutputProvider(plugin)) {
+      this.syncAuxChannels(slot, restoredAux);
+      if (!this.auxListeners.has(slot.id)) {
+        const handler = () => this.syncAuxChannels(slot);
+        (plugin as unknown as EventTarget).addEventListener("aux-outputs-changed", handler);
+        this.auxListeners.set(slot.id, handler);
+      }
+    }
+  }
+
+  /**
+   * Reconcile a device's separate outs against mixer channels (keyed
+   * `${slotId}:${voiceId}` — the engine treats ids as opaque). Runs at route
+   * time and on every "aux-outputs-changed"; a full board refuses the new
+   * strip and setAuxActive reverts the device's toggle.
+   */
+  private syncAuxChannels(slot: SlotConfig, restoredAux?: Record<string, ChannelStripState>) {
+    const plugin = this.plugins.get(slot.id);
+    if (!plugin || !isAuxOutputProvider(plugin)) return;
+    const desired = plugin.getAuxOutputs();
+    const desiredKeys = new Set(desired.map((a) => `${slot.id}:${a.id}`));
+    for (const ch of [...this.mixerEngine.channels]) {
+      if (ch.slotId.startsWith(`${slot.id}:`) && !desiredKeys.has(ch.slotId)) {
+        void this.mixerEngine.removeChannel(ch.slotId).then(() => this.mixerEngine.clearRouting(ch.slotId));
+      }
+    }
+    for (const aux of desired) {
+      const key = `${slot.id}:${aux.id}`;
+      if (this.mixerEngine.getChannel(key)) continue;
+      if (!this.mixerEngine.hasFreeChannel()) {
+        plugin.setAuxActive(aux.id, false);
+        continue;
+      }
+      this.mixerEngine.addChannel(key, aux.label, restoredAux?.[aux.id], plugin.descriptor.accent);
+      this.mixerEngine.setRouting(key, aux.node);
+    }
+    this.scheduleSessionSave();
   }
 
   /** A second instance of a device mounts as "NAME 2" — slot names flow to
@@ -480,6 +525,20 @@ export class Daw extends LitElement {
     await this.mixerEngine.removeChannel(slotId);
     this.mixerEngine.clearRouting(slotId);
 
+    // Separate outs close with their device: every aux strip goes too.
+    if (isAuxOutputProvider(plugin)) {
+      const handler = this.auxListeners.get(slotId);
+      if (handler) {
+        (plugin as unknown as EventTarget).removeEventListener("aux-outputs-changed", handler);
+        this.auxListeners.delete(slotId);
+      }
+      for (const aux of plugin.getAuxOutputs()) {
+        const key = `${slotId}:${aux.id}`;
+        await this.mixerEngine.removeChannel(key);
+        this.mixerEngine.clearRouting(key);
+      }
+    }
+
     plugin.dispose();
     this.plugins.delete(slotId);
 
@@ -559,6 +618,7 @@ export class Daw extends LitElement {
           outputChannel: slot.outputChannel ?? 0,
           inputDevice: slot.inputDevice ?? "internal",
           mixer: this.saveStrip(slot.id),
+          auxMixer: this.saveAuxStrips(slot.id, plugin),
           collapsed: slot.collapsed === true,
           sync: slot.sync === true,
           row: rowIndex,
@@ -581,6 +641,17 @@ export class Daw extends LitElement {
     if (!channel) return undefined;
     // Send levels for ejected loops would otherwise pile up forever.
     return { ...channel.strip, sends: this.mixerEngine.pruneSends(channel.strip.sends) };
+  }
+
+  /** Strip snapshots for a device's separate-out channels, keyed by voice. */
+  private saveAuxStrips(slotId: string, plugin?: Plugin) {
+    if (!plugin || !isAuxOutputProvider(plugin)) return undefined;
+    let out: Record<string, ChannelStripState> | undefined;
+    for (const aux of plugin.getAuxOutputs()) {
+      const strip = this.saveStrip(`${slotId}:${aux.id}`);
+      if (strip) (out ??= {})[aux.id] = strip;
+    }
+    return out;
   }
 
   private onSlotConfigChanged() {

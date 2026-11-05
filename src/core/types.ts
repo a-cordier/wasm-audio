@@ -148,6 +148,29 @@ export interface HasPresets {
   getFactoryPresets(): PresetEntry[];
 }
 
+/** One separate out of a multi-voice device (a drum machine's "KICK OUT"). */
+export interface AuxOutput {
+  /** Stable per-device id (e.g. the voice name) — the shell keys the mixer
+   * channel `${slotId}:${id}`, so it must never contain a ":". */
+  id: string;
+  /** Strip nameplate label ("KICK"). */
+  label: string;
+  /** Permanently-connected output node for this voice. */
+  node: AudioNode;
+}
+
+/**
+ * Separate outs: a device that can route individual voices onto their own
+ * mixer strips. `getAuxOutputs()` returns the DESIRED set (only the routed
+ * voices); the device dispatches "aux-outputs-changed" whenever it changes,
+ * and the shell reconciles mixer channels against it, confirming each one
+ * through `setAuxActive` — a cap refusal reverts the device's toggle.
+ */
+export interface HasAuxOutputs {
+  getAuxOutputs(): AuxOutput[];
+  setAuxActive(id: string, active: boolean): void;
+}
+
 export function isLearnable(plugin: Plugin): plugin is Plugin & Learnable {
   return "getLearnableParams" in plugin && "handleControlChange" in plugin;
 }
@@ -180,6 +203,10 @@ export function isAudioProducer(plugin: Plugin): plugin is Plugin & AudioProduce
 
 export function isAudioEffect(plugin: Plugin): plugin is Plugin & AudioEffect {
   return "getInputNode" in plugin;
+}
+
+export function isAuxOutputProvider(plugin: Plugin): plugin is Plugin & HasAuxOutputs {
+  return "getAuxOutputs" in plugin;
 }
 
 export function isTransportChild(plugin: Plugin): plugin is Plugin & TransportChild {
