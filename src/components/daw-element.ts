@@ -43,6 +43,8 @@ import "../instruments/poly-ticks/register";
 import "../instruments/monolog/register";
 import "../instruments/sequels/register";
 import "../devices/echo/register";
+import "../devices/drive/register";
+import "../devices/chorus/register";
 import "../devices/audio-in/register";
 import "../devices/automation/register";
 import "../devices/song/register";

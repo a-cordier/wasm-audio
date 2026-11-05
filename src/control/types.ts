@@ -89,6 +89,16 @@ export enum ControlID {
   ECHO_TIME,
   ECHO_FEEDBACK,
   ECHO_TONE,
+
+  // Drive (effect)
+  DRIVE_AMOUNT,
+  DRIVE_TONE,
+  DRIVE_LEVEL,
+
+  // Chorus (effect)
+  CHORUS_RATE,
+  CHORUS_DEPTH,
+  CHORUS_SPREAD,
 }
 
 export interface ControlSignal {

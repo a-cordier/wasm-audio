@@ -126,6 +126,8 @@ export const darkTheme = `
     --mixer-send-zone-bg: color-mix(in srgb, var(--dark-secondary) 94%, var(--echo-accent, #d97f43) 6%);
     --echo-accent: #d97f43;
     --audio-in-accent: #c75e6a;
+    --drive-accent: #d4553a;
+    --chorus-accent: #c86fb4;
 
     /* MOTION (automation module): amber accent + three-zone camaïeu. */
     --automation-accent: #f2a33c;
@@ -260,6 +262,8 @@ export const retroTheme = `
     --mixer-send-zone-bg: color-mix(in srgb, var(--dark-secondary) 94%, var(--echo-accent, #d97f43) 6%);
     --echo-accent: #d97f43;
     --audio-in-accent: #c75e6a;
+    --drive-accent: #d4553a;
+    --chorus-accent: #c86fb4;
 
     /* MOTION (automation module): warm amber accent + three-zone camaïeu. */
     --automation-accent: #e8963c;
