@@ -22,12 +22,17 @@ import { ControlID } from "../../../control/types";
 import { DrumlinController } from "../drumlin-controller";
 import { DrumlinState } from "../types/drumlin-state";
 import { DrumlinEvent } from "../types/drumlin-event";
-import { DrumVoice, PAD_NOTES } from "../types/drumlin-notes";
+import { DrumVoice } from "../types/drumlin-notes";
 
 import "../../../components/common/controls/knob-element";
 import "../../../components/common/controls/control-learn-wrapper";
+import "../../../components/common/lcd/lcd-element";
 
 const FLASH_MS = 110;
+
+// Note names in the C4 = 60 convention — matches sequels' step grid LCDs.
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const noteName = (midi: number) => `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
 
 /**
  * DRUMLIN panel: one zone per voice (the camaïeu follows function = voice),
@@ -126,8 +131,10 @@ export class DrumlinElement extends LitElement {
     if (!this.rim || !this.ride || !this.crash) return html``;
     return html`
       <div class="synth">
+        <div class="row top">
         <div class="zone kick">
           ${this.pad("KICK", "kick")}
+          ${this.noteSel("kick", this.kick.note.value)}
           <div class="knobs">
             ${this.knob("TUN", ControlID.DRM_KICK_TUNE, this.kick.tune.value)}
             ${this.knob("PCH", ControlID.DRM_KICK_PUNCH, this.kick.punch.value, "pitch sweep + click")}
@@ -138,6 +145,7 @@ export class DrumlinElement extends LitElement {
 
         <div class="zone snare">
           ${this.pad("SNARE", "snare")}
+          ${this.noteSel("snare", this.snare.note.value)}
           <div class="knobs">
             ${this.knob("TUN", ControlID.DRM_SNARE_TUNE, this.snare.tune.value)}
             ${this.knob("SNP", ControlID.DRM_SNARE_SNAP, this.snare.snap.value, "noise / tone balance")}
@@ -148,6 +156,7 @@ export class DrumlinElement extends LitElement {
 
         <div class="zone clap">
           ${this.pad("CLAP", "clap")}
+          ${this.noteSel("clap", this.clap.note.value)}
           <div class="knobs">
             ${this.knob("TON", ControlID.DRM_CLAP_TONE, this.clap.tone.value)}
             ${this.knob("DEC", ControlID.DRM_CLAP_DECAY, this.clap.decay.value)}
@@ -159,6 +168,7 @@ export class DrumlinElement extends LitElement {
           <div class="hat-cols">
             <div class="hat-col">
               ${this.pad("CH", "ch")}
+              ${this.noteSel("ch", this.hats.chNote.value)}
               <div class="knobs">
                 ${this.knob("DEC", ControlID.DRM_CH_DECAY, this.hats.chDecay.value)}
                 ${this.knob("LVL", ControlID.DRM_CH_LEVEL, this.hats.chLevel.value)}
@@ -166,6 +176,7 @@ export class DrumlinElement extends LitElement {
             </div>
             <div class="hat-col">
               ${this.pad("OH", "oh")}
+              ${this.noteSel("oh", this.hats.ohNote.value)}
               <div class="knobs">
                 ${this.knob("DEC", ControlID.DRM_OH_DECAY, this.hats.ohDecay.value)}
                 ${this.knob("LVL", ControlID.DRM_OH_LEVEL, this.hats.ohLevel.value)}
@@ -176,9 +187,12 @@ export class DrumlinElement extends LitElement {
             ${this.knob("TON", ControlID.DRM_HAT_TONE, this.hats.tone.value, "shared metal bank tuning")}
           </div>
         </div>
+        </div>
 
+        <div class="row bottom">
         <div class="zone tom">
           ${this.pad("TOM", "tom")}
+          ${this.noteSel("tom", this.tom.note.value, "receive note — ±2 play low / high")}
           <div class="knobs">
             ${this.knob("TUN", ControlID.DRM_TOM_TUNE, this.tom.tune.value)}
             ${this.knob("DEC", ControlID.DRM_TOM_DECAY, this.tom.decay.value)}
@@ -188,6 +202,7 @@ export class DrumlinElement extends LitElement {
 
         <div class="zone rim">
           ${this.pad("RIM", "rim")}
+          ${this.noteSel("rim", this.rim.note.value)}
           <div class="knobs">
             ${this.knob("TUN", ControlID.DRM_RIM_TUNE, this.rim.tune.value)}
             ${this.knob("DEC", ControlID.DRM_RIM_DECAY, this.rim.decay.value)}
@@ -197,6 +212,7 @@ export class DrumlinElement extends LitElement {
 
         <div class="zone ride">
           ${this.pad("RIDE", "ride")}
+          ${this.noteSel("ride", this.ride.note.value)}
           <div class="knobs">
             ${this.knob("TON", ControlID.DRM_RIDE_TONE, this.ride.tone.value)}
             ${this.knob("DEC", ControlID.DRM_RIDE_DECAY, this.ride.decay.value)}
@@ -206,6 +222,7 @@ export class DrumlinElement extends LitElement {
 
         <div class="zone crash">
           ${this.pad("CRASH", "crash")}
+          ${this.noteSel("crash", this.crash.note.value)}
           <div class="knobs">
             ${this.knob("TON", ControlID.DRM_CRASH_TONE, this.crash.tone.value)}
             ${this.knob("DEC", ControlID.DRM_CRASH_DECAY, this.crash.decay.value)}
@@ -219,6 +236,7 @@ export class DrumlinElement extends LitElement {
             ${this.knob("ACC", ControlID.DRM_ACCENT, this.out.accent.value, "velocity sensitivity")}
           </div>
         </div>
+        </div>
       </div>
     `;
   }
@@ -227,11 +245,22 @@ export class DrumlinElement extends LitElement {
     return html`
       <button
         class=${classMap({ pad: true, lit: this.flashing.has(voice) })}
-        title=${`trigger (note ${PAD_NOTES[voice]})`}
-        @pointerdown=${() => this.controller.trigger(PAD_NOTES[voice])}
+        title="trigger"
+        @pointerdown=${() => this.controller.triggerVoice(voice)}
       >
         ${label}
       </button>
+    `;
+  }
+
+  /** Receive-note stepper — a discrete selector, so an LCD, not a knob. */
+  private noteSel(voice: DrumVoice, value: number, title = "receive note") {
+    return html`
+      <div class="note-sel" title=${title}>
+        <button class="note-btn" @click=${() => this.controller.setVoiceNote(voice, value - 1)}>-</button>
+        <lcd-element .text=${noteName(value)}></lcd-element>
+        <button class="note-btn" @click=${() => this.controller.setVoiceNote(voice, value + 1)}>+</button>
+      </div>
     `;
   }
 
@@ -256,15 +285,23 @@ export class DrumlinElement extends LitElement {
       --control-label-color: var(--light-secondary);
     }
 
+    /* Nine zones in a fixed-width slot: two rows, compact-first. */
     .synth {
-      display: grid;
-      grid-template-columns: 1fr 1fr 0.82fr 1.62fr 0.82fr 0.82fr 0.82fr 0.82fr 0.52fr;
+      display: flex;
+      flex-direction: column;
       gap: 0.5em;
       background: var(--main-panel-color);
       border-radius: 0 0 0.5rem 0.5rem;
       padding: 1em;
       box-sizing: border-box;
     }
+    .row {
+      display: grid;
+      gap: 0.5em;
+      min-width: 0;
+    }
+    .row.top { grid-template-columns: 1fr 1fr 0.9fr 1.9fr; }
+    .row.bottom { grid-template-columns: 1fr 1fr 1fr 1fr 0.5fr; }
 
     /* Neutral charcoal zones, one tint per voice — the camaïeu. */
     .zone {
@@ -339,6 +376,37 @@ export class DrumlinElement extends LitElement {
     }
     .hat-tone {
       margin-top: 0.1em;
+    }
+
+    /* Receive-note stepper: discrete choice → LCD, per the control idioms.
+       The LCD's 120px default width would blow the zone's min-content — the
+       token shrinks it to the zone instead. */
+    .note-sel {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: 2px;
+      width: 100%;
+      height: 18px;
+      --lcd-screen-width: 100%;
+    }
+    .note-sel lcd-element {
+      flex: 1;
+      min-width: 0;
+    }
+    .note-btn {
+      width: 14px;
+      border: none;
+      border-radius: 2px;
+      background: var(--dark-secondary);
+      color: var(--light-secondary);
+      font-size: 0.6em;
+      padding: 0;
+      cursor: pointer;
+    }
+    .note-btn:hover {
+      background: var(--medium);
+      color: var(--lighter);
     }
   `;
 }

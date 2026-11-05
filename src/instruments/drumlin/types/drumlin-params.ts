@@ -47,5 +47,15 @@ export const DrumlinParamId = Object.freeze({
   CRASH_TONE: 26,
   CRASH_DECAY: 27,
   CRASH_LEVEL: 28,
-  PARAM_COUNT: 29,
+  // Per-voice receive notes (raw value = the MIDI note; tom answers base ±2).
+  KICK_NOTE: 29,
+  SNARE_NOTE: 30,
+  CLAP_NOTE: 31,
+  CH_NOTE: 32,
+  OH_NOTE: 33,
+  TOM_NOTE: 34,
+  RIM_NOTE: 35,
+  RIDE_NOTE: 36,
+  CRASH_NOTE: 37,
+  PARAM_COUNT: 38,
 });

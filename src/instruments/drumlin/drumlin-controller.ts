@@ -16,10 +16,10 @@
 
 import { DrumlinNode } from "./drumlin-node";
 import { DrumlinParamId as P } from "./types/drumlin-params";
-import { DrumlinState, Field, createDrumlinState } from "./types/drumlin-state";
+import { DrumlinState, DrumlinStatePartial, Field, createDrumlinState } from "./types/drumlin-state";
 import { DrumlinEvent } from "./types/drumlin-event";
 import { DrumlinFactoryPresets } from "./presets";
-import { voiceForNote } from "./types/drumlin-notes";
+import { DrumVoice } from "./types/drumlin-notes";
 import { MidiEvent, MidiTarget } from "../../midi/types";
 import { noteFrequency } from "../../midi/codec/notes";
 import { isNoteOn } from "../../midi/codec/decode";
@@ -38,6 +38,15 @@ import {
 // setControl() — the single gate for external writes.
 interface ControlSpec {
   control: ControlID;
+  param: number;
+  event: DrumlinEvent;
+  field: (s: DrumlinState) => Field;
+  section: (s: DrumlinState) => object;
+}
+
+// Receive notes are discrete selectors (LCD steppers): state + param, but no
+// ControlID and no MIDI-learn — knobs learn, selectors don't (house rule).
+interface NoteSpec {
   param: number;
   event: DrumlinEvent;
   field: (s: DrumlinState) => Field;
@@ -65,6 +74,7 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
   private audioContext: AudioContext;
   private state: DrumlinState;
   private specs = new Map<ControlID, ControlSpec>();
+  private noteSpecs = new Map<DrumVoice, NoteSpec>();
 
   constructor(audioContext: AudioContext) {
     super();
@@ -72,6 +82,7 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
     this.output = new GainNode(audioContext);
     this.state = createDrumlinState();
     this.initControlSpecs();
+    this.initNoteSpecs();
   }
 
   init() {
@@ -108,10 +119,12 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
     }
     // One-shot drums: note-offs carry no meaning, so they never enter the ring.
     if (!isNoteOn(event)) return;
-    const voice = voiceForNote(event.data1);
-    if (!voice) return; // unmapped GM notes are silent by design
+    const voices = this.voicesForNote(event.data1);
+    if (voices.length === 0) return; // unmapped notes are silent by design
     this.node?.noteOn(event.data1, noteFrequency(event.data1), event.data2, event.frame ?? 0);
-    this.dispatch(DrumlinEvent.TRIGGER, { voice, midiValue: event.data1, velocity: event.data2 });
+    for (const voice of voices) {
+      this.dispatch(DrumlinEvent.TRIGGER, { voice, midiValue: event.data1, velocity: event.data2 });
+    }
   }
 
   /** Pad audition path (panel pointerdown) — plays now (frame 0). */
@@ -119,10 +132,47 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
     if (this.audioContext.state === "suspended") {
       this.audioContext.resume();
     }
-    const voice = voiceForNote(note);
-    if (!voice) return;
+    const voices = this.voicesForNote(note);
+    if (voices.length === 0) return;
     this.node?.noteOn(note, noteFrequency(note), velocity, 0);
-    this.dispatch(DrumlinEvent.TRIGGER, { voice, midiValue: note, velocity });
+    for (const voice of voices) {
+      this.dispatch(DrumlinEvent.TRIGGER, { voice, midiValue: note, velocity });
+    }
+  }
+
+  /** Pad path by voice — plays the voice's CURRENT receive note. */
+  triggerVoice(voice: DrumVoice, velocity = PAD_VELOCITY): void {
+    this.trigger(this.noteFor(voice), velocity);
+  }
+
+  /** The voice's current receive note (feeds the panel steppers). */
+  noteFor(voice: DrumVoice): number {
+    const spec = this.noteSpecs.get(voice);
+    return spec ? spec.field(this.state).value : 0;
+  }
+
+  /** Discrete selector path: no ControlID, no MIDI-learn. */
+  setVoiceNote(voice: DrumVoice, note: number): void {
+    const spec = this.noteSpecs.get(voice);
+    if (!spec) return;
+    const clamped = Math.max(0, Math.min(127, Math.round(note)));
+    spec.field(this.state).value = clamped;
+    this.sendParam(spec.param, clamped);
+    this.dispatch(spec.event, { ...spec.section(this.state) });
+  }
+
+  /** Which voices answer this note — several may (layering is a feature). */
+  private voicesForNote(note: number): DrumVoice[] {
+    const out: DrumVoice[] = [];
+    for (const [voice, spec] of this.noteSpecs) {
+      const base = spec.field(this.state).value;
+      if (voice === "tom") {
+        if (note === base - 2 || note === base || note === base + 2) out.push(voice);
+      } else if (note === base) {
+        out.push(voice);
+      }
+    }
+    return out;
   }
 
   /** The one setter: panel knobs, MIDI-learn and automation all land here. */
@@ -143,7 +193,7 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
   }
 
   setState(newState: unknown) {
-    this.state = createDrumlinState(newState as Partial<DrumlinState>);
+    this.state = createDrumlinState(newState as DrumlinStatePartial);
     this.syncParams();
     this.notifyStateChange();
     return this.getState();
@@ -186,6 +236,29 @@ export class DrumlinController extends EventTarget implements InstrumentPlugin, 
     for (const spec of this.specs.values()) {
       this.sendParam(spec.param, spec.field(this.state).value);
     }
+    for (const spec of this.noteSpecs.values()) {
+      this.sendParam(spec.param, spec.field(this.state).value);
+    }
+  }
+
+  private initNoteSpecs() {
+    const E = DrumlinEvent;
+    const n = (
+      voice: DrumVoice,
+      param: number,
+      event: DrumlinEvent,
+      field: (s: DrumlinState) => Field,
+      section: (s: DrumlinState) => object
+    ) => this.noteSpecs.set(voice, { param, event, field, section });
+    n("kick", P.KICK_NOTE, E.KICK, (s) => s.kick.note, (s) => s.kick);
+    n("snare", P.SNARE_NOTE, E.SNARE, (s) => s.snare.note, (s) => s.snare);
+    n("clap", P.CLAP_NOTE, E.CLAP, (s) => s.clap.note, (s) => s.clap);
+    n("ch", P.CH_NOTE, E.HATS, (s) => s.hats.chNote, (s) => s.hats);
+    n("oh", P.OH_NOTE, E.HATS, (s) => s.hats.ohNote, (s) => s.hats);
+    n("tom", P.TOM_NOTE, E.TOM, (s) => s.tom.note, (s) => s.tom);
+    n("rim", P.RIM_NOTE, E.RIM, (s) => s.rim.note, (s) => s.rim);
+    n("ride", P.RIDE_NOTE, E.RIDE, (s) => s.ride.note, (s) => s.ride);
+    n("crash", P.CRASH_NOTE, E.CRASH, (s) => s.crash.note, (s) => s.crash);
   }
 
   private initControlSpecs() {

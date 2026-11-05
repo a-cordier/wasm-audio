@@ -54,7 +54,17 @@ const RIDE_LEVEL = 25;
 const CRASH_TONE = 26;
 const CRASH_DECAY = 27;
 const CRASH_LEVEL = 28;
-const PARAM_COUNT = 29;
+// Per-voice receive notes (raw value = the MIDI note; tom answers base ±2).
+const KICK_NOTE = 29;
+const SNARE_NOTE = 30;
+const CLAP_NOTE = 31;
+const CH_NOTE = 32;
+const OH_NOTE = 33;
+const TOM_NOTE = 34;
+const RIM_NOTE = 35;
+const RIDE_NOTE = 36;
+const CRASH_NOTE = 37;
+const PARAM_COUNT = 38;
 
 const TWO_PI = 2 * Math.PI;
 
@@ -402,58 +412,27 @@ class DrumlinProcessor extends AudioWorkletProcessor {
     return n;
   }
 
-  // GM note map — MUST mirror types/drumlin-notes.ts voiceForNote.
+  // Per-voice receive notes (params 29–37, edited by the panel steppers).
+  // Every matching voice fires — two voices on one note layer deliberately;
+  // unmapped notes are silent by design. Tom answers base ±2 at ∓/±5 st.
   _trigger(note, vel) {
     const p = this._params;
     // Velocity response: perceptual curve, depth set by ACCENT
     // (a=0: every hit equal; a=1: full pow-0.6 dynamics).
     const a = p[ACCENT] / 127;
     const gain = 1 - a + a * Math.pow(vel / 127, 0.6);
-    switch (note) {
-      case 35:
-      case 36:
-        this._triggerKick(p, gain);
-        break;
-      case 38:
-      case 40:
-        this._triggerSnare(p, gain);
-        break;
-      case 39:
-        this._triggerClap(p, gain);
-        break;
-      case 42:
-      case 44:
-        this._triggerHat(p, gain, true);
-        break;
-      case 46:
-        this._triggerHat(p, gain, false);
-        break;
-      case 41:
-      case 43:
-        this._triggerTom(p, gain, -5);
-        break;
-      case 45:
-      case 47:
-        this._triggerTom(p, gain, 0);
-        break;
-      case 48:
-      case 50:
-        this._triggerTom(p, gain, 5);
-        break;
-      case 37:
-        this._triggerRim(p, gain);
-        break;
-      case 49:
-      case 57:
-        this._triggerCrash(p, gain);
-        break;
-      case 51:
-      case 53:
-        this._triggerRide(p, gain);
-        break;
-      default:
-        break; // unmapped notes are silent by design
-    }
+    if (note === (p[KICK_NOTE] | 0)) this._triggerKick(p, gain);
+    if (note === (p[SNARE_NOTE] | 0)) this._triggerSnare(p, gain);
+    if (note === (p[CLAP_NOTE] | 0)) this._triggerClap(p, gain);
+    if (note === (p[CH_NOTE] | 0)) this._triggerHat(p, gain, true);
+    if (note === (p[OH_NOTE] | 0)) this._triggerHat(p, gain, false);
+    const tomBase = p[TOM_NOTE] | 0;
+    if (note === tomBase - 2) this._triggerTom(p, gain, -5);
+    else if (note === tomBase) this._triggerTom(p, gain, 0);
+    else if (note === tomBase + 2) this._triggerTom(p, gain, 5);
+    if (note === (p[RIM_NOTE] | 0)) this._triggerRim(p, gain);
+    if (note === (p[RIDE_NOTE] | 0)) this._triggerRide(p, gain);
+    if (note === (p[CRASH_NOTE] | 0)) this._triggerCrash(p, gain);
   }
 
   // RBJ bandpass (constant 0 dB peak gain): b0 = alpha, b1 = 0, b2 = -b0.
