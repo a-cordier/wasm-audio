@@ -66,10 +66,18 @@ pads the unused capacity with prepared strips (16 cap). Per-channel chain:
 (`fader-law.ts`: +6 dB top, unity at 3/4 throw, −∞ at 0) while STATE stays
 linear amplitude. **Effect loops**: one send bus per mounted `kind:"effect"`
 device (`getInputNode()` in — the `AudioEffect` contract; output returns on
-the device's own ⏎ channel); **returns never send** — the send node simply
-never exists on a return strip (cross-sending returns close a runaway cycle
-through the effects' delays; chained effects are item 8's cycle-aware
-problem). Strip settings (gain/pan/mute/solo/eq/sends) persist per SLOT and
+the device's own ⏎ channel). The suite: ECHO (native delay), DRIVE (native
+saturation), CHORUS (native doubling), VERB (worklet FDN reverb).
+**Chaining is cycle-aware — the DAG rule**: a send tap on a return strip
+exists ⇔ that effect→effect edge keeps the send graph acyclic (`canSend`
+DFS). Return taps build lazily and are DELETED when zeroed (node existence
+= edge, freeing the reverse direction); even a zero-gain tap counts — it
+closes a real audio cycle through the effects' delays (the ×10^8 runaway).
+Refused knobs ghost ("would close a feedback loop"); persisted cyclic
+levels zero on restore. **Solo is solo-safe for returns**: a non-soloed
+return stays audible (tails survive solo); mute stays explicit; soloing a
+return itself works like any strip. Strip settings
+(gain/pan/mute/solo/eq/sends) persist per SLOT and
 travel with it; send levels prune when their loop unmounts; master/click
 levels persist on the session. **AUDIO IN** is a device (kind `"input"`):
 getUserMedia behind the standard `getOutputNode()`, gesture-driven ENABLE
@@ -136,6 +144,14 @@ directly; continuous knobs also get MIDI-learn wiring (`reg(...)` + `getLearnabl
 **Two engine flavours:**
 - **C++ / wasm** (reference: `monolog`) — `engine/*.h` + `*-kernel.cpp` → `make build` (Docker emscripten) regenerates `*.wasmmodule.js`.
 - **Pure-JS worklet** (reference: `sequels`, `template`) — logic lives in `*-processor.js`; **no build step**.
+
+Worklet-flavoured **effects** (reference: `verb`) take their params as
+**port messages** (raw 0..127, smoothed in-processor) — the
+SharedParamBuffer/PARAM_COUNT path is the instrument contract, not theirs.
+Keep `process()` allocation-free (preallocate every buffer in the
+constructor): a worklet that never allocates never gives the audio thread's
+GC anything to collect. New effects stay native-node or JS-worklet until
+profiling says wasm — SIMD/many-instance DSP is the crossover.
 
 Any **new worklet file** (`*-processor.js`, `*.wasmmodule.js`) must be added to the `workletFiles` map in `vite.config.ts` — that's how it's served in dev and copied on build. Miss it and `addModule()` 404s.
 

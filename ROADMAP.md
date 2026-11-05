@@ -156,9 +156,34 @@ deferred** — dispositions in
 
 ## Phase 3 — Devices & niceties
 
-### 8. [ ] Effects suite
-- A handful of effect devices (delay, reverb, drive, chorus… pick at plan
-  time) using the kind:effect contract from item 3 and loops from item 5.
+### 8. [x] Effects suite — done 2026-11-05
+Four QA'd batches. The loop suite grows to four: DRIVE
+(`src/devices/drive`, parallel saturation — pre-gain into a static
+tanh(30x) shaper, 4x oversampled, so the DRIVE knob rides ramped gains
+instead of swapping curves; Butterworth tone; 1/√drive loudness makeup) and
+CHORUS (`src/devices/chorus`, two delay voices 15/21 ms swept antiphase by
+one shared sine LFO, panned apart by SPREAD, −3 dB sum, no feedback path)
+clone ECHO's native-node pattern; VERB (`src/devices/verb`) is the **first
+worklet-flavoured effect** — an 8-line FDN in pure JS (mutually-prime
+lines, unitary Hadamard butterfly, DECAY as true T60 0.3–12 s, per-line
+one-pole DAMP 14 kHz–800 Hz, SIZE ×10 gliding the read offsets through
+fractional reads — the glide IS the tape pitch-bend), params as port
+messages raw 0..127 smoothed in-processor (SharedParamBuffer stays the
+instrument contract), denormals flushed at every feedback write. Item 5's
+two deferrals resolved: **effect chaining** landed as the DAG rule — a
+return's send tap exists ⇔ the effect→effect edge keeps the send graph
+acyclic (`canSend` DFS; taps on returns are lazy, zeroing deletes the tap
+and frees the reverse edge; persisted cycles zero on restore; knobs ghost
+per edge, "would close a feedback loop") — because even a zero-gain tap
+closes a real cycle through the effects' delays; and **engine flavour**:
+JS worklet until profiling says wasm (SIMD/many-instance DSP is the
+crossover, not an 8-line FDN). Solo went **solo-safe for returns** (item
+7's open flag): tails stay audible under solo, mute stays explicit.
+Verified live: tails track T60 to the decibel, maxed feedback/decay chains
+stay bounded (limiter untouched as backstop), chains persist across
+reload, eject prunes edges. **PHASER and send-knob drag resolution
+deferred** — dispositions in
+[docs/scalability-audit.md](docs/scalability-audit.md).
 
 ### 9. [ ] Drum synthesizer
 - New instrument, born into the post-shell plugin contract. Engine flavour

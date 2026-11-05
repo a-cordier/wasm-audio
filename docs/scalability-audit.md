@@ -40,7 +40,8 @@ mounted device, slot-keyed, created/removed with the mount; the 16 is a soft
 cap), the slot id IS the channel identity (labels follow slot names), every
 send/return edge is its own dedicated GainNode so no two slots ever connect
 the same node pair (and returns never send at all — the cross-return cycle
-was measured running away ×10^8 before the guard), and the dead
+was measured running away ×10^8 before the guard; item 8 later relaxed the
+blanket guard to cycle-aware per-edge sends), and the dead
 `wireAudio()` branch-summing path was deleted. `MixerEngine.dispose()`
 still has no caller (engine lives for the page) — fine.
 
@@ -91,6 +92,32 @@ Item 7 shipped (SONG, `src/devices/song`); dispositions:
   acceptance).
 - Each applied switch triggers sequels' debounced slot autosave
   (`activePattern` is persisted state) — confirmed harmless.
+
+## For item 8 — effects suite — RESOLVED 2026-11-05
+Item 8 shipped (DRIVE, CHORUS, VERB + chaining); dispositions:
+- **Effect chaining (item 5's deferral) resolved as the DAG rule**: a
+  return's send tap exists ⇔ the effect→effect edge keeps the send graph
+  acyclic (`canSend` DFS in mixer-engine). Return taps are lazy; zeroing
+  ramps ~40 ms then deletes the tap, freeing the reverse edge; restore
+  re-checks persisted levels and zeroes refused ones (mount order = the
+  deterministic winner). Node existence stays the single source of truth
+  because a zero-gain tap already closes a live cycle through the effects'
+  delays.
+- **Engine flavour (item 5's other deferral)**: effects default to native
+  nodes or pure-JS worklets — VERB's 8-line FDN is ~1% of a core, and
+  allocation-free typed-array JS sits within tens of percent of wasm. The
+  crossover to C++/wasm is SIMD-heavy or many-instance DSP (convolution,
+  oversampled multiband); the port-message contract wouldn't change.
+- The zero→delete tap removal is a setTimeout(40 ms); a knob reopened
+  inside the window is detected (level re-checked before disconnect) — no
+  race.
+- Solo-safe returns exempt returns from the solo gate only: mute stays
+  explicit, soloing a return behaves like any strip, and a return mounted
+  mid-solo comes up audible (`addSendBus` re-applies gains).
+- **Deferred**: PHASER (the plan-time suite pick shipped three); send-knob
+  drag fine-resolution polish (item 7's note, still open); per-channel
+  INSERT effects — the `inserts[]` chain keeps its one resident (the EQ),
+  send/return stays the effect story.
 
 ## MIDI-learn (later item)
 - No persistence is wired (`exportBindings`/`importBindings` have no callers),
