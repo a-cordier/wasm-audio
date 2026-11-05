@@ -90,6 +90,15 @@ export const darkTheme = `
     --monolog-perf-panel-color: #333333;
     --monolog-accent: #F5DF4D;
 
+    /* DRUMLIN (drum synth): 808-orange accent + per-voice camaïeu. */
+    --drumlin-accent: #e8833a;
+    --drumlin-kick-panel-color: #332c2a;  /* warm red-brown — the boom */
+    --drumlin-snare-panel-color: #2e3033; /* steel          — the crack */
+    --drumlin-clap-panel-color: #33312a;  /* sand           — hand noise */
+    --drumlin-hats-panel-color: #2c3133;  /* cold metal     — the bank */
+    --drumlin-tom-panel-color: #312e2a;   /* earth          — skins */
+    --drumlin-out-panel-color: #2f2f31;   /* neutral        — output */
+
     --panel-wrapper-label-color: var(--moonbeam);
 
     --control-size-lg: 50px;
@@ -226,6 +235,15 @@ export const retroTheme = `
     --monolog-lfo-panel-color: #2c2c28;
     --monolog-perf-panel-color: #333333;
     --monolog-accent: #F5DF4D;
+
+    /* DRUMLIN (drum synth): warmed 808-orange accent + per-voice camaïeu. */
+    --drumlin-accent: #dd7c33;
+    --drumlin-kick-panel-color: #362c26;  /* warm red-brown — the boom */
+    --drumlin-snare-panel-color: #322e2b; /* warmed steel   — the crack */
+    --drumlin-clap-panel-color: #353026;  /* sand           — hand noise */
+    --drumlin-hats-panel-color: #2f2f2b;  /* tarnished metal — the bank */
+    --drumlin-tom-panel-color: #342e27;   /* earth          — skins */
+    --drumlin-out-panel-color: #322e29;   /* neutral warm   — output */
 
     --panel-wrapper-label-color: var(--moonbeam);
 
