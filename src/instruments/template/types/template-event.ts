@@ -21,4 +21,5 @@ export enum TemplateEvent {
   NOTE_OFF = "template:note-off",
   OSC = "template:osc",
   AMP = "template:amp",
+  LFO = "template:lfo",
 }

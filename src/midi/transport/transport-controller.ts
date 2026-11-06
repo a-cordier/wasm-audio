@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TransportAnchor, TransportChild } from "../../core/types";
+import { ClockObserver, TransportAnchor, TransportChild } from "../../core/types";
 
 /**
  * The DAW master transport (the "mother" clock). Owned by the shell, one per
@@ -42,6 +42,7 @@ export class TransportController extends EventTarget {
   private _playing = false;
   private _anchorTime = 0;
   private children = new Set<TransportChild>();
+  private observers = new Set<ClockObserver>();
 
   constructor(ctx: AudioContext) {
     super();
@@ -105,12 +106,14 @@ export class TransportController extends EventTarget {
     this._anchorTime = this.ctx.currentTime + TransportController.START_DELAY_S;
     const anchor = this.anchor();
     for (const child of this.children) child.onMasterStart(anchor);
+    this.notifyObservers();
   }
 
   stop(): void {
     if (!this._playing) return;
     this._playing = false;
     for (const child of this.children) child.onMasterStop();
+    this.notifyObservers();
     this.dispatchEvent(new CustomEvent("transport-state", { detail: { playing: false } }));
   }
 
@@ -125,6 +128,9 @@ export class TransportController extends EventTarget {
     }
     this._bpm = next;
     for (const child of this.children) child.onMasterTempo(next);
+    // After the re-anchor: observers get the (anchor, bpm) pair atomically,
+    // so a beats value derived from it stays continuous across the change.
+    this.notifyObservers();
     this.dispatchEvent(new CustomEvent("transport-tempo", { detail: { bpm: next } }));
   }
 
@@ -138,5 +144,27 @@ export class TransportController extends EventTarget {
 
   removeChild(child: TransportChild): void {
     this.children.delete(child);
+  }
+
+  /**
+   * Passive clock feed (ClockObserver, core/types.ts) — wired at mount, NOT
+   * per-slot SYNC: the clock info always flows and the device's own controls
+   * decide whether it is used (a synced LFO). Observing pushes the current
+   * clock immediately, like addChild; every later notification fires with
+   * the anchor already in place.
+   */
+  observe(observer: ClockObserver): void {
+    if (this.observers.has(observer)) return;
+    this.observers.add(observer);
+    observer.onClock(this.anchor(), this._playing);
+  }
+
+  unobserve(observer: ClockObserver): void {
+    this.observers.delete(observer);
+  }
+
+  private notifyObservers(): void {
+    const anchor = this.anchor();
+    for (const observer of this.observers) observer.onClock(anchor, this._playing);
   }
 }

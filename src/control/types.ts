@@ -140,6 +140,10 @@ export enum ControlID {
   DIS_SWING,
   DIS_GATE,
   DIS_STRUM,
+
+  // Template LFO (appended — the enum is implicitly numbered, never insert)
+  TPL_LFO_RATE,
+  TPL_LFO_AMT,
 }
 
 export interface ControlSignal {

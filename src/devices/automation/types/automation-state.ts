@@ -24,18 +24,10 @@ interface Field {
 /** LCD order; SHAPE stores the index. STEP is last — the lane lights up. */
 export const SHAPES = ["SIN", "TRI", "RMP", "SQR", "S&H", "STEP"] as const;
 
-/** Cycle lengths for synced mode (DIV stores the index; 1B = 4 beats). In
- * STEP shape the cycle divides evenly across the lane: step = DIV / count. */
-export const DIVISIONS = [
-  { label: "4B", beats: 16 },
-  { label: "2B", beats: 8 },
-  { label: "1B", beats: 4 },
-  { label: "1/2", beats: 2 },
-  { label: "1/4", beats: 1 },
-  { label: "1/8", beats: 0.5 },
-  { label: "1/16", beats: 0.25 },
-  { label: "1/32", beats: 0.125 },
-] as const;
+/** Cycle lengths for synced mode (DIV stores the index) — the app-wide list
+ * (core/divisions.ts), re-exported so MOTION's own modules keep their import.
+ * In STEP shape the cycle divides evenly across the lane: step = DIV / count. */
+export { DIVISIONS } from "../../../core/divisions";
 
 export const STEP_LANE_CAPACITY = 16;
 

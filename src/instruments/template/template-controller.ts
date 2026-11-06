@@ -16,6 +16,7 @@
 
 import { TemplateNode } from "./template-node";
 import { TemplateParamId } from "./types/template-params";
+import { DIVISIONS } from "../../core/divisions";
 import { TemplateState, createTemplateState } from "./types/template-state";
 import { TemplateEvent } from "./types/template-event";
 import { MidiEvent, MidiTarget } from "../../midi/types";
@@ -23,12 +24,14 @@ import { noteFrequency } from "../../midi/codec/notes";
 import { isNoteOn, isNoteOff } from "../../midi/codec/decode";
 import { ControlID } from "../../control/types";
 import {
+  ClockObserver,
   InstrumentPlugin,
   PluginDescriptor,
   Learnable,
   HasPresets,
   LearnableParam,
   PresetEntry,
+  TransportAnchor,
 } from "../../core/types";
 
 type ControlHandler = (value: number) => void;
@@ -38,7 +41,7 @@ type ControlHandler = (value: number) => void;
  * MIDI in (notes → node), the authoritative state, param sync, MIDI-learn
  * handlers, and preset load. New instruments follow this exact shape.
  */
-export class TemplateController extends EventTarget implements InstrumentPlugin, MidiTarget, Learnable, HasPresets {
+export class TemplateController extends EventTarget implements InstrumentPlugin, MidiTarget, Learnable, HasPresets, ClockObserver {
   readonly descriptor: PluginDescriptor = {
     id: "template",
     name: "TEMPLATE",
@@ -52,6 +55,8 @@ export class TemplateController extends EventTarget implements InstrumentPlugin,
   private audioContext: AudioContext;
   private state: TemplateState;
   private controlHandlers = new Map<ControlID, ControlHandler>();
+  // observe() may fire before init() creates the node — replayed there.
+  private lastClock: { anchor: TransportAnchor; playing: boolean } | null = null;
 
   constructor(audioContext: AudioContext) {
     super();
@@ -65,6 +70,17 @@ export class TemplateController extends EventTarget implements InstrumentPlugin,
     this.node = new TemplateNode(this.audioContext);
     this.node.connect(this.output);
     this.syncParams();
+    if (this.lastClock) this.onClock(this.lastClock.anchor, this.lastClock.playing);
+  }
+
+  /**
+   * ClockObserver — the shell wires this at mount (transport.observe), so the
+   * master clock always flows to the worklet; whether it is USED is the LFO's
+   * own SYNC param. Fires on start/stop/tempo and once on observe.
+   */
+  onClock(anchor: TransportAnchor, playing: boolean): void {
+    this.lastClock = { anchor, playing };
+    this.node?.setClock(anchor.startFrame, anchor.bpm, playing);
   }
 
   connectAudio(destination: AudioNode): void {
@@ -119,8 +135,15 @@ export class TemplateController extends EventTarget implements InstrumentPlugin,
   }
 
   getLearnableParams(): LearnableParam[] {
-    // Continuous knobs only — the WAVE selector and OCTAVE stepper drive directly.
-    return [ControlID.TPL_ATTACK, ControlID.TPL_RELEASE, ControlID.TPL_LEVEL].map((id) => ({
+    // Continuous knobs only — the WAVE selector and the OCTAVE/DIV steppers
+    // and SYNC toggle drive directly (selectors are never learnable).
+    return [
+      ControlID.TPL_ATTACK,
+      ControlID.TPL_RELEASE,
+      ControlID.TPL_LEVEL,
+      ControlID.TPL_LFO_RATE,
+      ControlID.TPL_LFO_AMT,
+    ].map((id) => ({
       id,
       name: ControlID[id].replace(/^TPL_/, "").replace(/_/g, " "),
     }));
@@ -162,6 +185,38 @@ export class TemplateController extends EventTarget implements InstrumentPlugin,
     this.dispatch(TemplateEvent.AMP, { ...this.state.amp });
   }
 
+  setLfoRate(value: number) {
+    // Ghosted under SYNC exactly like the panel knob: the master clock owns
+    // the rate, so external writers (MIDI-learn CCs, automation) are inert
+    // too — the control handlers route through this setter, which is where
+    // every input path converges (the sequels SEQ_BPM rule).
+    if (this.state.lfo.sync.value >= 64) return;
+    this.state.lfo.rate.value = value;
+    this.sendParam(TemplateParamId.LFO_RATE, value);
+    this.dispatch(TemplateEvent.LFO, { ...this.state.lfo });
+  }
+
+  setLfoAmount(value: number) {
+    this.state.lfo.amount.value = value;
+    this.sendParam(TemplateParamId.LFO_AMOUNT, value);
+    this.dispatch(TemplateEvent.LFO, { ...this.state.lfo });
+  }
+
+  setLfoSync(value: number) {
+    this.state.lfo.sync.value = value;
+    this.sendParam(TemplateParamId.LFO_SYNC, value);
+    this.dispatch(TemplateEvent.LFO, { ...this.state.lfo });
+  }
+
+  setLfoDiv(index: number) {
+    // The controller owns authoritative state: clamp here, not only in the
+    // panel, so programmatic writers can't persist an out-of-range index.
+    const next = Math.max(0, Math.min(DIVISIONS.length - 1, Math.round(index)));
+    this.state.lfo.div.value = next;
+    this.sendParam(TemplateParamId.LFO_DIV, next);
+    this.dispatch(TemplateEvent.LFO, { ...this.state.lfo });
+  }
+
   private sendParam(id: number, value: number) {
     this.node?.setParam(id, value);
   }
@@ -173,6 +228,7 @@ export class TemplateController extends EventTarget implements InstrumentPlugin,
   private notifyStateChange() {
     this.dispatch(TemplateEvent.OSC, { ...this.state.osc });
     this.dispatch(TemplateEvent.AMP, { ...this.state.amp });
+    this.dispatch(TemplateEvent.LFO, { ...this.state.lfo });
   }
 
   private syncParams() {
@@ -183,18 +239,20 @@ export class TemplateController extends EventTarget implements InstrumentPlugin,
     this.sendParam(TemplateParamId.ATTACK, s.amp.attack.value);
     this.sendParam(TemplateParamId.RELEASE, s.amp.release.value);
     this.sendParam(TemplateParamId.LEVEL, s.amp.level.value);
+    this.sendParam(TemplateParamId.LFO_RATE, s.lfo.rate.value);
+    this.sendParam(TemplateParamId.LFO_AMOUNT, s.lfo.amount.value);
+    this.sendParam(TemplateParamId.LFO_SYNC, s.lfo.sync.value);
+    this.sendParam(TemplateParamId.LFO_DIV, s.lfo.div.value);
   }
 
   private initControlHandlers() {
-    const reg = (id: ControlID, paramId: number, update: (v: number) => void) => {
-      this.controlHandlers.set(id, (value: number) => {
-        update(value);
-        this.sendParam(paramId, value);
-        this.dispatch(TemplateEvent.AMP, { ...this.state.amp });
-      });
-    };
-    reg(ControlID.TPL_ATTACK, TemplateParamId.ATTACK, (v) => { this.state.amp.attack.value = v; });
-    reg(ControlID.TPL_RELEASE, TemplateParamId.RELEASE, (v) => { this.state.amp.release.value = v; });
-    reg(ControlID.TPL_LEVEL, TemplateParamId.LEVEL, (v) => { this.state.amp.level.value = v; });
+    // External control writes (MIDI-learn CCs, automation dispatch) route
+    // through the PUBLIC setters, so any gate there (setLfoRate under SYNC)
+    // covers every input path at once.
+    this.controlHandlers.set(ControlID.TPL_ATTACK, (v) => this.setAttack(v));
+    this.controlHandlers.set(ControlID.TPL_RELEASE, (v) => this.setRelease(v));
+    this.controlHandlers.set(ControlID.TPL_LEVEL, (v) => this.setLevel(v));
+    this.controlHandlers.set(ControlID.TPL_LFO_RATE, (v) => this.setLfoRate(v));
+    this.controlHandlers.set(ControlID.TPL_LFO_AMT, (v) => this.setLfoAmount(v));
   }
 }

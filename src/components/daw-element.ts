@@ -25,7 +25,7 @@ import { Channel } from "../midi/types";
 import { SlotConfig, createBranchSlot, createLeafSlot, collectLeafSlots } from "../core/slot";
 import { pluginRegistry, PluginRegistration } from "../core/plugin-registry";
 import type { Plugin, InstrumentPlugin } from "../core/types";
-import { isInstrumentPlugin, isSlotAware, isAudioProducer, isAudioEffect, isAuxOutputProvider, isMidiConsumer, isTransportChild } from "../core/types";
+import { isInstrumentPlugin, isSlotAware, isAudioProducer, isAudioEffect, isAuxOutputProvider, isClockObserver, isMidiConsumer, isTransportChild } from "../core/types";
 import { RackSession, RackSlotEntry, loadRackSession, saveRackSession } from "../core/rack-storage";
 import { getBindingManager } from "../control/binding-manager";
 import { getParamDirectory } from "../control/param-directory";
@@ -352,6 +352,9 @@ export class Daw extends LitElement {
     // Every mount path converges here — the automation address book sees
     // every learnable device (register no-ops for the rest).
     getParamDirectory().register(slot.id, slot.name, plugin);
+    // The passive clock feed (synced LFOs): wired unconditionally, unlike
+    // the per-slot SYNC opt-in (wireSync) — observe pushes the clock now.
+    if (isClockObserver(plugin)) this.transport.observe(plugin);
     return plugin;
   }
 
@@ -508,6 +511,7 @@ export class Daw extends LitElement {
     // Out of the automation address book FIRST: no tick may dispatch into a
     // plugin that is ramping down or disposed.
     getParamDirectory().unregister(slotId);
+    if (isClockObserver(plugin)) this.transport.unobserve(plugin);
 
     // Ramp to silence before teardown so the unmount never clicks.
     if (isAudioProducer(plugin)) {

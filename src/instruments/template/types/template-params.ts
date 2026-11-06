@@ -19,12 +19,16 @@
 // PARAM_COUNT in template-processor.js. The check:conventions script asserts it.
 // Append only — never renumber, presets store the raw indices.
 export const TemplateParamId = Object.freeze({
-  WAVE: 0,    // discrete: 0 sine, 1 saw, 2 square  → mode-selector buttons
-  OCTAVE: 1,  // discrete: 0..4 == -2..+2 octaves   → stepper
-  ATTACK: 2,  // continuous 0..127                  → knob
-  RELEASE: 3, // continuous 0..127                  → knob
-  LEVEL: 4,   // continuous 0..127                  → knob
-  PARAM_COUNT: 5,
+  WAVE: 0,       // discrete: 0 sine, 1 saw, 2 square  → mode-selector buttons
+  OCTAVE: 1,     // discrete: 0..4 == -2..+2 octaves   → stepper
+  ATTACK: 2,     // continuous 0..127                  → knob
+  RELEASE: 3,    // continuous 0..127                  → knob
+  LEVEL: 4,      // continuous 0..127                  → knob
+  LFO_RATE: 5,   // continuous 0..127 → 0..25 Hz free  → knob (ghosted under SYNC)
+  LFO_AMOUNT: 6, // continuous 0..127 → 0..±1 st vib   → knob
+  LFO_SYNC: 7,   // toggle 0|127: follow master clock  → SYNC button
+  LFO_DIV: 8,    // discrete: index into DIVISIONS     → stepper (ghosted when free)
+  PARAM_COUNT: 9,
 });
 
 // Discrete option sets, mirrored by the worklet.

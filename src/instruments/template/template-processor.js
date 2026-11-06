@@ -28,11 +28,20 @@ const OCTAVE = 1;
 const ATTACK = 2;
 const RELEASE = 3;
 const LEVEL = 4;
-const PARAM_COUNT = 5;
+const LFO_RATE = 5;
+const LFO_AMOUNT = 6;
+const LFO_SYNC = 7;
+const LFO_DIV = 8;
+const PARAM_COUNT = 9;
 
 // Raw 0..127 → real units. The engine owns the mapping (controller sends raw).
 const attackSeconds = (raw) => 0.002 + (raw / 127) * 1.5;
 const releaseSeconds = (raw) => 0.01 + (raw / 127) * 2.0;
+const lfoHz = (raw) => (raw / 127) * 25; // mirrors dsp/range.h lfoFrequencyRange
+
+// Beats per synced LFO cycle, by DIV index — mirrors core/divisions.ts
+// ("4B".."1/32") by hand, the dischord table idiom.
+const DIV_BEATS = [16, 8, 4, 2, 1, 0.5, 0.25, 0.125];
 
 // PolyBLEP residual for a unit-period phase t with per-sample increment dt —
 // the house band-limiting idiom (mirrors dsp/oscillator.h). Sign convention:
@@ -60,11 +69,18 @@ class TemplateProcessor extends AudioWorkletProcessor {
     this._freq = 440;
     this._velocity = 1;
     this._levelSm = 0;
+    // Vibrato LFO: free-run phase accumulator, plus the master-clock snapshot
+    // the __clock message keeps current (start/stop/tempo only — beats are
+    // derived locally from `currentFrame` every block, never streamed).
+    this._lfoPhase = 0;
+    this._clock = { anchorFrame: 0, bpm: 120, playing: false };
     this._alive = true;
     this.port.onmessage = (e) => {
       if (e.data && e.data.type === "__init_sab") {
         this._params = new Float32Array(e.data.paramBuffer);
         this._midi = createMidiDrain(e.data.midiBuffer);
+      } else if (e.data && e.data.type === "__clock") {
+        this._clock = { anchorFrame: e.data.anchorFrame, bpm: e.data.bpm, playing: e.data.playing };
       } else if (e.data && e.data.type === "__dispose") {
         // Returning false from process() lets the node be garbage collected.
         this._alive = false;
@@ -102,9 +118,31 @@ class TemplateProcessor extends AudioWorkletProcessor {
     const octaveShift = (p[OCTAVE] | 0) - 2;
     const level = p[LEVEL] / 127;
     const freq = this._freq * Math.pow(2, octaveShift);
-    const inc = freq / sampleRate;
+    const baseInc = freq / sampleRate;
     const aRate = 1 / Math.max(1, attackSeconds(p[ATTACK]) * sampleRate);
     const rRate = 1 / Math.max(1, releaseSeconds(p[RELEASE]) * sampleRate);
+
+    // Vibrato LFO. Synced, the phase is an ABSOLUTE readout of the master
+    // clock, not an accumulator: beats since the shared anchor (both sides of
+    // the subtraction are doubles on the same AudioContext timeline) divided
+    // by the cycle length, fractional part. A tempo change re-anchors on the
+    // main thread so beats stay continuous; a master start moves the anchor,
+    // snapping the phase to the shared downbeat; while stopped the stale
+    // anchor keeps counting, so the LFO free-wheels at the tempo rate.
+    const lfoAmtSt = p[LFO_AMOUNT] / 127; // 0..±1 semitone at full depth
+    const lfoSynced = p[LFO_SYNC] >= 0.5;
+    let lfoPhase;
+    let lfoInc;
+    if (lfoSynced) {
+      const divBeats = DIV_BEATS[p[LFO_DIV] | 0] || 1;
+      const beats = ((currentFrame - this._clock.anchorFrame) / sampleRate) * (this._clock.bpm / 60);
+      const cycles = beats / divBeats;
+      lfoPhase = cycles - Math.floor(cycles); // floor-frac: beats are negative pre-anchor
+      lfoInc = this._clock.bpm / 60 / divBeats / sampleRate;
+    } else {
+      lfoPhase = this._lfoPhase;
+      lfoInc = lfoHz(p[LFO_RATE]) / sampleRate;
+    }
 
     const ch0 = out[0];
     const ch1 = out[1];
@@ -113,6 +151,15 @@ class TemplateProcessor extends AudioWorkletProcessor {
       this._env = this._gate
         ? Math.min(1, this._env + aRate)
         : Math.max(0, this._env - rRate);
+
+      // Pitch modulation is exponential (house rule): semitones, not Hz.
+      let inc = baseInc;
+      if (lfoAmtSt > 0) {
+        const vib = Math.sin(2 * Math.PI * lfoPhase);
+        inc = baseInc * Math.pow(2, (vib * lfoAmtSt) / 12);
+      }
+      lfoPhase += lfoInc;
+      if (lfoPhase >= 1) lfoPhase -= 1;
 
       // Oscillator — band-limited (see polyBlep above).
       let s;
@@ -136,6 +183,8 @@ class TemplateProcessor extends AudioWorkletProcessor {
       ch0[i] = y;
       if (ch1) ch1[i] = y;
     }
+    // Only the free-run phase persists; the synced one is re-derived next block.
+    if (!lfoSynced) this._lfoPhase = lfoPhase;
 
     return true;
   }

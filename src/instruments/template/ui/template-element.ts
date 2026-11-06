@@ -24,6 +24,8 @@ import { TemplateState } from "../types/template-state";
 import { TemplateEvent } from "../types/template-event";
 import { TemplateWave } from "../types/template-params";
 
+import { DIVISIONS } from "../../../core/divisions";
+
 import "../../../components/common/controls/knob-element";
 import "../../../components/common/controls/control-learn-wrapper";
 
@@ -52,6 +54,9 @@ export class TemplateElement extends LitElement {
   @state()
   private amp: TemplateState["amp"] | null = null;
 
+  @state()
+  private lfo: TemplateState["lfo"] | null = null;
+
   private get controller(): TemplateController {
     return this.plugin as TemplateController;
   }
@@ -61,6 +66,7 @@ export class TemplateElement extends LitElement {
   // unsubscribe or the controller keeps it alive forever.
   private onOsc = (e: Event) => { this.osc = { ...(e as CustomEvent).detail }; };
   private onAmp = (e: Event) => { this.amp = { ...(e as CustomEvent).detail }; };
+  private onLfo = (e: Event) => { this.lfo = { ...(e as CustomEvent).detail }; };
 
   connectedCallback() {
     super.connectedCallback();
@@ -68,8 +74,10 @@ export class TemplateElement extends LitElement {
     const s = this.controller.getState();
     this.osc = s.osc;
     this.amp = s.amp;
+    this.lfo = s.lfo;
     this.controller.addEventListener(TemplateEvent.OSC, this.onOsc);
     this.controller.addEventListener(TemplateEvent.AMP, this.onAmp);
+    this.controller.addEventListener(TemplateEvent.LFO, this.onLfo);
   }
 
   disconnectedCallback() {
@@ -77,11 +85,13 @@ export class TemplateElement extends LitElement {
     if (!this.plugin) return;
     this.controller.removeEventListener(TemplateEvent.OSC, this.onOsc);
     this.controller.removeEventListener(TemplateEvent.AMP, this.onAmp);
+    this.controller.removeEventListener(TemplateEvent.LFO, this.onLfo);
   }
 
   render() {
-    if (!this.osc || !this.amp) return html``;
+    if (!this.osc || !this.amp || !this.lfo) return html``;
     const shift = this.osc.octave.value - 2;
+    const synced = this.lfo.sync.value >= 64;
     return html`
       <div class="synth">
         <div class="zone osc">
@@ -114,11 +124,46 @@ export class TemplateElement extends LitElement {
             ${this.knob("LVL", ControlID.TPL_LEVEL, this.amp.level.value, (v) => this.controller.setLevel(v))}
           </div>
         </div>
+
+        <div class="zone lfo">
+          <label class="zone-label">LFO</label>
+          <div class="lfo-row">
+            <button
+              class=${classMap({ "name-btn": true, "sync-btn": true, active: synced })}
+              title="follow the master clock"
+              @click=${() => this.controller.setLfoSync(synced ? 0 : 127)}
+            >SYNC</button>
+            <div class="stepper" title=${synced ? "Cycle length — follows the master clock" : "Free-running — SYNC hands the cycle to the master clock"}>
+              <label class="ctrl-label">DIV</label>
+              <button class="inc-btn" ?disabled=${!synced} @click=${() => this.setLfoDiv(this.lfo!.div.value - 1)}>-</button>
+              <lcd-element .text=${DIVISIONS[this.lfo.div.value]?.label ?? "?"}></lcd-element>
+              <button class="inc-btn" ?disabled=${!synced} @click=${() => this.setLfoDiv(this.lfo!.div.value + 1)}>+</button>
+            </div>
+          </div>
+          <div class="knobs">
+            ${this.knob(
+              "RATE",
+              ControlID.TPL_LFO_RATE,
+              this.lfo.rate.value,
+              (v) => this.controller.setLfoRate(v),
+              synced,
+              "Free-run speed — the master clock sets the rate while SYNC is on"
+            )}
+            ${this.knob("AMT", ControlID.TPL_LFO_AMT, this.lfo.amount.value, (v) => this.controller.setLfoAmount(v))}
+          </div>
+        </div>
       </div>
     `;
   }
 
-  private knob(label: string, controlID: ControlID, value: number, onChange: (v: number) => void) {
+  private knob(
+    label: string,
+    controlID: ControlID,
+    value: number,
+    onChange: (v: number) => void,
+    disabled = false,
+    title = ""
+  ) {
     return html`
       <control-learn-wrapper .controlID=${controlID}>
         <knob-element
@@ -126,6 +171,8 @@ export class TemplateElement extends LitElement {
           .range=${{ min: 0, max: 127 }}
           .step=${1}
           .label=${label}
+          ?disabled=${disabled}
+          title=${title}
           @change=${(e: CustomEvent) => onChange(e.detail.value)}
         ></knob-element>
       </control-learn-wrapper>
@@ -134,6 +181,11 @@ export class TemplateElement extends LitElement {
 
   private setOctave(next: number) {
     this.controller.setOctave(Math.max(0, Math.min(4, next)));
+  }
+
+  private setLfoDiv(next: number) {
+    // Clamp, don't wrap — the MOTION stepper convention for ordered scales.
+    this.controller.setLfoDiv(Math.max(0, Math.min(DIVISIONS.length - 1, next)));
   }
 
   static styles = css`
@@ -165,6 +217,23 @@ export class TemplateElement extends LitElement {
     }
     .zone.osc { background: var(--template-osc-panel-color, #2f2f31); }
     .zone.amp { background: var(--template-amp-panel-color, #2f2f31); }
+    .zone.lfo {
+      background: var(--template-lfo-panel-color, #2f2f31);
+      grid-column: 1 / -1; /* full-width second row — compact-first */
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .zone.lfo .zone-label { align-self: center; }
+
+    .lfo-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6em;
+    }
+    /* A toggle, not a mode selector: don't stretch like the WAVE buttons. */
+    .sync-btn { flex: 0 0 auto; padding: 0.35em 0.8em; }
 
     .zone-label {
       align-self: flex-start;
@@ -221,6 +290,15 @@ export class TemplateElement extends LitElement {
       cursor: pointer;
     }
     .inc-btn:hover { background: var(--medium); }
+    /* Conditional relevance: a control that does nothing in the current mode
+     * stays in place and GHOSTS (never leaves the layout). */
+    .inc-btn:disabled,
+    .name-btn:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+    .inc-btn:disabled:hover,
+    .name-btn:disabled:hover { background: var(--dark-secondary); }
 
     .knobs {
       display: flex;

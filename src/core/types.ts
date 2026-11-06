@@ -139,6 +139,21 @@ export interface TransportChild {
   onMasterTempo(bpm: number): void;
 }
 
+/**
+ * A passive listener on the master clock — the tempo feed for in-engine
+ * modulation (synced instrument LFOs). Unlike TransportChild (the per-slot
+ * SYNC opt-in, which renders the slot SYNC button and quantizes launches),
+ * observers are wired unconditionally at mount: the clock always flows, and
+ * the device's own controls (an LFO's SYNC toggle) decide whether it is
+ * used. onClock fires with the anchor already in place — after
+ * beginPlayback, after stop, after the setBpm re-anchor — and once
+ * immediately on observe, so a processor can derive beats locally from
+ * `(currentFrame − anchor.startFrame)` every block with no further messages.
+ */
+export interface ClockObserver {
+  onClock(anchor: TransportAnchor, playing: boolean): void;
+}
+
 export interface PresetEntry {
   name: string;
   state: unknown;
@@ -211,6 +226,10 @@ export function isAuxOutputProvider(plugin: Plugin): plugin is Plugin & HasAuxOu
 
 export function isTransportChild(plugin: Plugin): plugin is Plugin & TransportChild {
   return "onMasterStart" in plugin && "onMasterTempo" in plugin;
+}
+
+export function isClockObserver(plugin: Plugin): plugin is Plugin & ClockObserver {
+  return "onClock" in plugin;
 }
 
 export function isPatternAddressable(plugin: Plugin): plugin is Plugin & PatternAddressable {

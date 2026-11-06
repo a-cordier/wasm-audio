@@ -25,11 +25,15 @@ interface Field {
 export interface TemplateState {
   osc: { wave: Field; octave: Field };
   amp: { attack: Field; release: Field; level: Field };
+  lfo: { rate: Field; amount: Field; sync: Field; div: Field };
 }
 
 const DEFAULTS: TemplateState = {
   osc: { wave: { value: TemplateWave.SAW }, octave: { value: 2 } }, // octave 2 == 0 shift
   amp: { attack: { value: 6 }, release: { value: 40 }, level: { value: 100 } },
+  // amount 0: INIT sounds exactly like the pre-LFO template. div 4 = "1/4"
+  // (one beat — 2 Hz at 120), the house default for a synced instrument LFO.
+  lfo: { rate: { value: 30 }, amount: { value: 0 }, sync: { value: 0 }, div: { value: 4 } },
 };
 
 /**
@@ -55,5 +59,6 @@ export function createTemplateState(partial: Partial<TemplateState> = {}): Templ
   return {
     osc: mergeSection(DEFAULTS.osc, partial.osc),
     amp: mergeSection(DEFAULTS.amp, partial.amp),
+    lfo: mergeSection(DEFAULTS.lfo, partial.lfo),
   };
 }

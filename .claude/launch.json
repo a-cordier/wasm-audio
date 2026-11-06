@@ -3,6 +3,8 @@
   "configurations": [
     {
       "name": "wasm-audio-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite"],
       "url": "http://localhost:5173",
       "port": 5173
     }

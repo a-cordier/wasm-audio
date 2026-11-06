@@ -68,4 +68,15 @@ export class TemplateNode extends WasmProcessorNode implements MidiTarget {
   setParam(id: number, value: number) {
     this.params.set(id, value);
   }
+
+  /**
+   * Master-clock snapshot for the synced LFO. anchorFrame is the anchor's
+   * UNWRAPPED context frame (the mod 2^24 wrap is a Float32-ring constraint;
+   * port messages and the worklet's `currentFrame` are doubles): the
+   * processor derives beats locally every block, so this is only re-sent on
+   * start/stop/tempo — never at tick rate.
+   */
+  setClock(anchorFrame: number, bpm: number, playing: boolean) {
+    this.send({ type: "__clock", anchorFrame, bpm, playing });
+  }
 }
