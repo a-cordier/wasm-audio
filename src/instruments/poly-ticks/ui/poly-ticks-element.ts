@@ -227,6 +227,8 @@ export class WasmPoly extends LitElement {
       case LfoEvent.FREQUENCY: this.voiceManager.setLfo1Frequency(event.detail.value as number); break;
       case LfoEvent.MOD_AMOUNT: this.voiceManager.setLfo1ModAmount(event.detail.value as number); break;
       case LfoEvent.DESTINATION: this.voiceManager.setLfo1Destination(event.detail.value as number); break;
+      case LfoEvent.SYNC: this.voiceManager.setLfo1Sync(event.detail.value as number); break;
+      case LfoEvent.DIV: this.voiceManager.setLfo1Div(event.detail.value as number); break;
       default: assertNever(event.detail.type);
     }
   }
@@ -237,6 +239,8 @@ export class WasmPoly extends LitElement {
       case LfoEvent.FREQUENCY: this.voiceManager.setLfo2Frequency(event.detail.value as number); break;
       case LfoEvent.MOD_AMOUNT: this.voiceManager.setLfo2ModAmount(event.detail.value as number); break;
       case LfoEvent.DESTINATION: this.voiceManager.setLfo2Destination(event.detail.value as number); break;
+      case LfoEvent.SYNC: this.voiceManager.setLfo2Sync(event.detail.value as number); break;
+      case LfoEvent.DIV: this.voiceManager.setLfo2Div(event.detail.value as number); break;
       default: assertNever(event.detail.type);
     }
   }
@@ -391,7 +395,7 @@ export class WasmPoly extends LitElement {
       }
 
       .panels-row.lower {
-        grid-template-columns: 6fr 5fr 5fr 6fr 3fr;
+        grid-template-columns: 6fr 5.25fr 5.25fr 5.5fr 3fr;
       }
 
       .keyboard {

@@ -42,6 +42,8 @@ export interface LFOState {
   frequency: Control;
   modAmount: Control;
   destination: Control;
+  sync: Control;
+  div: Control;
 }
 
 export interface VoiceConfigState {
@@ -90,8 +92,10 @@ const DEFAULTS: VoiceState = {
   envelope: { attack: { value: 0 }, decay: { value: 63 }, sustain: { value: 80 }, release: { value: 20 } },
   filter: { mode: { value: 0 }, cutoff: { value: 127 }, resonance: { value: 0 }, drive: { value: 0 } },
   cutoffMod: { attack: { value: 0 }, decay: { value: 0 }, amount: { value: 0 }, velocity: { value: 0 } },
-  lfo1: { mode: { value: 0 }, frequency: { value: 0 }, modAmount: { value: 0 }, destination: { value: 0 } },
-  lfo2: { mode: { value: 0 }, frequency: { value: 0 }, modAmount: { value: 0 }, destination: { value: 0 } },
+  // sync/div appended for tempo sync (div 4 = "1/4", one beat) — new fields
+  // flow through mergeSection, so old presets keep loading.
+  lfo1: { mode: { value: 0 }, frequency: { value: 0 }, modAmount: { value: 0 }, destination: { value: 0 }, sync: { value: 0 }, div: { value: 4 } },
+  lfo2: { mode: { value: 0 }, frequency: { value: 0 }, modAmount: { value: 0 }, destination: { value: 0 }, sync: { value: 0 }, div: { value: 4 } },
   voiceConfig: { voiceMode: { value: 0 }, glideTime: { value: 0 }, retrigger: { value: 1 } },
   routing: { routing: { value: 0 }, fmIndex: { value: 0 }, subLevel: { value: 31.75 } },
   space: { spread: { value: 0 }, width: { value: 0 }, drift: { value: 0 } },

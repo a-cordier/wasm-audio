@@ -19,6 +19,7 @@
 #include "dc-blocker.h"
 #include "envelope.h"
 #include "filter.h"
+#include "lfo.h"
 #include "oscillator.h"
 #include "oversampling.h"
 #include "range.h"
@@ -120,6 +121,17 @@ namespace Voice {
 		float subLevel;
 		float stereoWidth;
 		float pan;
+		// Tempo sync (appended): per-block absolute master-clock phase +
+		// per-sample increment per LFO, identical for every voice — which
+		// is exactly what makes a chord's synced LFOs phase-coherent.
+		uint32_t lfo1Synced;
+		float lfo1SyncPhase01;
+		float lfo1SyncInc;
+		float lfo1SyncHz;
+		uint32_t lfo2Synced;
+		float lfo2SyncPhase01;
+		float lfo2SyncInc;
+		float lfo2SyncHz;
 	};
 
 	class Kernel {
@@ -129,8 +141,12 @@ namespace Voice {
 			osc1(Oscillator::Kernel{ sampleRate }),
 			osc2(Oscillator::Kernel{ sampleRate }),
 			subOsc(sampleRate),
-			lfo1(Oscillator::Kernel{ sampleRate }),
-			lfo2(Oscillator::Kernel{ sampleRate }),
+			// LFOKernel (shared with monolog, dsp/lfo.h): unit amplitude by
+			// construction — the mod-amount mapping is halved to compensate,
+			// so existing presets keep their depth — NOISE is true
+			// sample-and-hold, and nextSampleAt is the tempo-sync path.
+			lfo1(sampleRate),
+			lfo2(sampleRate),
 			amplitudeEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.5f, 0.5f, 0.9f }),
 			filter(sampleRate),
 			dcBlockerLeft(sampleRate),
@@ -138,13 +154,7 @@ namespace Voice {
 			cutoffEnvelope(Envelope::Kernel{ sampleRate, 1.f, 0.f, 0.01f, 2.f, 0.f }),
 			state(State::DISPOSED),
 			sampleRate(sampleRate),
-			renderFrames(renderFrames) {
-			// Unit-amplitude LFOs (the house convention, matching monolog);
-			// the mod-amount mapping is halved to compensate, so existing
-			// presets keep their depth.
-			lfo1.setAmplitude(1.f);
-			lfo2.setAmplitude(1.f);
-		}
+			renderFrames(renderFrames) {}
 
 		// Writes planar channels: channel n starts at outputPtr + n * renderFrames,
 		// matching the layout the worklet reads back out of the WASM heap.
@@ -201,6 +211,16 @@ namespace Voice {
 			lfo1Destination = static_cast<LfoDestination>(block->lfo1Destination);
 			lfo2.setMode(static_cast<Oscillator::Mode>(block->lfo2Mode));
 			lfo2Destination = static_cast<LfoDestination>(block->lfo2Destination);
+			// Synced LFO phase re-seeds from the clock every block (absolute
+			// readout, never an accumulator) and advances per sample below.
+			lfo1Synced = block->lfo1Synced != 0;
+			lfo1SyncPhase = block->lfo1SyncPhase01;
+			lfo1SyncInc = block->lfo1SyncInc;
+			lfo1SyncHz = block->lfo1SyncHz;
+			lfo2Synced = block->lfo2Synced != 0;
+			lfo2SyncPhase = block->lfo2SyncPhase01;
+			lfo2SyncInc = block->lfo2SyncInc;
+			lfo2SyncHz = block->lfo2SyncHz;
 
 			sampleParameters.frequencyValues = reinterpret_cast<float *>(block->frequencyPtr);
 			sampleParameters.osc2AmplitudeValues = reinterpret_cast<float *>(block->osc2AmplitudePtr);
@@ -564,8 +584,28 @@ namespace Voice {
 		}
 
 		void applyModulations() {
-			float lfo1Mod = sampleParameters.lfo1ModAmount * lfo1.nextSample(sampleParameters.lfo1Frequency);
-			float lfo2Mod = sampleParameters.lfo2ModAmount * lfo2.nextSample(sampleParameters.lfo2Frequency);
+			// Synced: the phase is forced from the master clock (advanced per
+			// sample from the block-start seed), so every voice of a chord
+			// wobbles together on the shared downbeat and PHASE_DRIFT's
+			// randomised LFO start phases are naturally inert.
+			float lfo1Raw;
+			if (lfo1Synced) {
+				lfo1Raw = lfo1.nextSampleAt(lfo1SyncPhase, lfo1SyncHz);
+				lfo1SyncPhase += lfo1SyncInc;
+				if (lfo1SyncPhase >= 1.f) lfo1SyncPhase -= 1.f;
+			} else {
+				lfo1Raw = lfo1.nextSample(sampleParameters.lfo1Frequency);
+			}
+			float lfo2Raw;
+			if (lfo2Synced) {
+				lfo2Raw = lfo2.nextSampleAt(lfo2SyncPhase, lfo2SyncHz);
+				lfo2SyncPhase += lfo2SyncInc;
+				if (lfo2SyncPhase >= 1.f) lfo2SyncPhase -= 1.f;
+			} else {
+				lfo2Raw = lfo2.nextSample(sampleParameters.lfo2Frequency);
+			}
+			float lfo1Mod = sampleParameters.lfo1ModAmount * lfo1Raw;
+			float lfo2Mod = sampleParameters.lfo2ModAmount * lfo2Raw;
 			// CUT VEL scales the envelope's depth by velocity rather than
 			// adding a constant offset — a static filter opening is not
 			// velocity sensitivity.
@@ -638,11 +678,19 @@ namespace Voice {
 		Oscillator::NoiseKernel noise;
 		SubOsc subOsc;
 
-		Oscillator::Kernel lfo1;
+		LFOKernel lfo1;
 		LfoDestination lfo1Destination = LfoDestination::FREQUENCY;
+		bool lfo1Synced = false;
+		float lfo1SyncPhase = 0.f;
+		float lfo1SyncInc = 0.f;
+		float lfo1SyncHz = 1.f;
 
-		Oscillator::Kernel lfo2;
+		LFOKernel lfo2;
 		LfoDestination lfo2Destination = LfoDestination::FREQUENCY;
+		bool lfo2Synced = false;
+		float lfo2SyncPhase = 0.f;
+		float lfo2SyncInc = 0.f;
+		float lfo2SyncHz = 1.f;
 
 		Envelope::Kernel amplitudeEnvelope;
 

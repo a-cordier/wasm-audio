@@ -17,7 +17,7 @@ import { createWasmProcessor } from "./wasm-worklet-processor.js";
 import { createMidiDrain } from "./worklet-drain.js";
 import createModule from "./voice-kernel.wasmmodule.js";
 
-const PARAM_COUNT = 39;
+const PARAM_COUNT = 43;
 
 const wasm = await createModule();
 
@@ -36,10 +36,24 @@ createWasmProcessor(wasm, {
       state.last = new Float32Array(PARAM_COUNT).fill(NaN);
       return;
     }
+    if (msg.type === "__clock") {
+      // Master-clock snapshot (anchor frame UNWRAPPED — doubles, not the
+      // Float32 ring's mod-2^24 frames). Sent on start/stop/tempo only;
+      // beats are derived locally from currentFrame every block.
+      state.clock = { anchorFrame: msg.anchorFrame, bpm: msg.bpm };
+      return;
+    }
   },
 
   onProcess(wasm, engine, state) {
     if (!state.params) return;
+
+    // Feed the engine this block's clock position for the tempo-synced
+    // LFOs: phase becomes an absolute readout of the master clock.
+    if (state.clock) {
+      const beats = ((currentFrame - state.clock.anchorFrame) / sampleRate) * (state.clock.bpm / 60);
+      wasm._synth_engine_set_clock(engine, beats, state.clock.bpm);
+    }
 
     // Only events due within THIS block are taken; frame-stamped events
     // from the sequencer's lookahead stay in the ring until their block.

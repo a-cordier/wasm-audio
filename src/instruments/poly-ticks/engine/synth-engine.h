@@ -64,7 +64,13 @@ enum class ParamId : int {
 	STEREO_SPREAD,
 	STEREO_WIDTH,
 	PHASE_DRIFT,
-	PARAM_COUNT,
+	LFO1_SYNC,
+	LFO1_DIV,
+	LFO2_SYNC,
+	LFO2_DIV,
+	// Explicit value so the check:conventions regex sees this layer too
+	// (an implicit trailing member is invisible to it). Append-only.
+	PARAM_COUNT = 43,
 };
 
 class SynthEngine {
@@ -136,6 +142,11 @@ class SynthEngine {
 	float glideTo = 440.f;
 	float glidePhase = 1.f;
 
+	// Master-clock feed (setClock): beats at block start + tempo. The 120
+	// default keeps a synced LFO musical before the first clock message.
+	double clockBeats = 0.0;
+	double clockBpm = 120.0;
+
 public:
 	SynthEngine(float sr, float rf)
 		: renderFrames(std::min(static_cast<unsigned>(rf), MAX_FRAMES)), sampleRate(sr) {
@@ -178,6 +189,14 @@ public:
 		}
 	}
 
+	// Master-clock feed, called once per block by the processor: beats
+	// elapsed since the shared anchor at THIS block's start plus the master
+	// tempo. Synced LFO phase is an absolute readout of it (monolog's rule).
+	void setClock(double beats, double bpm) {
+		clockBeats = beats;
+		clockBpm = bpm;
+	}
+
 	void process(uintptr_t outputPtr, unsigned channelCount) {
 		float *output = reinterpret_cast<float *>(outputPtr);
 
@@ -215,6 +234,11 @@ public:
 			compGain += compAlpha * (compTarget - compGain);
 			compBuf[s] = compGain;
 		}
+
+		// Tempo sync, once per block and shared by every voice: each synced
+		// LFO's absolute clock phase at block start + per-sample increment.
+		SyncState lfo1Sync = computeSync(ParamId::LFO1_SYNC, ParamId::LFO1_DIV);
+		SyncState lfo2Sync = computeSync(ParamId::LFO2_SYNC, ParamId::LFO2_DIV);
 
 		for (auto &slot : voices) {
 			if (!slot.active) continue;
@@ -263,6 +287,14 @@ public:
 			block.subLevel = params[pi(ParamId::SUB_LEVEL)];
 			block.stereoWidth = smoothedWidth;
 			block.pan = voicePan(slot.midiNote);
+			block.lfo1Synced = lfo1Sync.on ? 1u : 0u;
+			block.lfo1SyncPhase01 = lfo1Sync.phase01;
+			block.lfo1SyncInc = lfo1Sync.incPerSample;
+			block.lfo1SyncHz = lfo1Sync.hz;
+			block.lfo2Synced = lfo2Sync.on ? 1u : 0u;
+			block.lfo2SyncPhase01 = lfo2Sync.phase01;
+			block.lfo2SyncInc = lfo2Sync.incPerSample;
+			block.lfo2SyncHz = lfo2Sync.hz;
 
 			slot.kernel.setParameters(reinterpret_cast<uintptr_t>(&block));
 			slot.kernel.process(reinterpret_cast<uintptr_t>(voiceOutputBuf), stereoChannels);
@@ -299,6 +331,26 @@ public:
 private:
 	static int pi(ParamId id) { return static_cast<int>(id); }
 	uint32_t pui(ParamId id) { return static_cast<uint32_t>(params[pi(id)]); }
+
+	struct SyncState {
+		bool on = false;
+		float phase01 = 0.f;
+		float incPerSample = 0.f;
+		float hz = 1.f;
+	};
+
+	SyncState computeSync(ParamId syncId, ParamId divId) const {
+		SyncState s;
+		s.on = params[pi(syncId)] >= 0.5f;
+		if (!s.on) return s;
+		int divIdx = std::clamp(static_cast<int>(params[pi(divId)]), 0, kNumDivisions - 1);
+		double divBeats = kDivBeats[divIdx];
+		double cycles = clockBeats / divBeats;
+		s.phase01 = static_cast<float>(cycles - std::floor(cycles));
+		s.hz = static_cast<float>(clockBpm / (60.0 * divBeats));
+		s.incPerSample = s.hz / sampleRate;
+		return s;
+	}
 
 	bool isMono() const { return params[pi(ParamId::VOICE_MODE)] >= 0.5f; }
 	bool isRetrigger() const { return params[pi(ParamId::RETRIGGER)] >= 0.5f; }

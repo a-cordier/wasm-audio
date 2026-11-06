@@ -33,7 +33,7 @@ build: $(OUT) $(MONOLOG_OUT)
 
 $(OUT): $(DEPS)
 	$(EMCC) $(EMCC_FLAGS) \
-		-sEXPORTED_FUNCTIONS="['_malloc','_free','_voice_kernel_create','_voice_kernel_destroy','_voice_kernel_process','_voice_kernel_set_parameters','_voice_kernel_enter_release_stage','_voice_kernel_is_stopped','_voice_kernel_reset','_synth_engine_create','_synth_engine_destroy','_synth_engine_note_on','_synth_engine_note_off','_synth_engine_set_param','_synth_engine_process']" \
+		-sEXPORTED_FUNCTIONS="['_malloc','_free','_voice_kernel_create','_voice_kernel_destroy','_voice_kernel_process','_voice_kernel_set_parameters','_voice_kernel_enter_release_stage','_voice_kernel_is_stopped','_voice_kernel_reset','_synth_engine_create','_synth_engine_destroy','_synth_engine_note_on','_synth_engine_note_off','_synth_engine_set_param','_synth_engine_set_clock','_synth_engine_process']" \
 		-sEXPORTED_RUNTIME_METHODS="['HEAPF32','HEAPU32']" \
 		-I $(ENGINE) \
 		$(ENGINE)/voice-kernel.cpp \

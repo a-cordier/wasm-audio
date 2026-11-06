@@ -76,6 +76,16 @@ class LFOKernel {
 		osc.reset();
 	}
 
+	// Phase-drift support (poly-ticks): restart at a given phase, and expose
+	// the oscillator's RNG so drift can randomise the start point.
+	void reset(float startPhase) {
+		osc.reset(startPhase);
+	}
+
+	float randomPhase() {
+		return osc.randomPhase();
+	}
+
 	private:
 	Oscillator::Kernel osc;
 	Oscillator::Mode mode = Oscillator::Mode::SINE;

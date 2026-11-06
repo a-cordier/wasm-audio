@@ -61,9 +61,13 @@ export const ParamId = Object.freeze({
   STEREO_SPREAD: 36,
   STEREO_WIDTH: 37,
   PHASE_DRIFT: 38,
+  LFO1_SYNC: 39, // toggle 0|127: LFO1 follows the master clock
+  LFO1_DIV: 40, // discrete: index into DIVISIONS (core/divisions.ts)
+  LFO2_SYNC: 41,
+  LFO2_DIV: 42,
 });
 
-const PARAM_COUNT = 39;
+const PARAM_COUNT = 43;
 // 256: a stopped sequencer releases its sounding notes in one synchronous
 // burst, and lookahead-scheduled events occupy slots between blocks — 64
 // overflowed under dense sequences.
@@ -128,5 +132,15 @@ export class SynthNode extends WasmProcessorNode implements MidiTarget {
 
   setParam(id: number, value: number) {
     this.params.set(id, value);
+  }
+
+  /**
+   * Master-clock snapshot for the synced LFOs. anchorFrame is the anchor's
+   * UNWRAPPED context frame (port messages and the worklet's `currentFrame`
+   * are doubles; mod 2^24 is a Float32-ring constraint). Re-sent only on
+   * start/stop/tempo — the processor derives beats locally every block.
+   */
+  setClock(anchorFrame: number, bpm: number, playing: boolean) {
+    this.send({ type: "__clock", anchorFrame, bpm, playing });
   }
 }

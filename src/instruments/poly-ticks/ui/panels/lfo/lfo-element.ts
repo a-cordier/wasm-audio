@@ -21,7 +21,11 @@ import { LfoDestination } from "../../../types/lfo-destination";
 import { LFOState } from "../../../types/voice";
 import { SelectOptions } from "../../../../../types/select-option";
 import { ControlID } from "../../../../../control/types";
+import { DIVISIONS, stepDivision } from "../../../../../core/divisions";
 import { SynthPanel } from "../../../../../components/common/synth-panel";
+import { classMap } from "lit/directives/class-map.js";
+
+import "../../../../../components/common/lcd/lcd-element";
 
 @customElement("lfo-element")
 export class Lfo extends SynthPanel {
@@ -43,6 +47,8 @@ export class Lfo extends SynthPanel {
   ]);
 
   render() {
+    const synced = (this.state.sync?.value ?? 0) >= 64;
+    const div = this.state.div?.value ?? 4;
     return html`
       <panel-wrapper-element label=${this.label}>
         <div class="lfo-controls">
@@ -59,12 +65,29 @@ export class Lfo extends SynthPanel {
               @change=${(e: CustomEvent) => this.dispatchChange(LfoEvent.DESTINATION, e.detail.value)}
             ></lcd-selector-element>
           </div>
+          <div class="sync-row">
+            <button
+              class=${classMap({ "sync-btn": true, active: synced })}
+              title="follow the master clock"
+              @click=${() => this.dispatchChange(LfoEvent.SYNC, synced ? 0 : 127)}
+            >SYNC</button>
+            <div class="stepper"
+              title=${synced ? "Cycle length — follows the master clock" : "Free-running — SYNC hands the cycle to the master clock"}>
+              <button class="inc-btn" ?disabled=${!synced}
+                @click=${() => this.dispatchChange(LfoEvent.DIV, stepDivision(div, -1))}>-</button>
+              <lcd-element .text=${DIVISIONS[div]?.label ?? "?"}></lcd-element>
+              <button class="inc-btn" ?disabled=${!synced}
+                @click=${() => this.dispatchChange(LfoEvent.DIV, stepDivision(div, 1))}>+</button>
+            </div>
+          </div>
           <div class="modulation-controls">
             <div class="modulation-control">
               <div class="frequency-control">
                 <control-learn-wrapper controlID=${this.frequencyControlID}>
                   <knob-element
                     .value=${this.state.frequency.value as number}
+                    ?disabled=${synced}
+                    title=${synced ? "Free-run speed — the master clock sets the rate while SYNC is on" : ""}
                     @change=${(e: CustomEvent) => this.dispatchChange(LfoEvent.FREQUENCY, e.detail.value)}
                   ></knob-element>
                 </control-learn-wrapper>
@@ -111,6 +134,58 @@ export class Lfo extends SynthPanel {
         margin: 10px auto 2px auto;
         max-width: 100%;
         overflow: hidden;
+      }
+
+      /* SYNC + DIV: one thin row between the destination LCD and the knobs
+         (the monolog idiom — the toggle sits beside the stepper it enables). */
+      .sync-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        margin: 4px 0 2px 0;
+        --lcd-screen-width: 2.4em;
+        --lcd-font-size: 9px;
+      }
+
+      .stepper {
+        display: flex;
+        align-items: center;
+        gap: 1px;
+      }
+
+      .sync-btn,
+      .inc-btn {
+        height: 19px;
+        font-size: 0.55em;
+        font-weight: 700;
+        padding: 0 4px;
+        background: var(--dark-secondary, #4a4a4a);
+        color: var(--light-secondary, #939597);
+        border: 1px solid var(--medium, #5a5a5a);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        transition: background 0.15s, color 0.15s;
+      }
+
+      .inc-btn {
+        width: 18px;
+        padding: 0;
+      }
+
+      .sync-btn.active {
+        background: var(--darker, #2a2a2a);
+        color: var(--control-cursor-color, var(--lighter));
+        border-color: var(--control-cursor-color, var(--lighter));
+      }
+
+      /* Conditional relevance: ghost in place, never drop from the layout. */
+      .inc-btn:disabled {
+        opacity: 0.35;
+        cursor: default;
       }
 
       .modulation-controls {

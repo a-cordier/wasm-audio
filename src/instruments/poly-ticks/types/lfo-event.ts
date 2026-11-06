@@ -18,4 +18,6 @@ export enum LfoEvent {
   FREQUENCY,
   MOD_AMOUNT,
   DESTINATION,
+  SYNC,
+  DIV,
 }

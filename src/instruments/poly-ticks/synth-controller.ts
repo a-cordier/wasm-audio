@@ -26,11 +26,12 @@ import { isNoteOn, isNoteOff } from "../../midi/codec/decode";
 import { VoiceEvent } from "./types/voice-event";
 import { PresetOptions } from "./presets";
 import { ControlID } from "../../control/types";
-import { InstrumentPlugin, PluginDescriptor, Learnable, HasPresets, LearnableParam, PresetEntry } from "../../core/types";
+import { DIVISIONS } from "../../core/divisions";
+import { ClockObserver, InstrumentPlugin, PluginDescriptor, Learnable, HasPresets, LearnableParam, PresetEntry, TransportAnchor } from "../../core/types";
 
 type ControlHandler = (value: number) => void;
 
-export class SynthController extends EventTarget implements InstrumentPlugin, MidiTarget, Learnable, HasPresets {
+export class SynthController extends EventTarget implements InstrumentPlugin, MidiTarget, Learnable, HasPresets, ClockObserver {
   readonly descriptor: PluginDescriptor = {
     id: "poly-ticks",
     name: "POLY TICKS",
@@ -46,6 +47,8 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
   private state: VoiceState;
 
   private controlHandlers = new Map<ControlID, ControlHandler>();
+  // observe() may fire before init() creates the node — replayed there.
+  private lastClock: { anchor: TransportAnchor; playing: boolean } | null = null;
 
   constructor(audioContext: AudioContext) {
     super();
@@ -62,6 +65,17 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
     this.synthNode = new SynthNode(this.audioContext);
     this.synthNode.connect(this.output);
     this.syncParams();
+    if (this.lastClock) this.onClock(this.lastClock.anchor, this.lastClock.playing);
+  }
+
+  /**
+   * ClockObserver — the shell wires this at mount (transport.observe), so the
+   * master clock always flows to the worklet; whether it is USED is each
+   * LFO's own SYNC param. Fires on start/stop/tempo and once on observe.
+   */
+  onClock(anchor: TransportAnchor, playing: boolean): void {
+    this.lastClock = { anchor, playing };
+    this.synthNode?.setClock(anchor.startFrame, anchor.bpm, playing);
   }
 
   connectAudio(destination: AudioNode): void {
@@ -386,8 +400,32 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
   }
 
   setLfo1Frequency(newFrequency: number) {
+    // Ghosted under SYNC exactly like the panel knob: the master clock owns
+    // the rate, so external writers (MIDI-learn CCs, automation) are inert
+    // too — the LFO1_FREQ handler routes through this setter, which is
+    // where every input path converges (the sequels SEQ_BPM rule).
+    if (this.state.lfo1.sync.value >= 64) return this;
     this.state.lfo1.frequency.value = newFrequency;
     this.sendParam(ParamId.LFO1_FREQUENCY, newFrequency);
+    return this;
+  }
+
+  setLfo1Sync(value: number) {
+    this.state.lfo1.sync.value = value;
+    this.sendParam(ParamId.LFO1_SYNC, value);
+    // Unlike the knob setters, dispatch: the panel's SYNC/DIV ghosting
+    // re-renders off the LFO slice events.
+    this.dispatch(VoiceEvent.LFO1, { ...this.state.lfo1 });
+    return this;
+  }
+
+  setLfo1Div(index: number) {
+    // The controller owns authoritative state: clamp here, not only in the
+    // panel, so programmatic writers can't persist an out-of-range index.
+    const next = Math.max(0, Math.min(DIVISIONS.length - 1, Math.round(index)));
+    this.state.lfo1.div.value = next;
+    this.sendParam(ParamId.LFO1_DIV, next);
+    this.dispatch(VoiceEvent.LFO1, { ...this.state.lfo1 });
     return this;
   }
 
@@ -412,8 +450,25 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
   }
 
   setLfo2Frequency(newFrequency: number) {
+    // Gated under SYNC like setLfo1Frequency — see the comment there.
+    if (this.state.lfo2.sync.value >= 64) return this;
     this.state.lfo2.frequency.value = newFrequency;
     this.sendParam(ParamId.LFO2_FREQUENCY, newFrequency);
+    return this;
+  }
+
+  setLfo2Sync(value: number) {
+    this.state.lfo2.sync.value = value;
+    this.sendParam(ParamId.LFO2_SYNC, value);
+    this.dispatch(VoiceEvent.LFO2, { ...this.state.lfo2 });
+    return this;
+  }
+
+  setLfo2Div(index: number) {
+    const next = Math.max(0, Math.min(DIVISIONS.length - 1, Math.round(index)));
+    this.state.lfo2.div.value = next;
+    this.sendParam(ParamId.LFO2_DIV, next);
+    this.dispatch(VoiceEvent.LFO2, { ...this.state.lfo2 });
     return this;
   }
 
@@ -497,13 +552,19 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
     reg(ControlID.RELEASE, ParamId.AMPLITUDE_RELEASE, VoiceEvent.ENVELOPE,
       (v) => { this.state.envelope.release.value = v; }, () => this.state.envelope);
 
-    reg(ControlID.LFO1_FREQ, ParamId.LFO1_FREQUENCY, VoiceEvent.LFO1,
-      (v) => { this.state.lfo1.frequency.value = v; }, () => this.state.lfo1);
+    // Through the public setters, not reg(): the setters gate frequency
+    // writes under SYNC, and that gate must cover MIDI-learn/automation too.
+    this.controlHandlers.set(ControlID.LFO1_FREQ, (v) => {
+      this.setLfo1Frequency(v);
+      this.dispatch(VoiceEvent.LFO1, { ...this.state.lfo1 });
+    });
     reg(ControlID.LFO1_MOD, ParamId.LFO1_MOD_AMOUNT, VoiceEvent.LFO1,
       (v) => { this.state.lfo1.modAmount.value = v; }, () => this.state.lfo1);
 
-    reg(ControlID.LFO2_FREQ, ParamId.LFO2_FREQUENCY, VoiceEvent.LFO2,
-      (v) => { this.state.lfo2.frequency.value = v; }, () => this.state.lfo2);
+    this.controlHandlers.set(ControlID.LFO2_FREQ, (v) => {
+      this.setLfo2Frequency(v);
+      this.dispatch(VoiceEvent.LFO2, { ...this.state.lfo2 });
+    });
     reg(ControlID.LFO2_MOD, ParamId.LFO2_MOD_AMOUNT, VoiceEvent.LFO2,
       (v) => { this.state.lfo2.modAmount.value = v; }, () => this.state.lfo2);
 
@@ -574,6 +635,10 @@ export class SynthController extends EventTarget implements InstrumentPlugin, Mi
     this.sendParam(ParamId.LFO2_DESTINATION, s.lfo2.destination.value as number);
     this.sendParam(ParamId.LFO2_FREQUENCY, s.lfo2.frequency.value as number);
     this.sendParam(ParamId.LFO2_MOD_AMOUNT, s.lfo2.modAmount.value as number);
+    this.sendParam(ParamId.LFO1_SYNC, s.lfo1.sync.value as number);
+    this.sendParam(ParamId.LFO1_DIV, s.lfo1.div.value as number);
+    this.sendParam(ParamId.LFO2_SYNC, s.lfo2.sync.value as number);
+    this.sendParam(ParamId.LFO2_DIV, s.lfo2.div.value as number);
     this.sendParam(ParamId.VOICE_MODE, VoiceMode.POLY);
     this.sendParam(ParamId.GLIDE_TIME, 0);
     this.sendParam(ParamId.RETRIGGER, 1);
