@@ -32,6 +32,20 @@ Melodic instruments apply events at block start (constant ≤2.9 ms quantum —
 accepted, see docs/dsp-audit.md); **drumlin renders sample-exactly** — its
 per-sample loop fires each trigger at its in-block offset, the pattern for
 any future percussive voice.
+**Engines hear the clock through ClockObserver** (`core/types.ts`,
+optional): the shell `transport.observe()`s every plugin that implements
+`onClock(anchor, playing)` at mount (passive — NOT the slot SYNC opt-in;
+unobserve on eject), notified on start, stop and every tempo re-anchor.
+The controller replays the last snapshot in init and posts
+`{type:"__clock", anchorFrame, bpm, playing}`; the processor derives
+`beats` from `currentFrame` per block (wasm: `*_set_clock(beats, bpm)`)
+and **reads LFO phase absolutely** — `frac(beats / divBeats)`, never an
+accumulator — so tempo changes are phase-continuous, master start snaps
+to the downbeat, and a stopped master keeps cycling at tempo.
+Divisions live in `core/divisions.ts`: **append-only** (indices are
+stored), stepped musically via `stepDivision()`, mirrored by hand in
+`dsp/lfo.h` `kDivBeats` and JS processors. The template's vibrato LFO is
+the JS reference, `LFOKernel::nextSampleAt` the C++ one.
 
 **The workspace is a fixed-chrome grid**: daw-element is a 100vh grid —
 device-browser rail docked left (collapsible tab), an independently
@@ -191,7 +205,8 @@ Any **new worklet file** (`*-processor.js`, `*.wasmmodule.js`) must be added to 
   Examples: FM knob outside FM routing, CYCLE off non-square waves, sequels
   local transport & BPM under SYNC, bus strips' pan/M/S, send knobs on
   return strips, MOTION's RATE/RUN↔DIV under SYNC and its step lane
-  outside the STEP shape.
+  outside the STEP shape, every instrument LFO's RATE under its own SYNC
+  (DIV ghosts when free; monolog's KEY phase-reset ghosts under SYNC).
 - **No explainer copy in panels**: if a device panel or strip needs a caption
   to explain routing or behavior, the UX is wrong — fix the affordance
   (label, placement, ghosting, accent link) instead. `title=` tooltips on

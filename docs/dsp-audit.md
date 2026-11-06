@@ -69,9 +69,9 @@ before acting on old line numbers.
 - `HalfBandDecimator::push` is a 7-element shift per sample (ring-buffer it);
   hard sync has no BLEP at the sync instant; FM at high index outruns 2×
   oversampling (worth 4× when an FM-heavy patch shows it).
-- Poly LFO NOISE mode is still per-sample white noise (monolog's LFOKernel
-  got S&H; poly uses raw kernels as LFOs — align when poly grows an LFO
-  refactor).
+- ~~Poly LFO NOISE mode is still per-sample white noise~~ *(resolved in
+  ROADMAP item 11, `ab62456`: poly's lfo1/lfo2 now run the shared
+  LFOKernel, so NOISE samples-and-holds once per cycle like monolog's.)*
 - Voice stealing is retrigger-based (continuous but instant); a 2–5 ms
   two-stage fade would be strictly cleaner. *(The idiom now has a reference
   implementation: DRUMLIN's hat choke — a CH trigger re-aims the OH envelope

@@ -267,7 +267,30 @@ releasing exactly the sounding notes. **Chord capture/recognition
 deferred** (receive() is a stub that keeps KB arming alive) —
 dispositions in [docs/scalability-audit.md](docs/scalability-audit.md).
 
-### 11. [ ] LFO clock sync (nice-to-have)
-- Per-LFO sync switch: free rate ↔ tempo-synced divisions of the master
-  clock (needs item 4). Retrofit existing instruments' LFOs; template
-  updated alongside.
+### 11. [x] LFO clock sync — done 2026-11-06
+Three QA'd build batches. Every instrument LFO — the template's new
+vibrato reference, monolog's, poly-ticks' two — gets a per-LFO **SYNC**
+toggle and a **DIV** LCD stepper over a shared, append-only
+`core/divisions.ts` (4B…1/32 plus dotted 3/4, 3/8, 3/16 and triplet 1/6,
+1/12, 1/24, walked by `stepDivision()` in beats order so steppers stay
+musical while stored indices stay stable; MOTION reads the same list,
+mirrored in `dsp/lfo.h` `kDivBeats` and the template processor). The
+clock reaches the engines through a new passive **ClockObserver**
+contract: TransportController notifies observers on start, stop and
+every tempo re-anchor (wired at mount, independent of the slot SYNC
+opt-in), controllers post a `__clock` snapshot, and processors read the
+phase **absolutely** each block — `frac(beats / divBeats)` off
+`currentFrame` — never accumulating it. So a tempo change is
+phase-continuous, master start snaps to the shared downbeat, and a
+stopped transport keeps cycling at the tempo rate (live playing still
+wobbles). The wasm engines take `*_set_clock(beats, bpm)` per block and
+run `LFOKernel::nextSampleAt`; poly-ticks computes one phase per block
+for all voices, so chords wobble in unison. RATE ghosts under SYNC and
+is gated in its setter (MIDI-learn/automation inert too), monolog's old
+key-sync toggle renamed **KEY** and ghosts under SYNC. Poly-ticks swapped
+to the shared LFOKernel along the way (NOISE now S&H's once per cycle —
+the dsp-audit deferral closes). The conventions guard learned `*-node.ts`
+and explicit C++ `PARAM_COUNT` values, so both wasm synths get a real
+three-layer check. Verified live: measured rates exact (1/4 → 2 Hz,
+1B → 0.5 Hz, 3/8 → 1.33 Hz at 120), gates inert on every input path, old
+sessions load with SYNC off, free mode unchanged.

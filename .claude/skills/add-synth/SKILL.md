@@ -75,6 +75,19 @@ done. The list here is the contract it satisfies:
   extra output per voice and crossfades route flips (~10 ms) so they never
   click; route flags live in device state, aux strip settings persist as
   `RackSlotEntry.auxMixer`. Reference: `drumlin`.
+- **Tempo-synced LFOs (optional)** — implement `ClockObserver`
+  (`onClock(anchor, playing)`, `core/types.ts`); the shell observes it at
+  mount. Keep `lastClock` and replay it in init; post `__clock`
+  `{anchorFrame, bpm, playing}` to the processor, which reads
+  `beats = (currentFrame − anchorFrame)/sampleRate·bpm/60` per block and
+  takes LFO phase as `frac(beats / divBeats)` — absolute, never
+  accumulated (wasm: an exported `*_set_clock(beats, bpm)` +
+  `LFOKernel::nextSampleAt`). Per LFO, append `SYNC` (0|127) + `DIV`
+  (index into the append-only `core/divisions.ts`, default 4 = 1/4) as
+  selectors; DIV is an LCD stepper driven by `stepDivision()`, RATE ghosts
+  under SYNC and its **setter** returns early while synced (route the
+  learn handler through it). Reference: the template's vibrato LFO (JS),
+  monolog / poly-ticks (C++).
 - **Serve the worklet** — add each `workletModules` file to the `workletFiles` map in `vite.config.ts`, or `addModule()` 404s in dev and build.
 - **Params** — a `ParamId` enum ending in `PARAM_COUNT`; the alignment trio above.
 - **Node** — sizes a `SharedParamBuffer(ParamId.PARAM_COUNT)`, loads the worklet module, owns `setParam`.
