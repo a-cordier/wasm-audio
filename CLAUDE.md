@@ -22,6 +22,12 @@ MIDI events carry their audible AudioContext frame (mod 2^24) in ring slot
 +3** — the sequencer emits from a 24 ms-lookahead scheduling clock and
 instrument processors take only events due in the current block
 (`dequeueBefore`); live sources stamp frame 0 = play now, zero added latency.
+**Multi-note sources follow the chord-safe ring rules** (the rings are
+strict FIFO and a future-stamped head blocks everything behind it):
+reserve the whole burst before writing any of it, all ons before any off,
+offs in on-order, stamps non-decreasing in write order — DISCHORD
+(`src/instruments/dischord`, the chord sequencer: degree+quality steps
+expanded in-processor at schedule time) is the reference.
 Melodic instruments apply events at block start (constant ≤2.9 ms quantum —
 accepted, see docs/dsp-audit.md); **drumlin renders sample-exactly** — its
 per-sample loop fires each trigger at its in-block offset, the pattern for
@@ -194,7 +200,7 @@ Any **new worklet file** (`*-processor.js`, `*.wasmmodule.js`) must be added to 
 
 ## Panel / visual language
 
-- **Neutral charcoal panels + one Pantone accent per instrument** (monolog yellow, poly-ticks cyan, sequels green LCD).
+- **Neutral charcoal panels + one Pantone accent per instrument** (monolog yellow, poly-ticks cyan, sequels green LCD, drumlin orange, dischord violet).
 - **Camaïeu**: a faint per-zone tint over the neutral base, distributed **by function** — same tonal weight, ~±5/channel.
 - **Tokenize the look** — add a CSS custom property (per-device configurable), never hardcode a colour/radius/size. Restyle via vars, not edits.
 - **Compact-first**: dense, tidy layouts; borrow whitespace toward content.

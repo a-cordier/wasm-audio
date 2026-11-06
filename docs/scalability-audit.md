@@ -73,8 +73,10 @@ Item 7 shipped (SONG, `src/devices/song`); dispositions:
   duck-typed on sequencer controllers and resolved through ParamDirectory
   entries. The directory registers **Learnable plugins only**
   (`param-directory.ts`), so a non-Learnable sequencer would be invisible to
-  SONG — revisit with item 10 (chord sequencer): implement Learnable there
-  or widen directory registration.
+  SONG — **RESOLVED with item 10** (2026-11-05): DISCHORD implements
+  Learnable (DIS_BPM/SWING/GATE/STRUM), and directory registration stays
+  Learnable-only by design — a sequencer that wants a SONG column brings
+  learnable params.
 - **SEQ_PATTERN/SEQ_MUTE ControlIDs deliberately not added**: a frameless CC
   write defeats the bar-exact mechanism item 7 exists for, and MIDI
   pattern-launch is its own design (momentary vs latch, bank paging, the
@@ -118,6 +120,26 @@ Item 8 shipped (DRIVE, CHORUS, VERB + chaining); dispositions:
   drag fine-resolution polish (item 7's note, still open); per-channel
   INSERT effects — the `inserts[]` chain keeps its one resident (the EQ),
   send/return stays the effect story.
+
+## For item 10 — chord sequencer — RESOLVED 2026-11-05
+Item 10 shipped (DISCHORD, `src/instruments/dischord`); dispositions:
+- **Chord capture deferred**: `receive()` is a deliberate no-op — its
+  presence is what renders the KB-arm button (isMidiConsumer duck-type),
+  which gates the transport keys. Turning played notes into degree+quality
+  steps is recognition, not recording — its own project.
+- **Common-tone sustain vs mono last-note priority**: at a tie transition
+  where the top voice is a common tone, no on is re-sent, so a mono target's
+  "last received" can be an inner voice until the next full strike. Accepted
+  — poly correctness (no retrigger on sustained tones) wins.
+- **Click at subdivisions ≤ one step per beat** fires per STEP (`beatSteps`
+  clamps to 1), bar accent every four steps — cosmetic at chord pacing; a
+  beats-based click accumulator is not worth a second clock.
+- **STRUM is a per-note gap** (guitar-style rake: bigger chords take
+  longer), not a total spread; the processor clamps the whole rake inside
+  the step, swing included.
+- An ejected slot's `dischord.state.v1/<slot>` key stays in localStorage
+  (same as sequels — no caller of `clearStoredState`). Harmless; sweep both
+  if it ever matters.
 
 ## MIDI-learn (later item)
 - No persistence is wired (`exportBindings`/`importBindings` have no callers),

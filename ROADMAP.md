@@ -236,9 +236,36 @@ isolation (routed kick 0.000 on main, full on its strip), strip + pan +
 toggle surviving reload, second-instance eject with zero leftover
 channels, independent hat combs, tom pitch ratios, layered flashes.
 
-### 10. [ ] Chord sequencer
-- Sequencer device emitting chords to other devices over the MIDI bus —
-  the routing pattern sequels→monolog already proves.
+### 10. [x] Chord sequencer — done 2026-11-05
+Two QA'd build batches + an integration pass that needed zero fixes.
+DISCHORD (`src/instruments/dischord`) is the second sequencer — sequels'
+full contract surface (midi-source + CLICK-bus click, TransportChild,
+PatternAddressable speaking A0–D9, HasPresets, slot-scoped
+self-persistence) gone harmonic: device-level KEY × nine heptatonic
+SCALEs, steps hold DEGREEs (1–7, octave −2..+2, velocity) stacked in
+diatonic thirds (VOICES 3/4/5 = triad/7th/9th) with a per-step QUALITY
+override (MAJ…SUS4) escaping the scale, painted on a degree-numeral grid
+by a TIE/DEG/OCT/QUAL/VEL brush. Chord expansion runs **in the processor
+at schedule time** on the dual-clock scheduler, and the chord-safe ring
+discipline landed with it: reserve the whole burst before writing any of
+it, all ons before any off, offs in on-order, stamps non-decreasing in
+write order (strummed ons ascend; a tie transition's held offs stamp at
+the last strummed on — at STRUM 0 byte-identical to the 303 slide). **TIE
+generalizes the slide to N notes with common-tone sustain** (repeating a
+chord under TIE is zero events; tying into a new chord is a legato change
+— measured: SMOOTH voiced Fmaj7 one semitone off Am7, moving one voice).
+SMOOTH picks the minimal-motion inversion greedily; LEAD/BASS flips
+emission order so a mono target (last-note priority) tracks the top line
+or the roots; STRUM (0–60 ms per-note rake) rides future frame stamps
+through the lookahead. Learnable (DIS_BPM gated under SYNC, SWING, GATE,
+STRUM) — resolving item 7's note: the ParamDirectory stays Learnable-only
+and SONG addresses DISCHORD through it. Verified live: downbeat
+sample-exact on the master anchor, bar-exact SONG scenes + volatile mute
+(eject lifts), MOTION sweeping STRUM, hidden-tab timing (180/180 events
+delivered early, none late), two-instance isolation, global stop
+releasing exactly the sounding notes. **Chord capture/recognition
+deferred** (receive() is a stub that keeps KB arming alive) —
+dispositions in [docs/scalability-audit.md](docs/scalability-audit.md).
 
 ### 11. [ ] LFO clock sync (nice-to-have)
 - Per-LFO sync switch: free rate ↔ tempo-synced divisions of the master
