@@ -41,7 +41,7 @@ $(OUT): $(DEPS)
 
 $(MONOLOG_OUT): $(MONOLOG_DEPS)
 	$(EMCC) $(EMCC_FLAGS) \
-		-sEXPORTED_FUNCTIONS="['_malloc','_free','_monolog_create','_monolog_destroy','_monolog_note_on','_monolog_note_off','_monolog_set_param','_monolog_process']" \
+		-sEXPORTED_FUNCTIONS="['_malloc','_free','_monolog_create','_monolog_destroy','_monolog_note_on','_monolog_note_off','_monolog_set_param','_monolog_set_clock','_monolog_process']" \
 		-sEXPORTED_RUNTIME_METHODS="['HEAPF32','HEAPU32']" \
 		-I $(MONOLOG_ENGINE) \
 		$(MONOLOG_ENGINE)/monolog-kernel.cpp \

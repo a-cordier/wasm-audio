@@ -112,8 +112,19 @@ namespace Monolog {
 
 			// LFO with per-note fade-in (delay): lfoFade ramps 0 -> 1 over the
 			// delay time so the modulation blooms in after the note starts.
+			// Synced, the phase is an absolute readout of the master clock
+			// (re-seeded per block, advanced per sample), so the LFO lands on
+			// the shared downbeat and survives the inactive-voice early-out.
 			lfoFade = std::min(lfoFade + lfoFadeInc, 1.0f);
-			float lfoMod = sLfoAmount * lfoFade * lfo.nextSample(lfoRate);
+			float lfoSample;
+			if (lfoSynced) {
+				lfoSample = lfo.nextSampleAt(lfoSyncPhase01, lfoSyncHz);
+				lfoSyncPhase01 += lfoSyncInc;
+				if (lfoSyncPhase01 >= 1.f) lfoSyncPhase01 -= 1.f;
+			} else {
+				lfoSample = lfo.nextSample(lfoRate);
+			}
+			float lfoMod = sLfoAmount * lfoFade * lfoSample;
 			applyLfo(lfoMod, frequency);
 
 			osc.setDutyCycle(pulseWidth);
@@ -305,6 +316,16 @@ namespace Monolog {
 		void setLfoDelay(float sec) { lfoFadeInc = (sec > 0.0001f) ? 1.0f / (sec * sampleRate) : 1.0f; }
 		void setLfoKeySync(bool on) { lfoKeySync = on; }
 
+		// Per-block clock feed for tempo sync (from Engine::applyParams):
+		// phase01 at block start + per-sample increment, both derived from the
+		// master anchor. While synced the free-running rate is ignored.
+		void setLfoClock(bool synced, float phase01, float incPerSample, float hz) {
+			lfoSynced = synced;
+			lfoSyncPhase01 = phase01;
+			lfoSyncInc = incPerSample;
+			lfoSyncHz = hz;
+		}
+
 	private:
 		// One-pole step that snaps once converged, so zero-tests downstream
 		// (sub/noise early-outs) actually reach zero.
@@ -412,6 +433,10 @@ namespace Monolog {
 		float lfoFade = 1.0f;      // current per-note fade-in level (0..1)
 		float lfoFadeInc = 1.0f;   // fade-in increment per sample (from LFO delay)
 		bool lfoKeySync = true;    // retrigger LFO phase on note-on vs free-run
+		bool lfoSynced = false;    // tempo sync: phase comes from the master clock
+		float lfoSyncPhase01 = 0.f; // clock phase (0..1), re-seeded each block
+		float lfoSyncInc = 0.f;     // per-sample phase increment while synced
+		float lfoSyncHz = 1.f;      // synced cycle rate (polyBLEP width)
 	};
 
 } // namespace Monolog

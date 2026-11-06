@@ -33,6 +33,8 @@ export interface MonologState {
     destination: { value: number };
     delay: { value: number };
     keySync: { value: number };
+    sync: { value: number };
+    div: { value: number };
   };
   performance: {
     glide: { value: number };
@@ -78,6 +80,10 @@ export function createMonologState(partial?: Partial<any>): MonologState {
       destination: { value: 1 },
       delay: { value: 0 },
       keySync: { value: 127 },
+      // Tempo sync off by default; div 4 = "1/4" (one beat — 2 Hz at 120).
+      // New fields flow through mergeSection, so old presets keep loading.
+      sync: { value: 0 },
+      div: { value: 4 },
     },
     performance: {
       glide: { value: 15 },

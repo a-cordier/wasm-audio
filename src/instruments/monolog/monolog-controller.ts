@@ -7,11 +7,12 @@ import { MidiEvent, MidiTarget } from "../../midi/types";
 import { noteFrequency } from "../../midi/codec/notes";
 import { isNoteOn, isNoteOff } from "../../midi/codec/decode";
 import { ControlID } from "../../control/types";
-import { InstrumentPlugin, PluginDescriptor, Learnable, HasPresets, LearnableParam, PresetEntry } from "../../core/types";
+import { DIVISIONS } from "../../core/divisions";
+import { ClockObserver, InstrumentPlugin, PluginDescriptor, Learnable, HasPresets, LearnableParam, PresetEntry, TransportAnchor } from "../../core/types";
 
 type ControlHandler = (value: number) => void;
 
-export class MonologController extends EventTarget implements InstrumentPlugin, MidiTarget, Learnable, HasPresets {
+export class MonologController extends EventTarget implements InstrumentPlugin, MidiTarget, Learnable, HasPresets, ClockObserver {
   readonly descriptor: PluginDescriptor = {
     id: "monolog",
     name: "MONOLOG",
@@ -25,6 +26,8 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
   private audioContext: AudioContext;
   private state: MonologState;
   private controlHandlers = new Map<ControlID, ControlHandler>();
+  // observe() may fire before init() creates the node — replayed there.
+  private lastClock: { anchor: TransportAnchor; playing: boolean } | null = null;
 
   constructor(audioContext: AudioContext) {
     super();
@@ -43,6 +46,17 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     this.node = new MonologNode(this.audioContext);
     this.node.connect(this.output);
     this.syncParams();
+    if (this.lastClock) this.onClock(this.lastClock.anchor, this.lastClock.playing);
+  }
+
+  /**
+   * ClockObserver — the shell wires this at mount (transport.observe), so the
+   * master clock always flows to the worklet; whether it is USED is the LFO's
+   * own SYNC param. Fires on start/stop/tempo and once on observe.
+   */
+  onClock(anchor: TransportAnchor, playing: boolean): void {
+    this.lastClock = { anchor, playing };
+    this.node?.setClock(anchor.startFrame, anchor.bpm, playing);
   }
 
   connectAudio(destination: AudioNode): void {
@@ -244,6 +258,11 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
   }
 
   setLfoRate(value: number) {
+    // Ghosted under SYNC exactly like the panel knob: the master clock owns
+    // the rate, so external writers (MIDI-learn CCs, automation) are inert
+    // too — the ML_LFO_RATE handler routes through this setter, which is
+    // where every input path converges (the sequels SEQ_BPM rule).
+    if (this.state.lfo.sync.value >= 64) return;
     this.state.lfo.rate.value = value;
     this.sendParam(MonologParamId.LFO_RATE, value);
     this.dispatch(MonologEvent.LFO, { ...this.state.lfo });
@@ -270,6 +289,21 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
   setLfoKeySync(value: number) {
     this.state.lfo.keySync.value = value;
     this.sendParam(MonologParamId.LFO_KEY_SYNC, value);
+    this.dispatch(MonologEvent.LFO, { ...this.state.lfo });
+  }
+
+  setLfoSync(value: number) {
+    this.state.lfo.sync.value = value;
+    this.sendParam(MonologParamId.LFO_SYNC, value);
+    this.dispatch(MonologEvent.LFO, { ...this.state.lfo });
+  }
+
+  setLfoDiv(index: number) {
+    // The controller owns authoritative state: clamp here, not only in the
+    // panel, so programmatic writers can't persist an out-of-range index.
+    const next = Math.max(0, Math.min(DIVISIONS.length - 1, Math.round(index)));
+    this.state.lfo.div.value = next;
+    this.sendParam(MonologParamId.LFO_DIV, next);
     this.dispatch(MonologEvent.LFO, { ...this.state.lfo });
   }
 
@@ -341,6 +375,8 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     this.sendParam(MonologParamId.LFO_DESTINATION, s.lfo.destination.value);
     this.sendParam(MonologParamId.LFO_DELAY, s.lfo.delay.value);
     this.sendParam(MonologParamId.LFO_KEY_SYNC, s.lfo.keySync.value);
+    this.sendParam(MonologParamId.LFO_SYNC, s.lfo.sync.value);
+    this.sendParam(MonologParamId.LFO_DIV, s.lfo.div.value);
     this.sendParam(MonologParamId.GLIDE_TIME, s.performance.glide.value);
     this.sendParam(MonologParamId.LEGATO, s.performance.legato.value);
     this.sendParam(MonologParamId.SUB_OCTAVE, s.osc.subOctave.value);
@@ -392,8 +428,9 @@ export class MonologController extends EventTarget implements InstrumentPlugin, 
     reg(ControlID.ML_FLT_VELOCITY, MonologParamId.FILTER_VELOCITY, MonologEvent.FILTER_ENV,
       (v) => { this.state.filterEnv.velocity.value = v; }, () => this.state.filterEnv);
 
-    reg(ControlID.ML_LFO_RATE, MonologParamId.LFO_RATE, MonologEvent.LFO,
-      (v) => { this.state.lfo.rate.value = v; }, () => this.state.lfo);
+    // Through the public setter, not reg(): setLfoRate gates writes under
+    // SYNC, and that gate must cover MIDI-learn/automation too.
+    this.controlHandlers.set(ControlID.ML_LFO_RATE, (v) => this.setLfoRate(v));
     reg(ControlID.ML_LFO_AMOUNT, MonologParamId.LFO_AMOUNT, MonologEvent.LFO,
       (v) => { this.state.lfo.amount.value = v; }, () => this.state.lfo);
     reg(ControlID.ML_LFO_DELAY, MonologParamId.LFO_DELAY, MonologEvent.LFO,

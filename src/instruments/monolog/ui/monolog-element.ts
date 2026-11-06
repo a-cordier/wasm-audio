@@ -7,6 +7,7 @@ import { MonologState } from "../types/monolog-state";
 import { MonologEvent } from "../types/monolog-event";
 import { MonologLfoDestination } from "../types/lfo-destination";
 import { ControlID } from "../../../control/types";
+import { DIVISIONS, stepDivision } from "../../../core/divisions";
 import { MidiBus } from "../../../midi/bus/bus";
 import { Channel } from "../../../midi/types";
 import type { Plugin } from "../../../core/types";
@@ -15,6 +16,7 @@ import "../../../components/common/controls/knob-element";
 import "../../../components/common/controls/fader-element";
 import "../../../components/common/controls/keys-element";
 import "../../../components/common/controls/control-learn-wrapper";
+import "../../../components/common/lcd/lcd-element";
 import "../../../components/common/panel-wrapper-element";
 import "../../../components/common/row-element";
 import "../../poly-ticks/ui/panels/oscillator/wave-selector-element";
@@ -311,6 +313,8 @@ export class MonologElement extends LitElement {
     if (!this.lfoState) return nothing;
     const dest = this.lfoState.destination.value;
     const keySyncOn = (this.lfoState.keySync.value ?? 127) >= 64;
+    const synced = (this.lfoState.sync.value ?? 0) >= 64;
+    const div = this.lfoState.div.value ?? 4;
     return html`
       <panel-wrapper-element label="LFO" style="--panel-wrapper-background-color: var(--monolog-lfo-panel-color)">
         <div class="panel-stack lfo-stack">
@@ -325,12 +329,30 @@ export class MonologElement extends LitElement {
             </div>
             <button
               class=${classMap({ "toggle-btn": true, active: keySyncOn })}
+              ?disabled=${synced}
+              title=${synced ? "the master clock owns the phase while SYNC is on" : "retrigger LFO phase on note-on"}
               @click=${() => this.controller.setLfoKeySync(keySyncOn ? 0 : 127)}
-            >${keySyncOn ? "SYNC" : "FREE"}</button>
+            >KEY</button>
+          </div>
+          <div class="knob-row sync-row">
+            <button
+              class=${classMap({ "toggle-btn": true, active: synced })}
+              title="follow the master clock"
+              @click=${() => this.controller.setLfoSync(synced ? 0 : 127)}
+            >SYNC</button>
+            <div class="stepper"
+              title=${synced ? "Cycle length — follows the master clock" : "Free-running — SYNC hands the cycle to the master clock"}>
+              <label class="stepper-label">DIV</label>
+              <button class="inc-btn" ?disabled=${!synced} @click=${() => this.controller.setLfoDiv(stepDivision(div, -1))}>-</button>
+              <lcd-element .text=${DIVISIONS[div]?.label ?? "?"}></lcd-element>
+              <button class="inc-btn" ?disabled=${!synced} @click=${() => this.controller.setLfoDiv(stepDivision(div, 1))}>+</button>
+            </div>
           </div>
           <div class="knob-row">
             <control-learn-wrapper .controlID=${ControlID.ML_LFO_RATE}>
               <knob-element .value=${this.lfoState.rate.value} .label=${"RATE"}
+                ?disabled=${synced}
+                title=${synced ? "Free-run speed — the master clock sets the rate while SYNC is on" : ""}
                 @change=${(e: CustomEvent) => this.controller.setLfoRate(e.detail.value)}></knob-element>
             </control-learn-wrapper>
             <control-learn-wrapper .controlID=${ControlID.ML_LFO_AMOUNT}>
@@ -585,6 +607,58 @@ export class MonologElement extends LitElement {
       .lfo-stack .toggle-btn {
         height: 24px;
         font-size: 0.6em;
+      }
+
+      /* SYNC sits beside the DIV stepper it enables — its own thin row, so
+         the button row above never overflows the panel's column. */
+      .sync-row {
+        justify-content: flex-start;
+        gap: 0.6em;
+      }
+
+      /* DIV stepper — the MOTION [-] lcd [+] idiom. */
+      .stepper {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        --lcd-screen-width: 3.2em;
+        --lcd-font-size: 10px;
+      }
+
+      .stepper-label {
+        font-size: 0.55em;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: #939597;
+        margin-right: 0.3em;
+      }
+
+      .inc-btn {
+        height: 24px;
+        width: 22px;
+        font-size: 0.7em;
+        font-weight: 700;
+        background: #4a4a4a;
+        color: #939597;
+        border: 1px solid #5a5a5a;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        transition: background 0.15s, color 0.15s;
+      }
+
+      .inc-btn:hover:not(:disabled) {
+        background: #2a2a2a;
+        color: var(--monolog-accent, #F5DF4D);
+      }
+
+      /* Conditional relevance: ghost in place, never drop from the layout. */
+      .inc-btn:disabled,
+      .toggle-btn:disabled {
+        opacity: 0.35;
+        cursor: default;
       }
 
       .keyboard {

@@ -24,7 +24,7 @@ import { TemplateState } from "../types/template-state";
 import { TemplateEvent } from "../types/template-event";
 import { TemplateWave } from "../types/template-params";
 
-import { DIVISIONS } from "../../../core/divisions";
+import { DIVISIONS, stepDivision } from "../../../core/divisions";
 
 import "../../../components/common/controls/knob-element";
 import "../../../components/common/controls/control-learn-wrapper";
@@ -135,9 +135,9 @@ export class TemplateElement extends LitElement {
             >SYNC</button>
             <div class="stepper" title=${synced ? "Cycle length — follows the master clock" : "Free-running — SYNC hands the cycle to the master clock"}>
               <label class="ctrl-label">DIV</label>
-              <button class="inc-btn" ?disabled=${!synced} @click=${() => this.setLfoDiv(this.lfo!.div.value - 1)}>-</button>
+              <button class="inc-btn" ?disabled=${!synced} @click=${() => this.setLfoDiv(stepDivision(this.lfo!.div.value, -1))}>-</button>
               <lcd-element .text=${DIVISIONS[this.lfo.div.value]?.label ?? "?"}></lcd-element>
-              <button class="inc-btn" ?disabled=${!synced} @click=${() => this.setLfoDiv(this.lfo!.div.value + 1)}>+</button>
+              <button class="inc-btn" ?disabled=${!synced} @click=${() => this.setLfoDiv(stepDivision(this.lfo!.div.value, 1))}>+</button>
             </div>
           </div>
           <div class="knobs">

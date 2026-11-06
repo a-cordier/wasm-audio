@@ -43,6 +43,10 @@ void monolog_set_param(uintptr_t ptr, int paramId, float value) {
 	asEngine(ptr)->setParam(paramId, value);
 }
 
+void monolog_set_clock(uintptr_t ptr, double beats, double bpm) {
+	asEngine(ptr)->setClock(beats, bpm);
+}
+
 void monolog_process(uintptr_t ptr, uintptr_t outputPtr, unsigned channelCount) {
 	asEngine(ptr)->process(outputPtr, channelCount);
 }

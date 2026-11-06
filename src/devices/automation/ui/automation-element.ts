@@ -21,6 +21,7 @@ import type { Plugin } from "../../../core/types";
 import { getParamDirectory, AutomationTargetEntry } from "../../../control/param-directory";
 import { AutomationController } from "../automation-controller";
 import { AutomationState, SHAPES, DIVISIONS } from "../types/automation-state";
+import { stepDivision } from "../../../core/divisions";
 import { AutomationEvent } from "../types/automation-event";
 
 import "../../../components/common/controls/knob-element";
@@ -176,8 +177,10 @@ export class AutomationElement extends LitElement {
 
   private stepDiv(delta: number) {
     if (!this.signal) return;
-    const next = Math.max(0, Math.min(DIVISIONS.length - 1, this.signal.div.value + delta));
-    this.controller.setDiv(next);
+    // Through the musical order, not raw indices: DIVISIONS is append-only
+    // (stored values are indices), so the dotted/triplet entries live at the
+    // array's tail and only stepDivision visits them in sorted position.
+    this.controller.setDiv(stepDivision(this.signal.div.value, delta));
     this.notifyChanged();
   }
 

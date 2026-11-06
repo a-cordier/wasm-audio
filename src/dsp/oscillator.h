@@ -92,6 +92,14 @@ namespace Oscillator {
 			phase = wrapPhase(fractionOfIncrement * phaseIncrement);
 		}
 
+		// Force the running phase (radians). The tempo-synced LFO path sets an
+		// ABSOLUTE phase before every read, so the kernel can never drift from
+		// the master clock. Unlike reset() it touches nothing else — the caller
+		// detects cycle wraps itself from the forced-phase sequence.
+		void setPhase(float p) {
+			phase = wrapPhase(p);
+		}
+
 		// A fresh phase in [0, 2pi) drawn from this oscillator's own RNG.
 		float randomPhase() {
 			return computeRandomValue() * Constants::twoPi;

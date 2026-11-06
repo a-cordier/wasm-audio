@@ -39,9 +39,10 @@ const attackSeconds = (raw) => 0.002 + (raw / 127) * 1.5;
 const releaseSeconds = (raw) => 0.01 + (raw / 127) * 2.0;
 const lfoHz = (raw) => (raw / 127) * 25; // mirrors dsp/range.h lfoFrequencyRange
 
-// Beats per synced LFO cycle, by DIV index — mirrors core/divisions.ts
-// ("4B".."1/32") by hand, the dischord table idiom.
-const DIV_BEATS = [16, 8, 4, 2, 1, 0.5, 0.25, 0.125];
+// Beats per synced LFO cycle, by DIV index — mirrors core/divisions.ts by
+// hand (the dischord table idiom). Append-only; the tail is the
+// dotted/triplet set (labels are bar fractions: 3/8 = dotted 1/4).
+const DIV_BEATS = [16, 8, 4, 2, 1, 0.5, 0.25, 0.125, 3, 1.5, 2 / 3, 0.75, 1 / 3, 1 / 6];
 
 // PolyBLEP residual for a unit-period phase t with per-sample increment dt —
 // the house band-limiting idiom (mirrors dsp/oscillator.h). Sign convention:

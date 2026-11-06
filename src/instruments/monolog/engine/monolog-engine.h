@@ -54,7 +54,11 @@ namespace Monolog {
 		DIRT,
 		LFO_DELAY,
 		LFO_KEY_SYNC,
-		PARAM_COUNT,
+		LFO_SYNC,
+		LFO_DIV,
+		// Explicit value so the check:conventions regex sees this layer too
+		// (an implicit trailing member is invisible to it). Append-only.
+		PARAM_COUNT = 31,
 	};
 
 	class Engine {
@@ -148,6 +152,15 @@ namespace Monolog {
 			// The wire contract is raw 0-127; clamp so an out-of-scale value
 			// (a misrouted CC, a corrupt preset) cannot reach the DSP mappings.
 			params[paramId] = std::clamp(value, 0.f, 127.f);
+		}
+
+		// Master-clock feed, called once per block by the processor: beats
+		// elapsed since the shared anchor at THIS block's start (derived from
+		// currentFrame on the JS side) plus the master tempo. The synced LFO
+		// phase is an absolute readout of this value — never an accumulator.
+		void setClock(double beats, double bpm) {
+			clockBeats = beats;
+			clockBpm = bpm;
 		}
 
 		void process(uintptr_t outputPtr, unsigned channelCount) {
@@ -248,6 +261,17 @@ namespace Monolog {
 			// LFO delay 0..2s (per-note fade-in) and key-sync (retrigger vs free-run).
 			voice.setLfoDelay(zeroOneRange.map(params[pi(ParamId::LFO_DELAY)], midiRange) * 2.0f);
 			voice.setLfoKeySync(params[pi(ParamId::LFO_KEY_SYNC)] >= 0.5f);
+
+			// Tempo sync: hand the voice this block's clock-derived phase (01)
+			// plus its per-sample increment. Key-sync resets are naturally inert
+			// while synced — the phase is forced every sample anyway.
+			bool lfoSync = params[pi(ParamId::LFO_SYNC)] >= 0.5f;
+			int divIdx = std::clamp(static_cast<int>(params[pi(ParamId::LFO_DIV)]), 0, kNumDivisions - 1);
+			double divBeats = kDivBeats[divIdx];
+			double cycles = clockBeats / divBeats;
+			float phase01 = static_cast<float>(cycles - std::floor(cycles));
+			float syncHz = static_cast<float>(clockBpm / (60.0 * divBeats));
+			voice.setLfoClock(lfoSync, phase01, syncHz / sampleRate, syncHz);
 		}
 
 		// --- Note stack (last-note priority) ---
@@ -292,6 +316,11 @@ namespace Monolog {
 		float glideLogFrom = 0.f;
 		float glideLogTo = 0.f;
 		float glidePhaseInc = 1.f;
+
+		// Master-clock feed (setClock): beats at block start + tempo. The 120
+		// default keeps a synced LFO musical before the first clock message.
+		double clockBeats = 0.0;
+		double clockBpm = 120.0;
 	};
 
 } // namespace Monolog

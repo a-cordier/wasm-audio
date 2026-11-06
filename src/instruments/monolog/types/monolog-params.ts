@@ -29,7 +29,9 @@ export const MonologParamId = Object.freeze({
   DIRT: 26,
   LFO_DELAY: 27,
   LFO_KEY_SYNC: 28,
-  PARAM_COUNT: 29,
+  LFO_SYNC: 29, // toggle 0|127: LFO follows the master clock
+  LFO_DIV: 30, // discrete: index into DIVISIONS (core/divisions.ts)
+  PARAM_COUNT: 31,
 });
 
 // Must match wasm_audio::Monolog::FilterModel

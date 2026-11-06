@@ -58,6 +58,10 @@ for (const inst of readdirSync(root)) {
   for (const file of walk(dir)) {
     let label = null;
     if (file.endsWith("-params.ts")) label = "params.ts";
+    // poly-ticks keeps its TS ParamId + PARAM_COUNT in synth-node.ts; a
+    // node file with no numeric PARAM_COUNT (monolog, template) just
+    // yields no match and drops out below.
+    else if (file.endsWith("-node.ts")) label = "node.ts";
     else if (file.endsWith("-engine.h")) label = "engine.h";
     else if (file.endsWith("-processor.js")) label = "processor.js";
     if (!label) continue;
