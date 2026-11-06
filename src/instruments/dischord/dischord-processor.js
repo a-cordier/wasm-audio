@@ -128,6 +128,20 @@ const QUALITY_INTERVALS = [
   [0, 4, 8], // AUG
   [0, 2, 7], // SUS2
   [0, 5, 7], // SUS4
+  [0, 3, 6, 9], // DIM7 — fully diminished
+  [0, 3, 6, 10], // M7B5 — half-diminished (ø7)
+  [0, 3, 7, 11], // MM7 — minor-major 7
+  [0, 4, 7, 9], // 6
+  [0, 3, 7, 9], // MIN6
+  [0, 4, 7, 9, 14], // 6/9
+  [0, 4, 7, 14], // ADD9 — the 9th without the 7th
+  [0, 4, 7, 10, 14], // 9 — dominant 9th
+  [0, 4, 7, 11, 14], // MAJ9
+  [0, 3, 7, 10, 14], // MIN9
+  [0, 4, 7, 10, 13], // 7B9
+  [0, 4, 7, 10, 15], // 7#9 — the Hendrix chord
+  [0, 4, 10, 14, 21], // 13 — 3rd, b7, 9th, 13th (5th and 11th omitted)
+  [0, 7], // 5 — power chord
 ];
 const CHORD_BASE_NOTE = 48; // C3 anchors degree I
 const CHORD_NOTE_MIN = 24;

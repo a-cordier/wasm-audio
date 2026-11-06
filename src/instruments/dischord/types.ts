@@ -65,6 +65,21 @@ export const enum Quality {
   AUG = 7,
   SUS2 = 8,
   SUS4 = 9,
+  // The weird pack — appended only (saved steps bake the ordinals).
+  DIM7 = 10,
+  HALF_DIM = 11,
+  MIN_MAJ7 = 12,
+  SIX = 13,
+  MIN6 = 14,
+  SIX_NINE = 15,
+  ADD9 = 16,
+  DOM9 = 17,
+  MAJ9 = 18,
+  MIN9 = 19,
+  DOM7_FLAT9 = 20,
+  DOM7_SHARP9 = 21,
+  DOM13 = 22,
+  FIVE = 23,
 }
 
 /** How chords are voiced: literal stacked position, or the inversion that

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { QUALITY_INTERVALS } from "./chords";
 import {
   DEFAULT_PATTERN_STEPS,
   DEGREE_MASK,
@@ -99,7 +100,10 @@ export class ChordPatternBuffer {
     const oct = Math.max(-MAX_OCT_OFFSET, Math.min(MAX_OCT_OFFSET, Math.round(octave))) + OCT_BIAS;
     this.view[offset] = deg | ((oct & OCT_MASK) << OCT_SHIFT);
     this.view[offset + 1] = (velocity & 0x7f) | (tie ? TIE_BIT : 0);
-    this.view[offset + 2] = Math.max(0, Math.min(9, Math.round(quality)));
+    // Clamp against the quality table itself, so appending shapes there is
+    // the whole change (an out-of-range byte would fall back to diatonic in
+    // the processor anyway, but a clean buffer round-trips the UI).
+    this.view[offset + 2] = Math.max(0, Math.min(QUALITY_INTERVALS.length - 1, Math.round(quality)));
     this.view[offset + 3] = 0;
   }
 

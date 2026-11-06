@@ -44,13 +44,23 @@ export const SCALE_INTERVALS: ReadonlyArray<readonly number[]> = [
   [0, 1, 3, 5, 6, 8, 10], // LOC
 ];
 
-export const QUALITY_NAMES = ["DIA", "MAJ", "MIN", "DOM7", "MAJ7", "MIN7", "DIM", "AUG", "SUS2", "SUS4"] as const;
+export const QUALITY_NAMES = [
+  "DIA", "MAJ", "MIN", "DOM7", "MAJ7", "MIN7", "DIM", "AUG", "SUS2", "SUS4",
+  // The weird pack (appended 2026-11-06 — indices are baked into saved steps).
+  "DIM7", "M7B5", "MM7", "6", "MIN6", "6/9", "ADD9", "9", "MAJ9", "MIN9",
+  "7B9", "7#9", "13", "5",
+] as const;
 
 /** Short tags for step cells (DIA steps show no tag — diatonic is the default). */
-export const QUALITY_TAGS = ["", "M", "m", "7", "M7", "m7", "o", "+", "s2", "s4"] as const;
+export const QUALITY_TAGS = [
+  "", "M", "m", "7", "M7", "m7", "o", "+", "s2", "s4",
+  "o7", "ø", "mM", "6", "m6", "69", "a9", "9", "M9", "m9",
+  "b9", "#9", "13", "5",
+] as const;
 
 /** Interval shapes for explicit qualities; index 0 (DIATONIC) stacks scale
- * thirds instead and has no fixed shape. */
+ * thirds instead and has no fixed shape. Append-only — the quality byte in
+ * saved patterns indexes straight into this table. */
 export const QUALITY_INTERVALS: ReadonlyArray<readonly number[] | null> = [
   null, // DIATONIC
   [0, 4, 7], // MAJ
@@ -62,6 +72,20 @@ export const QUALITY_INTERVALS: ReadonlyArray<readonly number[] | null> = [
   [0, 4, 8], // AUG
   [0, 2, 7], // SUS2
   [0, 5, 7], // SUS4
+  [0, 3, 6, 9], // DIM7 — fully diminished
+  [0, 3, 6, 10], // M7B5 — half-diminished (ø7)
+  [0, 3, 7, 11], // MM7 — minor-major 7
+  [0, 4, 7, 9], // 6
+  [0, 3, 7, 9], // MIN6
+  [0, 4, 7, 9, 14], // 6/9
+  [0, 4, 7, 14], // ADD9 — the 9th without the 7th
+  [0, 4, 7, 10, 14], // 9 — dominant 9th
+  [0, 4, 7, 11, 14], // MAJ9
+  [0, 3, 7, 10, 14], // MIN9
+  [0, 4, 7, 10, 13], // 7B9
+  [0, 4, 7, 10, 15], // 7#9 — the Hendrix chord
+  [0, 4, 10, 14, 21], // 13 — 3rd, b7, 9th, 13th (5th and 11th omitted)
+  [0, 7], // 5 — power chord
 ];
 
 /** C3 = MIDI 48 anchors degree I at a comfortable pad register. */
