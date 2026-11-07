@@ -330,13 +330,33 @@ a different device, and a reload; leak counts (plugins, channels,
 transport children/observers) match each preset; legacy sessions open
 as `INIT*`; a refused write reads `FULL`.
 
-### 13. [~] Drum sequencer
-SEQUELS speaks one note per step and DISCHORD speaks chords from scale
-degrees — neither can put a snare and a clap on the same step. RUDIMENT
-(`src/instruments/rudiment`) is a lanes × steps drum sequencer: 11 lanes
-(KICK SNARE CLAP RIM CH OH LT MT HT RIDE CRASH) defaulting to DRUMLIN's
-receive notes, editable per lane for other kits; any set of lanes fires on
-one step under the chord-safe ring rules; a 3-level velocity brush
-(SOFT/MID/ACC), swing, per-lane mute and per-lane length (polymeter). Full
-sequencer contract surface (CLICK bus, SYNC, PatternAddressable A0–D9 for
-SONG, presets, MIDI-learn, slot-scoped persistence with `forgetPersisted`).
+### 13. [x] Drum sequencer — done 2026-11-07
+Three QA'd batches. SEQUELS speaks one note per step and DISCHORD speaks
+chords — neither could put a snare and a clap on the same step. RUDIMENT
+(`src/instruments/rudiment`) is the multi-lane form of the chord-safe
+ring rules: 11 lanes (KICK SNARE CLAP RIM CH OH LT MT HT RIDE CRASH)
+holding one velocity byte per step, defaulting to DRUMLIN's receive notes
+(its tom at base ±2 gives three tom lanes) and editable per lane (NOTE,
+C4 = 60 names) for other kits. Each boundary collects every lane with a
+hit, reserves ons + offs before writing, fires all ons on the step's frame
+(same-note lanes dedupe to the louder hit) and the offs on one shared
+gate-end bounded by the next onset — a full 11-lane burst measured on one
+frame, exactly on a synced master's anchor. **Polymeter is one grid
+index**: lane k plays `grid mod LEN` (PAT = follow STEPS), so a switch
+rebases the grid and every lane lands on step 0 together; per-lane
+playheads read the same index. The panel is an 11 × 16 grid with four
+pages (following the longest lane, playing-page LED), a SOFT｜MID｜ACC
+brush (60/100/127 — accent is just the loudest hit), drag-paint that
+hit-tests on pointermove (touch-safe), lane mute buttons and a lane strip.
+Full sequencer contract on DISCHORD's dual-clock scheduler: CLICK bus,
+SYNC, PatternAddressable A0–D9 (SONG landed A1's crash exactly on bar 1;
+an M scene silenced it, eject lifted the mute), presets (INIT, BACKBEAT —
+snare + clap on 2 and 4 — BREAK, POLY), MIDI-learn BPM/SWING/GATE (BPM
+inert under SYNC) through the ParamDirectory, and slot-scoped persistence
+with `forgetPersisted` (a DISCHORD reusing `slot-4` in another preset left
+no bleed; the preset round-trip and a reload came back byte-exact). The
+shell learned **`preferredTarget`** in the plugin registration: a fresh
+RUDIMENT wires its OUT to a mounted DRUMLIN instead of the first
+instrument. **Step record, ratchets/probability and direction modes
+deferred** — dispositions in
+[docs/scalability-audit.md](docs/scalability-audit.md).

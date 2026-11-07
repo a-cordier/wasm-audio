@@ -141,6 +141,24 @@ Item 10 shipped (DISCHORD, `src/instruments/dischord`); dispositions:
   (same as sequels — no caller of `clearStoredState`). Harmless; sweep both
   if it ever matters.
 
+## For item 13 — drum sequencer — RESOLVED 2026-11-07
+Item 13 shipped (RUDIMENT, `src/instruments/rudiment`); dispositions:
+- **Step record from MIDI/keyboard input deferred** — `receive()` is a
+  no-op stub (like DISCHORD's) that keeps the KB-arm button and the
+  armed-gated transport keys.
+- **Ratchets/flams, per-step probability and direction modes deferred** —
+  drums run forward and loop; the processor has no `_resolveStep` modes
+  and no end-of-sequence path.
+- **Lanes stay fixed at 11 names** — NOTE edits retarget a lane but its
+  label stays (KICK sending 40 still reads KICK). Buffers stride by 16
+  lanes, so appending lanes needs no re-layout of saved patterns.
+- **LEN stepping lands on STEPS before PAT** (17 → 16 → 15 … 1 → PAT):
+  an explicit length equal to STEPS sounds identical to PAT until STEPS
+  changes. Accepted.
+- **Two lanes on one note fire once at the louder velocity** (dedupe, so
+  a gated target never gets on-on-off-off for one note) — layering two
+  DRUMLIN voices belongs on DRUMLIN's own receive notes.
+
 ## MIDI-learn (later item)
 - No persistence is wired (`exportBindings`/`importBindings` have no callers),
   and `importBindings` drops `slotBindings` — restored bindings would resolve

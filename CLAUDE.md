@@ -27,7 +27,15 @@ strict FIFO and a future-stamped head blocks everything behind it):
 reserve the whole burst before writing any of it, all ons before any off,
 offs in on-order, stamps non-decreasing in write order — DISCHORD
 (`src/instruments/dischord`, the chord sequencer: degree+quality steps
-expanded in-processor at schedule time) is the reference.
+expanded in-processor at schedule time) is the reference, and RUDIMENT
+(`src/instruments/rudiment`, the drum sequencer) is its multi-lane form:
+11 lanes × velocity bytes, every lane with a hit fires on the step's frame
+(same-note lanes dedupe to the louder hit), offs on one shared gate-end
+stamp bounded by the next onset; per-lane length = polymeter off one grid
+index (`grid mod laneLen`), so a pattern switch lands every lane on step 0.
+A MIDI source can name a `preferredTarget` plugin id in its registration
+(RUDIMENT → "drumlin", whose receive notes its lanes default to): the
+mount wires its OUT to the first such slot, else the first instrument.
 Melodic instruments apply events at block start (constant ≤2.9 ms quantum —
 accepted, see docs/dsp-audit.md); **drumlin renders sample-exactly** — its
 per-sample loop fires each trigger at its in-block offset, the pattern for
@@ -234,7 +242,7 @@ Any **new worklet file** (`*-processor.js`, `*.wasmmodule.js`) must be added to 
 
 ## Panel / visual language
 
-- **Neutral charcoal panels + one Pantone accent per instrument** (monolog yellow, poly-ticks cyan, sequels green LCD, drumlin orange, dischord violet).
+- **Neutral charcoal panels + one Pantone accent per instrument** (monolog yellow, poly-ticks cyan, sequels green LCD, drumlin orange, dischord violet, rudiment magenta).
 - **Camaïeu**: a faint per-zone tint over the neutral base, distributed **by function** — same tonal weight, ~±5/channel.
 - **Tokenize the look** — add a CSS custom property (per-device configurable), never hardcode a colour/radius/size. Restyle via vars, not edits.
 - **Compact-first**: dense, tidy layouts; borrow whitespace toward content.

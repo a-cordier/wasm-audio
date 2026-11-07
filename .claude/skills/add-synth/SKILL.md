@@ -88,6 +88,16 @@ done. The list here is the contract it satisfies:
   under SYNC and its **setter** returns early while synced (route the
   learn handler through it). Reference: the template's vibrato LFO (JS),
   monolog / poly-ticks (C++).
+- **Sequencers (midi-source)** — clone the nearest sequencer: `sequels`
+  (mono steps), `dischord` (chords), `rudiment` (multi-lane drums). They
+  share the dual-clock scheduler (24 ms lookahead, frame-stamped ring,
+  parked pre-roll for synced starts), `PatternAddressable` for SONG
+  (worklet confirms `__pattern_applied` before the config write), the
+  CLICK-bus metronome, and `receive()` (even a no-op keeps KB arming). Any
+  step that emits several notes follows the **chord-safe ring rules** in
+  CLAUDE.md. Set `preferredTarget: "<plugin id>"` in the registration when
+  the device is built for one instrument (RUDIMENT → `drumlin`): the shell
+  wires a fresh mount's OUT to that slot, else the first instrument.
 - **State persistence** — by default the shell snapshots `getState()` into
   the session and replays `loadState()`; that's all a device needs. A device
   that self-persists under its own slot-scoped key implements `SlotAware`
