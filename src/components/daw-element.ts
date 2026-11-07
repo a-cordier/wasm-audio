@@ -49,6 +49,8 @@ import { addWorkletModuleOnce } from "../runtime/worklet-modules";
 import "./device-slot/device-slot";
 import "./device-browser";
 import "./transport-bar";
+import "./preset-bar";
+import type { PresetBar } from "./preset-bar";
 import "./mixer/mixer-element";
 import "../instruments/poly-ticks/register";
 import "../instruments/monolog/register";
@@ -935,7 +937,19 @@ export class Daw extends LitElement {
       <transport-bar
         .transport=${this.transport}
         .audioContext=${this.audioContext}
-      ></transport-bar>
+      >
+        <preset-bar
+          slot="menu"
+          .presets=${this.presets.map((p) => ({ id: p.id, name: p.name }))}
+          .currentId=${this.currentPresetId}
+          .dirty=${this.presetDirty}
+          @preset-open=${this.onPresetOpen}
+          @preset-save=${this.onPresetSave}
+          @preset-save-as=${this.onPresetSaveAs}
+          @preset-rename=${this.onPresetRename}
+          @preset-delete=${this.onPresetDelete}
+        ></preset-bar>
+      </transport-bar>
       ${!this.audioReady
         ? html`
           <div class="power-overlay" @click=${this.powerOn}>
@@ -985,6 +999,32 @@ export class Daw extends LitElement {
       ></mixer-element>
     `;
   }
+
+  // --- Preset bar ---
+
+  private presetBar(): PresetBar | null {
+    return this.shadowRoot?.querySelector("preset-bar") ?? null;
+  }
+
+  private onPresetOpen = (e: CustomEvent<{ id: string }>) => {
+    void this.openPreset(e.detail.id);
+  };
+
+  /** A refused write (quota / storage off) reads FULL on the LCD. */
+  private presetWrite(ok: boolean) {
+    if (!ok) this.presetBar()?.flash("FULL");
+  }
+
+  private onPresetSave = () => this.presetWrite(this.savePreset());
+
+  private onPresetSaveAs = (e: CustomEvent<{ name: string }>) =>
+    this.presetWrite(this.savePreset(e.detail.name));
+
+  private onPresetRename = (e: CustomEvent<{ id: string; name: string }>) =>
+    this.presetWrite(this.renamePreset(e.detail.id, e.detail.name));
+
+  private onPresetDelete = (e: CustomEvent<{ id: string }>) =>
+    this.presetWrite(this.deletePreset(e.detail.id));
 
   private onDeviceMount(e: CustomEvent<{ pluginId: string }>) {
     void this.mountDevice(e.detail.pluginId);

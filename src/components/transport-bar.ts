@@ -28,8 +28,8 @@ const BEATS_PER_BAR = 4;
 /**
  * The master transport strip (the mother clock's face): PLAY/STOP, BPM, and
  * a bar.beat position readout in one thin full-width band pinned to the top
- * screen edge — with room to grow the global menu (export…). Devices follow
- * it only when their slot's SYNC is on.
+ * screen edge. The global menu (app presets…) docks on its right through
+ * the "menu" slot. Devices follow it only when their slot's SYNC is on.
  */
 @customElement("transport-bar")
 export class TransportBar extends LitElement {
@@ -131,6 +131,8 @@ export class TransportBar extends LitElement {
   render() {
     return html`
       <div class="bar">
+        <div class="side"></div>
+        <div class="transport">
         <button
           class=${classMap({ "round-btn": true, active: this.playing })}
           title=${this.playing ? "Stop all synced devices" : "Start all synced devices"}
@@ -145,6 +147,8 @@ export class TransportBar extends LitElement {
         <div class="position">
           <lcd-element .text=${this.position}></lcd-element>
         </div>
+        </div>
+        <div class="side menu"><slot name="menu"></slot></div>
       </div>
     `;
   }
@@ -159,12 +163,24 @@ export class TransportBar extends LitElement {
       --lcd-font-size: 11px;
     }
 
+    /* Transport centred; the global menu (presets…) docks right. */
     .bar {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
       align-items: center;
-      justify-content: center;
       gap: 18px;
       padding: 6px 1.5em;
+    }
+
+    .transport {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .side.menu {
+      display: flex;
+      justify-content: flex-end;
     }
 
     .round-btn {
