@@ -19,7 +19,7 @@ import { MidiBus } from "../../midi/bus/bus";
 import { MIDI_EVENT_SIZE } from "../../midi/transport/ring-buffer";
 import { DischordNode } from "./dischord-node";
 import { DischordPresets } from "./presets";
-import { applyState, loadStoredState, saveState, serializeState } from "./storage";
+import { applyState, clearStoredState, loadStoredState, saveState, serializeState } from "./storage";
 import {
   BANK_COUNT,
   BANK_NAMES,
@@ -108,6 +108,11 @@ export class DischordController extends EventTarget implements MidiSourcePlugin,
   /** Must be called before init(): state loads under the slot-scoped key. */
   setSlotId(slotId: string): void {
     this.slotId = slotId;
+  }
+
+  forgetPersisted(): void {
+    // Only ever the slot-scoped key — never the unscoped legacy one.
+    if (this.slotId) clearStoredState(this.slotId);
   }
 
   init(): void {

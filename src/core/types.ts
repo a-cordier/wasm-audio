@@ -93,6 +93,13 @@ export interface Learnable {
  */
 export interface SlotAware {
   setSlotId(slotId: string): void;
+  /**
+   * Drop the slot-scoped stored state. The shell calls it after dispose()
+   * whenever the slot leaves the rack (eject, preset switch): slot ids are
+   * reused across presets, so a lingering key would bleed into whichever
+   * device next mounts under the same id.
+   */
+  forgetPersisted(): void;
 }
 
 /**

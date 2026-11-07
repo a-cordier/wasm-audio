@@ -27,6 +27,17 @@ import { pluginRegistry, PluginRegistration } from "../core/plugin-registry";
 import type { Plugin, InstrumentPlugin } from "../core/types";
 import { isInstrumentPlugin, isSlotAware, isAudioProducer, isAudioEffect, isAuxOutputProvider, isClockObserver, isMidiConsumer, isTransportChild } from "../core/types";
 import { RackSession, RackSlotEntry, loadRackSession, saveRackSession } from "../core/rack-storage";
+import {
+  AppPreset,
+  INIT_PRESET_ID,
+  defaultPresetName,
+  initSession,
+  loadPresets,
+  newPresetId,
+  sanitizePresetName,
+  savePresets,
+  toPresetSession,
+} from "../core/preset-storage";
 import { getBindingManager } from "../control/binding-manager";
 import { getParamDirectory } from "../control/param-directory";
 import { MidiControlAdapter } from "../control/adapters/midi-adapter";
@@ -115,6 +126,25 @@ export class Daw extends LitElement {
 
   private kbSlotConfigs = new Map<string, KbTarget>();
 
+  // App-level presets (item 12). The autosaved session is the working copy;
+  // these are the named snapshots it can be saved to / opened from.
+  @state()
+  private presets: AppPreset[] = [];
+
+  @state()
+  private currentPresetId = INIT_PRESET_ID;
+
+  @state()
+  private presetDirty = false;
+
+  /** Canonical JSON of the workspace as last opened/saved — dirty = differs. */
+  private presetBaseline = "";
+  /** Latest requested preset while a switch is in flight (switches queue). */
+  private presetTarget: string | null = null;
+  private presetSwitch: Promise<void> | null = null;
+  /** True during teardown/remount: no partial workspace may be saved. */
+  private switchingPreset = false;
+
   private slotCounter = 0;
   private rowCounter = 0;
   private sessionSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -174,6 +204,7 @@ export class Daw extends LitElement {
 
     this.mixerEngine = new MixerEngine(this.audioContext);
 
+    this.presets = loadPresets();
     const stored = loadRackSession();
     if (stored) {
       this.transport.setBpm(stored.transport?.bpm ?? 120);
@@ -188,21 +219,15 @@ export class Daw extends LitElement {
       await this.buildDefaultRack(showTemplate);
     }
 
-    // Arm the first MIDI-consuming slot for the on-screen keyboard.
-    const firstConsumer = this.leafSlots().find((slot) => {
-      const plugin = this.plugins.get(slot.id);
-      return plugin !== undefined && isMidiConsumer(plugin);
-    });
-    if (firstConsumer) {
-      const reg = firstConsumer.pluginId ? pluginRegistry.get(firstConsumer.pluginId) : undefined;
-      const channel = typeof firstConsumer.midiChannel === "number" ? firstConsumer.midiChannel : (0 as Channel);
-      this.kbSlotConfigs.set(firstConsumer.id, {
-        channel,
-        octaveShift: reg?.keyboardOctaveShift ?? 0,
-      });
-      this.selectedSlotIds = new Set([firstConsumer.id]);
-    }
-    this.syncKeyboardTargets();
+    // Which preset the working copy descends from. A deleted preset or a
+    // pre-preset session falls back to INIT (and reads dirty if non-empty).
+    const parentId = stored?.preset?.id;
+    const parent = parentId ? this.presets.find((p) => p.id === parentId) : undefined;
+    this.currentPresetId = parent ? parent.id : INIT_PRESET_ID;
+    const cleanReload = stored?.preset && !stored.preset.dirty && (parent || parentId === INIT_PRESET_ID);
+    this.presetBaseline = Daw.canonical(parent ? parent.session : initSession());
+
+    this.armFirstConsumer();
 
     this.audioReady = this.audioContext.state === "running";
     this.audioContext.addEventListener("statechange", this.onAudioStateChange);
@@ -222,6 +247,20 @@ export class Daw extends LitElement {
     }
 
     this.ready = true;
+
+    // A clean reload baselines on the workspace as rendered (slot elements
+    // push their config into devices on first render); otherwise the parent
+    // preset's stored snapshot is the reference.
+    await this.renderSettled();
+    if (cleanReload) this.presetBaseline = Daw.canonical(this.snapshot());
+    this.presetDirty = Daw.canonical(this.snapshot()) !== this.presetBaseline;
+  }
+
+  /** The rack has rendered and every slot element has wired its device
+   * (they push slot config — e.g. a sequencer's OUT channel — on render). */
+  private async renderSettled() {
+    await this.updateComplete;
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
 
   disconnectedCallback() {
@@ -279,7 +318,31 @@ export class Daw extends LitElement {
     }
   }
 
-  private async restoreSession(session: RackSession) {
+  /** Arm the first MIDI-consuming slot for the on-screen keyboard. */
+  private armFirstConsumer() {
+    const firstConsumer = this.leafSlots().find((slot) => {
+      const plugin = this.plugins.get(slot.id);
+      return plugin !== undefined && isMidiConsumer(plugin);
+    });
+    if (firstConsumer) {
+      const reg = firstConsumer.pluginId ? pluginRegistry.get(firstConsumer.pluginId) : undefined;
+      const channel = typeof firstConsumer.midiChannel === "number" ? firstConsumer.midiChannel : (0 as Channel);
+      this.kbSlotConfigs.set(firstConsumer.id, {
+        channel,
+        octaveShift: reg?.keyboardOctaveShift ?? 0,
+      });
+      this.selectedSlotIds = new Set([firstConsumer.id]);
+    }
+    this.syncKeyboardTargets();
+  }
+
+  /**
+   * Rebuild the rack from a stored session. The working copy (reload) lets
+   * self-persisting devices restore from their own slot-scoped keys; a
+   * preset (`fromPreset`) carries their state in the snapshot instead, and
+   * every device mounts fresh before replaying it.
+   */
+  private async restoreSession(session: RackSession, fromPreset = false) {
     this.slotCounter = session.slotCounter;
 
     const slots: SlotConfig[] = [];
@@ -301,7 +364,9 @@ export class Daw extends LitElement {
       );
     }
     if (slots.length === 0) {
-      await this.buildDefaultRack(false);
+      // An empty stored rack stays empty (INIT, a cleared workspace) — the
+      // default rack is a first-launch thing only.
+      this.slotTree = createBranchSlot("root", "DAW", []);
       return;
     }
     // Rebuild the row structure: entries carry their row index.
@@ -321,11 +386,12 @@ export class Daw extends LitElement {
     for (const entry of session.slots) {
       const slot = slots.find((s) => s.id === entry.id);
       if (!slot) continue;
-      const plugin = await this.instantiateSlot(slot);
+      const plugin = await this.instantiateSlot(slot, fromPreset);
       if (!plugin) continue;
       // Self-persisting devices (sequels) restore from their own slot-scoped
-      // storage inside init(); everything else replays the session snapshot.
-      if (entry.state != null && !isSlotAware(plugin)) {
+      // storage inside init() on reload; everything else — and everything
+      // when opening a preset — replays the snapshot.
+      if (entry.state != null && (fromPreset || !isSlotAware(plugin))) {
         try {
           plugin.loadState(entry.state);
         } catch (err) {
@@ -338,7 +404,10 @@ export class Daw extends LitElement {
     }
   }
 
-  private async instantiateSlot(slot: SlotConfig): Promise<Plugin | null> {
+  /** `fresh`: the device must not read any slot-scoped stored state — a new
+   * mount or a preset (whose snapshot carries the state). Slot ids repeat
+   * across presets, so a key left behind would otherwise bleed in. */
+  private async instantiateSlot(slot: SlotConfig, fresh = false): Promise<Plugin | null> {
     if (!slot.pluginId) return null;
     const reg = pluginRegistry.get(slot.pluginId);
     if (!reg) return null;
@@ -346,7 +415,10 @@ export class Daw extends LitElement {
       await addWorkletModuleOnce(this.audioContext, mod);
     }
     const plugin = reg.controllerFactory(this.audioContext);
-    if (isSlotAware(plugin)) plugin.setSlotId(slot.id);
+    if (isSlotAware(plugin)) {
+      plugin.setSlotId(slot.id);
+      if (fresh) plugin.forgetPersisted();
+    }
     plugin.init();
     this.plugins.set(slot.id, plugin);
     // Every mount path converges here — the automation address book sees
@@ -488,7 +560,7 @@ export class Daw extends LitElement {
       ...this.defaultChannelsFor(reg),
       sync: reg.defaultSync === true,
     });
-    await this.instantiateSlot(slot);
+    await this.instantiateSlot(slot, true);
     this.routeSlot(slot);
     if (slot.sync) this.wireSync(slot.id, true);
     const rows = [...(this.slotTree.children ?? [])];
@@ -503,7 +575,9 @@ export class Daw extends LitElement {
     return id;
   }
 
-  async unmountSlot(slotId: string): Promise<void> {
+  /** `silent`: the board is already blacked out (preset switch) — skip the
+   * per-device ramp wait so a whole rack tears down in one beat. */
+  async unmountSlot(slotId: string, { silent = false } = {}): Promise<void> {
     if (!this.slotTree) return;
     const plugin = this.plugins.get(slotId);
     if (!plugin) return;
@@ -514,7 +588,7 @@ export class Daw extends LitElement {
     if (isClockObserver(plugin)) this.transport.unobserve(plugin);
 
     // Ramp to silence before teardown so the unmount never clicks.
-    if (isAudioProducer(plugin)) {
+    if (!silent && isAudioProducer(plugin)) {
       const node = plugin.getOutputNode();
       if (node instanceof GainNode) {
         node.gain.setTargetAtTime(0, this.audioContext.currentTime, 0.01);
@@ -545,6 +619,9 @@ export class Daw extends LitElement {
     }
 
     plugin.dispose();
+    // dispose() flushed any pending autosave — now the slot-scoped key goes
+    // with the slot (ids are reused across presets).
+    if (isSlotAware(plugin)) plugin.forgetPersisted();
     this.plugins.delete(slotId);
 
     this.kbSlotConfigs.delete(slotId);
@@ -608,8 +685,17 @@ export class Daw extends LitElement {
     }, SESSION_SAVE_DEBOUNCE_MS);
   }
 
-  private saveSessionNow() {
-    if (!this.slotTree) return;
+  /** Canonical form for dirty comparison: the preset-shaped snapshot. */
+  private static canonical(session: RackSession): string {
+    return JSON.stringify(toPresetSession(session));
+  }
+
+  /**
+   * The whole workspace as a RackSession, EVERY device's state included
+   * (self-persisting ones too) — the preset shape plus chrome. Key order
+   * matches sanitizeRackSession so canonical JSON compares like for like.
+   */
+  private snapshot(): RackSession {
     const slots: RackSlotEntry[] = [];
     (this.slotTree.children ?? []).forEach((row, rowIndex) => {
       for (const slot of row.children ?? []) {
@@ -627,18 +713,152 @@ export class Daw extends LitElement {
           collapsed: slot.collapsed === true,
           sync: slot.sync === true,
           row: rowIndex,
-          state: plugin && !isSlotAware(plugin) ? plugin.getState() : undefined,
+          state: plugin ? plugin.getState() : undefined,
         });
       }
     });
-    saveRackSession({
+    return {
       version: 1,
       slotCounter: this.slotCounter,
       slots,
       transport: { bpm: this.transport.bpm },
       mixer: { master: this.mixerEngine.masterGain, click: this.mixerEngine.clickGain },
+    };
+  }
+
+  private saveSessionNow() {
+    // Mid-switch the rack is half torn down — never persist that.
+    if (!this.slotTree || this.switchingPreset) return;
+    const full = this.snapshot();
+    this.presetDirty = Daw.canonical(full) !== this.presetBaseline;
+    saveRackSession({
+      ...full,
+      // The working copy leaves self-persisting devices to their own keys.
+      slots: full.slots.map((entry) => {
+        const plugin = this.plugins.get(entry.id);
+        return plugin && isSlotAware(plugin) ? { ...entry, state: undefined } : entry;
+      }),
       ui: { mixerCollapsed: this.mixerCollapsed, browserOpen: this.browserOpen },
+      preset: { id: this.currentPresetId, dirty: this.presetDirty },
     });
+  }
+
+  // --- App-level presets ---
+
+  /**
+   * Open a preset (or INIT): a full, deliberate switch — transport stops,
+   * the board blacks out, every device unmounts through the ordinary path,
+   * the snapshot remounts, the board comes back. Requests queue: only the
+   * latest target runs once an in-flight switch lands.
+   */
+  openPreset(id: string): Promise<void> {
+    this.presetTarget = id;
+    if (this.presetSwitch) return this.presetSwitch;
+    this.presetSwitch = (async () => {
+      try {
+        while (this.presetTarget !== null) {
+          const target = this.presetTarget;
+          this.presetTarget = null;
+          await this.switchToPreset(target);
+        }
+      } finally {
+        this.presetSwitch = null;
+      }
+    })();
+    return this.presetSwitch;
+  }
+
+  private async switchToPreset(id: string) {
+    const preset = this.presets.find((p) => p.id === id);
+    if (id !== INIT_PRESET_ID && !preset) return;
+    const session = preset ? preset.session : initSession();
+
+    if (this.sessionSaveTimer !== null) {
+      clearTimeout(this.sessionSaveTimer);
+      this.sessionSaveTimer = null;
+    }
+    this.switchingPreset = true;
+    try {
+      if (this.transport.isPlaying) this.transport.stop();
+      await this.mixerEngine.setBlackout(true);
+      await this.teardownRack();
+
+      this.transport.setBpm(session.transport?.bpm ?? 120);
+      this.mixerEngine.setMasterGain(session.mixer?.master ?? 0.8);
+      this.mixerEngine.setClickGain(session.mixer?.click ?? 0.8);
+      await this.restoreSession(session, true);
+      this.armFirstConsumer();
+      this.currentPresetId = id;
+      await this.renderSettled();
+    } finally {
+      this.switchingPreset = false;
+      void this.mixerEngine.setBlackout(false);
+    }
+    this.presetBaseline = Daw.canonical(this.snapshot());
+    this.saveSessionNow();
+  }
+
+  /** Unmount every device: modules first (SONG lifts its mutes while its
+   * targets still live, MOTION stops dispatching), then the rest at once. */
+  private async teardownRack() {
+    const ids = this.leafSlots().map((slot) => slot.id);
+    const isModule = (id: string) => this.plugins.get(id)?.descriptor.kind === "module";
+    await Promise.all(ids.filter(isModule).map((id) => this.unmountSlot(id, { silent: true })));
+    await Promise.all(ids.filter((id) => !isModule(id)).map((id) => this.unmountSlot(id, { silent: true })));
+    this.kbSlotConfigs.clear();
+    this.selectedSlotIds = new Set();
+    this.syncKeyboardTargets();
+  }
+
+  /**
+   * Save the workspace. With a name — or on INIT, which is never written —
+   * it creates a new preset and makes it current; otherwise it overwrites
+   * the current one. False when storage refused it (nothing changes).
+   */
+  savePreset(name?: string): boolean {
+    if (this.switchingPreset) return false;
+    const session = toPresetSession(this.snapshot());
+    let next: AppPreset[];
+    let id = this.currentPresetId;
+    if (name !== undefined || id === INIT_PRESET_ID) {
+      id = newPresetId();
+      next = [
+        ...this.presets,
+        { id, name: sanitizePresetName(name) || defaultPresetName(this.presets), session },
+      ];
+    } else {
+      next = this.presets.map((p) => (p.id === id ? { ...p, session } : p));
+    }
+    if (!savePresets(next)) return false;
+    this.presets = next;
+    this.currentPresetId = id;
+    this.presetBaseline = Daw.canonical(session);
+    this.saveSessionNow();
+    return true;
+  }
+
+  renamePreset(id: string, name: string): boolean {
+    const clean = sanitizePresetName(name);
+    if (id === INIT_PRESET_ID || !clean) return false;
+    const next = this.presets.map((p) => (p.id === id ? { ...p, name: clean } : p));
+    if (!savePresets(next)) return false;
+    this.presets = next;
+    return true;
+  }
+
+  /** Delete a preset. Deleting the current one leaves the rack as it is and
+   * re-parents the working copy to INIT (so it reads unsaved). */
+  deletePreset(id: string): boolean {
+    if (id === INIT_PRESET_ID) return false;
+    const next = this.presets.filter((p) => p.id !== id);
+    if (!savePresets(next)) return false;
+    this.presets = next;
+    if (this.currentPresetId === id) {
+      this.currentPresetId = INIT_PRESET_ID;
+      this.presetBaseline = Daw.canonical(initSession());
+      this.saveSessionNow();
+    }
+    return true;
   }
 
   private saveStrip(slotId: string) {

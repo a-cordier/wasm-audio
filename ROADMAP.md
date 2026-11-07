@@ -294,3 +294,19 @@ and explicit C++ `PARAM_COUNT` values, so both wasm synths get a real
 three-layer check. Verified live: measured rates exact (1/4 → 2 Hz,
 1B → 0.5 Hz, 3/8 → 1.33 Hz at 120), gates inert on every input path, old
 sessions load with SYNC off, free mode unchanged.
+
+## Phase 4 — Workspace
+
+The instrument rack is complete; the workspace around it grows next —
+starting with moving between whole setups instead of living in one.
+
+### 12. [~] App-level presets — in progress
+Whole-workspace snapshots (rack layout, every device's state — the
+self-persisting sequencers included — mixer strips/sends/aux, master and
+click, BPM) saved under a name in localStorage and opened/stepped from a
+preset LCD stepper in the top transport bar. A virtual **INIT** opens a
+clean empty rack and can never be written (saving on it is save-as). The
+autosaved session stays the working copy; it remembers which preset it
+descends from and whether it is dirty. Switching is a deliberate full
+teardown + remount behind a blacked-out master, with per-slot storage
+keys purged so slot ids colliding across presets never bleed state.

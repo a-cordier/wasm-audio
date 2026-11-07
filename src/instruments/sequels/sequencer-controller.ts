@@ -23,7 +23,7 @@ import { SequelsPresets } from "./presets";
 import { euclideanPattern, rotate } from "./euclid";
 import { PatternRecorder, RecordClock } from "./recorder";
 import { CONTOUR_NAMES, Contour, SCALES, contourDegree, degreeToNote, foldIntoRange } from "./scales";
-import { applyState, loadStoredState, saveState, serializeState } from "./storage";
+import { applyState, clearStoredState, loadStoredState, saveState, serializeState } from "./storage";
 import {
   BANK_COUNT,
   BANK_NAMES,
@@ -98,6 +98,11 @@ export class SequencerController extends EventTarget implements MidiSourcePlugin
   /** Must be called before init(): state loads under the slot-scoped key. */
   setSlotId(slotId: string): void {
     this.slotId = slotId;
+  }
+
+  forgetPersisted(): void {
+    // Only ever the slot-scoped key — never the unscoped legacy one.
+    if (this.slotId) clearStoredState(this.slotId);
   }
 
   init(): void {

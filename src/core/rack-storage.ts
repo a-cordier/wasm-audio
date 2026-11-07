@@ -20,8 +20,9 @@
  * reload restores the whole setup. Follows the sequels storage idiom:
  * versioned key, sanitize on read, best-effort try/catch writes.
  *
- * Sequels itself is excluded from the state snapshot — it self-persists a
- * richer serialization under its own slot-scoped key.
+ * Self-persisting (SlotAware) devices are excluded from the WORKING copy's
+ * state snapshot — their own slot-scoped key is the live truth. Presets
+ * (core/preset-storage.ts) carry every device's state, those included.
  */
 
 import { ChannelStripState, sanitizeStripState, sanitizeBusGain } from "../mixer/types";
@@ -56,12 +57,15 @@ export interface RackSession {
   transport?: { bpm: number };
   /** Mixer bus levels (the strips persist per slot in `slots[].mixer`). */
   mixer?: { master: number; click: number };
-  /** Workspace chrome state (docked panels). */
+  /** Workspace chrome state (docked panels). Never part of a preset. */
   ui?: { mixerCollapsed: boolean; browserOpen: boolean };
+  /** Working copy only: the preset this session descends from (absent =
+   * INIT / pre-preset session) and whether it has unsaved changes. */
+  preset?: { id: string; dirty: boolean };
 }
 
 const STORAGE_KEY = "rack.session.v1";
-const RACK_VERSION = 1;
+export const RACK_VERSION = 1;
 
 function clampChannel(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value)
@@ -116,40 +120,52 @@ export function loadRackSession(): RackSession | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<RackSession>;
-    if (parsed?.version !== RACK_VERSION || !Array.isArray(parsed.slots)) return null;
-    const slots = parsed.slots
-      .map((raw, index) => sanitizeEntry(raw, index))
-      .filter((e): e is RackSlotEntry => e !== null);
-    if (slots.length === 0) return null;
-    const rawBpm = (parsed.transport as { bpm?: unknown } | undefined)?.bpm;
-    const rawMixer = parsed.mixer as { master?: unknown; click?: unknown } | undefined;
-    const rawUi = parsed.ui as { mixerCollapsed?: unknown; browserOpen?: unknown } | undefined;
-    return {
-      version: RACK_VERSION,
-      slotCounter:
-        typeof parsed.slotCounter === "number" && Number.isFinite(parsed.slotCounter)
-          ? Math.max(0, Math.round(parsed.slotCounter))
-          : slots.length,
-      slots,
-      transport: {
-        bpm: typeof rawBpm === "number" && Number.isFinite(rawBpm)
-          ? Math.max(20, Math.min(300, Math.round(rawBpm)))
-          : 120,
-      },
-      mixer: {
-        master: sanitizeBusGain(rawMixer?.master, 0.8),
-        click: sanitizeBusGain(rawMixer?.click, 0.8),
-      },
-      ui: {
-        mixerCollapsed: rawUi?.mixerCollapsed === true,
-        // The browser rail defaults to open — absent means legacy session.
-        browserOpen: rawUi?.browserOpen !== false,
-      },
-    };
+    return sanitizeRackSession(JSON.parse(raw));
   } catch {
     return null;
   }
+}
+
+/**
+ * Sanitize-on-read for any stored RackSession (the working copy and every
+ * preset share the shape). An EMPTY rack is a valid session — INIT and
+ * cleared workspaces persist as such; only a missing key means first launch.
+ */
+export function sanitizeRackSession(raw: unknown): RackSession | null {
+  const parsed = raw as Partial<RackSession> | null;
+  if (parsed?.version !== RACK_VERSION || !Array.isArray(parsed.slots)) return null;
+  const slots = parsed.slots
+    .map((raw, index) => sanitizeEntry(raw, index))
+    .filter((e): e is RackSlotEntry => e !== null);
+  const rawBpm = (parsed.transport as { bpm?: unknown } | undefined)?.bpm;
+  const rawMixer = parsed.mixer as { master?: unknown; click?: unknown } | undefined;
+  const rawUi = parsed.ui as { mixerCollapsed?: unknown; browserOpen?: unknown } | undefined;
+  const rawPreset = parsed.preset as { id?: unknown; dirty?: unknown } | undefined;
+  return {
+    version: RACK_VERSION,
+    slotCounter:
+      typeof parsed.slotCounter === "number" && Number.isFinite(parsed.slotCounter)
+        ? Math.max(0, Math.round(parsed.slotCounter))
+        : slots.length,
+    slots,
+    transport: {
+      bpm: typeof rawBpm === "number" && Number.isFinite(rawBpm)
+        ? Math.max(20, Math.min(300, Math.round(rawBpm)))
+        : 120,
+    },
+    mixer: {
+      master: sanitizeBusGain(rawMixer?.master, 0.8),
+      click: sanitizeBusGain(rawMixer?.click, 0.8),
+    },
+    ui: {
+      mixerCollapsed: rawUi?.mixerCollapsed === true,
+      // The browser rail defaults to open — absent means legacy session.
+      browserOpen: rawUi?.browserOpen !== false,
+    },
+    preset: typeof rawPreset?.id === "string"
+      ? { id: rawPreset.id, dirty: rawPreset.dirty === true }
+      : undefined,
+  };
 }
 
 export function clearRackSession(): void {

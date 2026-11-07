@@ -151,8 +151,9 @@ export function saveState(state: SequencerState, slotId?: string): void {
 
 export function loadStoredState(slotId?: string): SequencerState | null {
   try {
-    const raw =
-      localStorage.getItem(storageKey(slotId)) ?? localStorage.getItem(STORAGE_KEY);
+    // No fallback to the unscoped legacy key: a fresh slot must start clean
+    // (INIT, a new mount, a preset reusing a slot id).
+    const raw = localStorage.getItem(storageKey(slotId));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SequencerState;
     if (parsed?.version !== STATE_VERSION) return null;

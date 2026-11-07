@@ -49,6 +49,8 @@ interface MasterNodes {
   gain: GainNode;
   limiter: DynamicsCompressorNode;
   analyser: AnalyserNode;
+  /** Last stage before the DAC: the preset-switch blackout (never state). */
+  blackout: GainNode;
 }
 
 interface ClickNodes {
@@ -114,10 +116,12 @@ export class MixerEngine extends EventTarget {
         release: 0.25,
       }),
       analyser: new AnalyserNode(ctx, { fftSize: FFT_SIZE, smoothingTimeConstant: SMOOTHING }),
+      blackout: new GainNode(ctx, { gain: 1 }),
     };
     this.master.gain.connect(this.master.limiter);
     this.master.limiter.connect(this.master.analyser);
-    this.master.analyser.connect(ctx.destination);
+    this.master.analyser.connect(this.master.blackout);
+    this.master.blackout.connect(ctx.destination);
 
     this.click = {
       input: new GainNode(ctx, { gain: 1 }),
@@ -514,6 +518,16 @@ export class MixerEngine extends EventTarget {
   setMasterGain(value: number): void {
     this._masterGain = Math.max(0, Math.min(MAX_FADER_GAIN, value));
     this.master.gain.gain.setTargetAtTime(this._masterGain, this.ctx.currentTime, RAMP_TC);
+  }
+
+  /**
+   * Ramp the whole board to silence (true) or back (false) behind every
+   * fader and meter — the preset switch's curtain. Resolves once the ramp
+   * has settled; master/click levels (state) are untouched.
+   */
+  async setBlackout(on: boolean): Promise<void> {
+    this.master.blackout.gain.setTargetAtTime(on ? 0 : 1, this.ctx.currentTime, RAMP_TC);
+    await new Promise((resolve) => setTimeout(resolve, REMOVE_RAMP_MS + 20));
   }
 
   setClickGain(value: number): void {
