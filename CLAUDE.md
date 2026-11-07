@@ -68,8 +68,8 @@ persist per slot entry.
 **The shell owns the rack**: daw-element mounts/unmounts devices at runtime
 (`mountDevice`/`unmountSlot` — instantiate → route on a dynamic mixer
 channel; ramp silent → dispose → unroute), and the whole session persists
-(`core/rack-storage.ts`: layout + per-device state snapshots; sequels
-self-persists). Duplicate mounts auto-number ("ECHO 2") — slot names flow to
+(`core/rack-storage.ts`: layout + per-device state snapshots; the
+sequencers self-persist under slot-scoped keys). Duplicate mounts auto-number ("ECHO 2") — slot names flow to
 rack headers, strip nameplates and send-knob labels. Slots fold to their
 header strip (device keeps running) and hold-to-eject unmounts. **KB arming
 gates ALL computer-keyboard input** to a device — notes and document-level
@@ -79,6 +79,25 @@ devices all respond. Non-instrument devices (effects, inputs) live under
 guard; the picker/mount affordances are everywhere: rail entries (click or
 drag), prepared "+" slots in the rack AND prepared mixer strips (click pops
 the shared `device-picker`), or drop a device anywhere on the rack viewport.
+
+**App presets** (`core/preset-storage.ts`, `rack.presets.v1`) are named
+whole-workspace snapshots, stepped from `preset-bar` (docked in the
+transport strip's `menu` slot). The autosaved session stays the **working
+copy** and records `preset: {id, dirty}`; a preset is its snapshot with
+EVERY device's state (self-persisting ones included) minus the `ui`
+chrome, which never travels or dirties. **INIT** is virtual (never
+stored, always first, empty rack); saving on it is save-as. Dirty = the
+canonical preset-shaped JSON differs from the baseline taken once the
+rack has rendered after an open/save (slot elements push config on
+render). `openPreset` is a deliberate switch: queued (latest wins),
+transport stopped, board blacked out (`MixerEngine.setBlackout` — a stage
+after the master meter, never state), `teardownRack` (modules first) via
+`unmountSlot(…, {silent})`, `restoreSession(session, fromPreset)`,
+blackout lifted. Slot ids repeat across presets by design (MOTION/SONG
+keep their references), so **slot-scoped keys never outlive their slot**:
+`SlotAware.forgetPersisted()` runs after dispose on eject/switch and
+before init on any fresh mount. An empty stored rack stays empty — the
+default rack is first-launch only.
 
 **The mixer is dynamic** (`src/mixer/`): one channel per mounted
 non-sequencer device, keyed by slot id — created on mount, ramped silent and

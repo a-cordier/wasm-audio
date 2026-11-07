@@ -300,13 +300,32 @@ sessions load with SYNC off, free mode unchanged.
 The instrument rack is complete; the workspace around it grows next —
 starting with moving between whole setups instead of living in one.
 
-### 12. [~] App-level presets — in progress
-Whole-workspace snapshots (rack layout, every device's state — the
-self-persisting sequencers included — mixer strips/sends/aux, master and
-click, BPM) saved under a name in localStorage and opened/stepped from a
-preset LCD stepper in the top transport bar. A virtual **INIT** opens a
-clean empty rack and can never be written (saving on it is save-as). The
-autosaved session stays the working copy; it remembers which preset it
-descends from and whether it is dirty. Switching is a deliberate full
-teardown + remount behind a blacked-out master, with per-slot storage
-keys purged so slot ids colliding across presets never bleed state.
+### 12. [x] App-level presets — done 2026-11-07
+Three QA'd batches. Whole-workspace snapshots (`core/preset-storage.ts`,
+`rack.presets.v1`) — rack layout, every device's state including the
+self-persisting sequencers, mixer strips/EQ/sends/aux strips, master and
+click, BPM — saved under a name and stepped from **`preset-bar`**, an LCD
+stepper docked right in the top transport strip (its new `menu` slot)
+with SAVE / SAVE AS / hold-to-delete and double-click rename, names
+edited inline on the LCD (keys never reach armed devices). A virtual
+**INIT** opens an empty rack and is never written: saving on it is
+save-as. The autosaved session remains the **working copy** and records
+which preset it descends from plus a dirty flag (`NAME*`), computed
+against a canonical baseline taken once the rack has rendered; the
+first step away from unsaved work reads `UNSAVED` and only a second
+press discards. A switch is deliberate: queued (tap-through lands once),
+transport stopped, the board blacked out behind a new post-meter stage
+(`setBlackout`), the rack torn down through `unmountSlot` (modules
+first, so SONG lifts its mutes while targets live) and the snapshot
+remounted. Slot ids are kept verbatim per preset so MOTION targets and
+SONG cells stay valid, which makes ids collide across presets — handled
+by `SlotAware.forgetPersisted()`: slot-scoped keys are cleared after
+dispose on eject/switch and before init on every fresh mount (sequels'
+legacy unscoped-key fallback retired). Empty racks persist; the default
+rack is first-launch only. Verified live: an eight-device preset
+(sequels + DISCHORD patterns, EQ + echo send, drumlin kick on its own
+strip, MOTION on monolog CUTOFF, a SONG scene/chain at 133 BPM)
+round-trips byte-exact through INIT, another preset reusing `slot-1` for
+a different device, and a reload; leak counts (plugins, channels,
+transport children/observers) match each preset; legacy sessions open
+as `INIT*`; a refused write reads `FULL`.

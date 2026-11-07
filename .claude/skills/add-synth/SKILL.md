@@ -88,6 +88,15 @@ done. The list here is the contract it satisfies:
   under SYNC and its **setter** returns early while synced (route the
   learn handler through it). Reference: the template's vibrato LFO (JS),
   monolog / poly-ticks (C++).
+- **State persistence** — by default the shell snapshots `getState()` into
+  the session and replays `loadState()`; that's all a device needs. A device
+  that self-persists under its own slot-scoped key implements `SlotAware`
+  (`setSlotId` before init + **`forgetPersisted()`** clearing that key):
+  the shell calls it on fresh mounts (before init) and after dispose on
+  eject / preset switch, because slot ids repeat across app presets and a
+  stale key would bleed into the next device under that id. Its
+  `getState()`/`loadState()` must still round-trip fully — presets carry
+  it. References: `sequels`, `dischord`.
 - **Serve the worklet** — add each `workletModules` file to the `workletFiles` map in `vite.config.ts`, or `addModule()` 404s in dev and build.
 - **Params** — a `ParamId` enum ending in `PARAM_COUNT`; the alignment trio above.
 - **Node** — sizes a `SharedParamBuffer(ParamId.PARAM_COUNT)`, loads the worklet module, owns `setParam`.
