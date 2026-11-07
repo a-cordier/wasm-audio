@@ -144,6 +144,11 @@ export enum ControlID {
   // Template LFO (appended — the enum is implicitly numbered, never insert)
   TPL_LFO_RATE,
   TPL_LFO_AMT,
+
+  // RUDIMENT (drum sequencer) — appended
+  RUD_BPM,
+  RUD_SWING,
+  RUD_GATE,
 }
 
 export interface ControlSignal {

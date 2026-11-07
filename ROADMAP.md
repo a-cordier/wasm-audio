@@ -329,3 +329,14 @@ round-trips byte-exact through INIT, another preset reusing `slot-1` for
 a different device, and a reload; leak counts (plugins, channels,
 transport children/observers) match each preset; legacy sessions open
 as `INIT*`; a refused write reads `FULL`.
+
+### 13. [~] Drum sequencer
+SEQUELS speaks one note per step and DISCHORD speaks chords from scale
+degrees — neither can put a snare and a clap on the same step. RUDIMENT
+(`src/instruments/rudiment`) is a lanes × steps drum sequencer: 11 lanes
+(KICK SNARE CLAP RIM CH OH LT MT HT RIDE CRASH) defaulting to DRUMLIN's
+receive notes, editable per lane for other kits; any set of lanes fires on
+one step under the chord-safe ring rules; a 3-level velocity brush
+(SOFT/MID/ACC), swing, per-lane mute and per-lane length (polymeter). Full
+sequencer contract surface (CLICK bus, SYNC, PatternAddressable A0–D9 for
+SONG, presets, MIDI-learn, slot-scoped persistence with `forgetPersisted`).

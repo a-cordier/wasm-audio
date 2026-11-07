@@ -26,6 +26,10 @@ export interface PluginRegistration {
    * without the master clock (SONG), so their panel isn't born ghosted;
    * free-running-capable devices (MOTION, sequencers) leave it off. */
   defaultSync?: boolean;
+  /** A MIDI source's preferred default target: on mount it drives the first
+   * slot running this plugin id (RUDIMENT → "drumlin", whose receive notes
+   * its lanes default to), falling back to the first instrument. */
+  preferredTarget?: string;
 }
 
 class PluginRegistry {

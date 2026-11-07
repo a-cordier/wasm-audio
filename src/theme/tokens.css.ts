@@ -111,6 +111,14 @@ export const darkTheme = `
     --dischord-pattern-panel-color: #2b2f34;   /* steel  — pattern banks & slots */
     --dischord-steps-panel-color: #2f2f35;     /* cool   — step canvas */
 
+    /* RUDIMENT (drum sequencer): magenta accent + per-zone camaïeu. */
+    --rudiment-accent: #e0559a;
+    --rudiment-panel-color: #2f2f31;
+    --rudiment-transport-panel-color: #33302a; /* warm    — transport / clock */
+    --rudiment-pattern-panel-color: #2b2f34;   /* steel   — pattern banks & slots */
+    --rudiment-lane-panel-color: #332e32;      /* rose    — lane setup */
+    --rudiment-grid-panel-color: #302e33;      /* plum    — the hit canvas */
+
     --panel-wrapper-label-color: var(--moonbeam);
 
     --control-size-lg: 50px;
@@ -268,6 +276,14 @@ export const retroTheme = `
     --dischord-harmony-panel-color: #332d33;   /* mauve      — key, scale, voicing */
     --dischord-pattern-panel-color: #302d2c;   /* cool mauve — pattern banks & slots */
     --dischord-steps-panel-color: #352f2d;     /* warm       — step canvas */
+
+    /* RUDIMENT (drum sequencer): warmed magenta accent + per-zone camaïeu. */
+    --rudiment-accent: #d8679a;
+    --rudiment-panel-color: #342e27;
+    --rudiment-transport-panel-color: #3a2f28; /* warm red  — transport / clock */
+    --rudiment-pattern-panel-color: #302d2c;   /* cool      — pattern banks & slots */
+    --rudiment-lane-panel-color: #362d2e;      /* rose      — lane setup */
+    --rudiment-grid-panel-color: #342d2f;      /* plum      — the hit canvas */
 
     --panel-wrapper-label-color: var(--moonbeam);
 

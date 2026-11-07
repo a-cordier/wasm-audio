@@ -1,0 +1,311 @@
+/*
+ * Copyright (C) 2020 Antoine CORDIER
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *         http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import { LitElement, html, css } from "lit";
+import { customElement, property } from "lit/decorators.js";
+import { classMap } from "lit/directives/class-map.js";
+import { ControlID } from "../../../../control/types";
+import { ChangeDetail } from "../../../../types/events";
+import { SUBDIVISIONS, SUBDIVISION_NAMES, TransportState } from "../../types";
+
+export const enum ToolbarEvent {
+  PLAY_PAUSE = "play-pause",
+  STOP = "stop",
+  BPM = "bpm",
+  SUBDIVISION = "subdivision",
+  METRONOME = "metronome",
+  COPY = "copy",
+  PASTE = "paste",
+  CLEAR = "clear",
+}
+
+/** Taps further apart than this start a new count. */
+const TAP_TIMEOUT_MS = 2000;
+/** Number of intervals averaged together. */
+const TAP_AVERAGE = 4;
+
+@customElement("rudiment-toolbar")
+export class RudimentToolbar extends LitElement {
+  @property({ type: Number })
+  bpm = 120;
+
+  @property({ type: Number })
+  subdivision = 4;
+
+  @property({ type: Number })
+  transport: number = TransportState.STOPPED;
+
+  @property({ type: Boolean })
+  metronome = false;
+
+  @property({ type: Boolean })
+  hasClipboard = false;
+
+  // Tempo follows the master transport; local BPM controls are ghosted.
+  @property({ attribute: false })
+  synced = false;
+
+  private taps: number[] = [];
+
+  private get playing(): boolean {
+    return this.transport === TransportState.PLAYING;
+  }
+
+  render() {
+    return html`
+      <div class="toolbar">
+        <div class="toolbar-row">
+        <div class="panel transport-panel">
+          <button
+            class=${classMap({ "round-btn": true, "play-btn": true, active: this.playing })}
+            title=${this.synced
+              ? "the master transport drives this device (SYNC on)"
+              : this.playing ? "Pause (Space)" : "Play (Space)"}
+            ?disabled=${this.synced}
+            @click=${() => this.emit(ToolbarEvent.PLAY_PAUSE, 0)}
+          >
+            ${this.playing ? "❚❚" : "▶"}
+          </button>
+          <button
+            class=${classMap({ "round-btn": true, "stop-btn": true })}
+            title=${this.synced
+              ? "the master transport drives this device (SYNC on)"
+              : "Stop (Shift+Space)"}
+            ?disabled=${this.transport === TransportState.STOPPED || this.synced}
+            @click=${() => this.emit(ToolbarEvent.STOP, 0)}
+          >
+            ■
+          </button>
+        </div>
+        <div class="panel click-panel">
+          <button
+            class=${classMap({ "toggle-btn": true, active: this.metronome })}
+            title="Metronome"
+            @click=${() => this.emit(ToolbarEvent.METRONOME, this.metronome ? 0 : 1)}
+          >
+            CLICK
+          </button>
+        </div>
+        <div class=${classMap({ panel: true, "bpm-panel": true, ghosted: this.synced })}
+          title=${this.synced ? "tempo follows the master transport (SYNC on)" : ""}>
+          <control-learn-wrapper .controlID=${ControlID.RUD_BPM}>
+            <div class="lcd-row">
+              <button class="inc-btn" ?disabled=${this.synced} @click=${() => this.emit(ToolbarEvent.BPM, Math.max(20, this.bpm - 1))}>-</button>
+              <lcd-element .text=${String(this.bpm)}></lcd-element>
+              <button class="inc-btn" ?disabled=${this.synced} @click=${() => this.emit(ToolbarEvent.BPM, Math.min(300, this.bpm + 1))}>+</button>
+            </div>
+          </control-learn-wrapper>
+          <button class="toggle-btn tap-btn" title="Tap tempo" ?disabled=${this.synced} @click=${this.onTap}>TAP</button>
+          <button class="toggle-btn" title="Halve the tempo" ?disabled=${this.synced} @click=${() => this.setBpm(this.bpm / 2)}>÷2</button>
+          <button class="toggle-btn" title="Double the tempo" ?disabled=${this.synced} @click=${() => this.setBpm(this.bpm * 2)}>×2</button>
+        </div>
+        </div>
+        <div class="toolbar-row">
+        <div class="panel subdiv-panel">
+          ${SUBDIVISIONS.map(
+            (sub, i) => html`
+              <button
+                class=${classMap({ "toggle-btn": true, active: this.subdivision === sub })}
+                @click=${() => this.emit(ToolbarEvent.SUBDIVISION, sub)}
+              >
+                ${SUBDIVISION_NAMES[i]}
+              </button>
+            `
+          )}
+        </div>
+        <div class="panel edit-panel">
+          <button class="toggle-btn" title="Copy this pattern (Ctrl/Cmd+C)" @click=${() => this.emit(ToolbarEvent.COPY, 0)}>
+            COPY
+          </button>
+          <button
+            class="toggle-btn"
+            title="Paste over this pattern (Ctrl/Cmd+V)"
+            ?disabled=${!this.hasClipboard}
+            @click=${() => this.emit(ToolbarEvent.PASTE, 0)}
+          >
+            PASTE
+          </button>
+          <button class="toggle-btn" title="Clear this pattern (Backspace)" @click=${() => this.emit(ToolbarEvent.CLEAR, 0)}>
+            CLR
+          </button>
+        </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private setBpm(value: number) {
+    this.emit(ToolbarEvent.BPM, Math.max(20, Math.min(300, Math.round(value))));
+  }
+
+  /**
+   * Averages the gaps between the last few taps. A gap over TAP_TIMEOUT_MS
+   * is treated as the start of a new count rather than a very slow tempo.
+   */
+  private onTap = () => {
+    const now = performance.now();
+    const last = this.taps[this.taps.length - 1];
+    if (last !== undefined && now - last > TAP_TIMEOUT_MS) this.taps = [];
+
+    this.taps.push(now);
+    if (this.taps.length > TAP_AVERAGE + 1) this.taps.shift();
+    if (this.taps.length < 2) return;
+
+    let total = 0;
+    for (let i = 1; i < this.taps.length; i++) total += this.taps[i] - this.taps[i - 1];
+    this.setBpm(60000 / (total / (this.taps.length - 1)));
+  };
+
+  private emit<T extends string>(type: T, value: number | string) {
+    this.dispatchEvent(
+      new CustomEvent<ChangeDetail<T>>("change", {
+        detail: { type, value },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  static styles = css`
+    .ghosted {
+      opacity: 0.45;
+    }
+
+    :host {
+      display: block;
+      container-type: inline-size;
+      --control-label-color: var(--light-secondary);
+    }
+
+    /* Two independent rows rather than one grid, so each row's panels size
+       to their own content. */
+    .toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4em;
+    }
+
+    .toolbar-row {
+      display: flex;
+      align-items: stretch;
+      gap: 0.3em;
+      flex-wrap: wrap;
+    }
+
+    .bpm-panel,
+    .subdiv-panel {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .tap-btn {
+      min-width: 2.6em;
+    }
+
+    .panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35em;
+      padding: 0.5em 0.45em;
+      background: var(--rudiment-transport-panel-color, var(--rudiment-panel-color));
+      border-radius: 0.4rem;
+    }
+
+    .round-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      border: 2px solid var(--light-secondary);
+      background: var(--dark-secondary);
+      color: var(--lighter);
+      cursor: pointer;
+      transition: background var(--ui-transition-time);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .round-btn.active {
+      background: var(--rudiment-accent);
+      color: var(--darker);
+    }
+
+    .round-btn:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .play-btn {
+      font-size: 0.7em;
+      padding-left: 2px;
+    }
+
+    .stop-btn {
+      font-size: 0.7em;
+    }
+
+    .lcd-row {
+      display: flex;
+      align-items: center;
+      gap: 0.2em;
+      outline: 1px solid var(--learn-outline-color, transparent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+
+    .inc-btn {
+      width: 20px;
+      height: 20px;
+      border: 1px solid var(--light-secondary);
+      border-radius: 3px;
+      background: var(--dark-secondary);
+      color: var(--lighter);
+      font-size: 0.8em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .inc-btn:hover {
+      background: var(--medium);
+    }
+
+    .toggle-btn {
+      padding: 0.25em 0.32em;
+      border: 1px solid var(--light-secondary);
+      border-radius: 3px;
+      background: var(--dark-secondary);
+      color: var(--lighter);
+      font-size: 0.65em;
+      cursor: pointer;
+      transition: background var(--ui-transition-time);
+    }
+
+    .toggle-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .toggle-btn.active {
+      background: var(--rudiment-accent);
+      color: var(--darker);
+      border-color: var(--rudiment-accent);
+    }
+  `;
+}

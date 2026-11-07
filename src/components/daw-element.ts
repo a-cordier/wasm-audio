@@ -57,6 +57,7 @@ import "../instruments/monolog/register";
 import "../instruments/sequels/register";
 import "../instruments/drumlin/register";
 import "../instruments/dischord/register";
+import "../instruments/rudiment/register";
 import "../devices/echo/register";
 import "../devices/drive/register";
 import "../devices/chorus/register";
@@ -523,9 +524,14 @@ export class Daw extends LitElement {
     // Control devices consume no MIDI — don't burn an IN channel on one.
     if (reg.descriptor.type === "control") return {};
     if (reg.descriptor.type === "midi-source") {
-      // Drive the first mounted instrument, mirroring the default
+      // Drive the device's preferred target if one is mounted (RUDIMENT →
+      // DRUMLIN), else the first mounted instrument, mirroring the default
       // sequels → monolog wiring.
-      const firstInstrument = this.leafSlots().find((slot) => {
+      const slots = this.leafSlots();
+      const preferred = reg.preferredTarget
+        ? slots.find((slot) => slot.pluginId === reg.preferredTarget)
+        : undefined;
+      const firstInstrument = preferred ?? slots.find((slot) => {
         const r = slot.pluginId ? pluginRegistry.get(slot.pluginId) : undefined;
         return r?.descriptor.type === "instrument";
       });
