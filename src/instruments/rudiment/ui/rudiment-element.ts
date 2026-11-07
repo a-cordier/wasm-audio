@@ -16,6 +16,7 @@
 
 import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { classMap } from "lit/directives/class-map.js";
 
 import { RudimentController } from "../rudiment-controller";
 import { TransportKeys } from "./transport-keys";
@@ -28,16 +29,24 @@ import {
   MAX_STEPS,
   PATTERN_COUNT,
   Subdivision,
+  SwitchMode,
   TransportState,
   VELOCITY_LEVELS,
+  VELOCITY_LEVEL_NAMES,
+  noteName,
 } from "../types";
 import { ControlID } from "../../../control/types";
 import { ToolbarEvent } from "./panels/rudiment-toolbar";
+import { PatternEvent } from "./panels/drum-selector-panel";
+import { PAGE_STEPS } from "./panels/drum-grid-panel";
 import { SynthChangeEvent } from "../../../types/events";
 import type { Plugin } from "../../../core/types";
 
 import "./panels/rudiment-toolbar";
 import "./panels/drum-grid-panel";
+import "./panels/drum-selector-panel";
+
+const PAGE_COUNT = MAX_STEPS / PAGE_STEPS;
 
 @customElement("rudiment-element")
 export class RudimentElement extends LitElement {
@@ -74,6 +83,12 @@ export class RudimentElement extends LitElement {
   @state() private selectedPattern = 0;
   @state() private bank = 0;
   @state() private brush: number = VELOCITY_LEVELS[1];
+  @state() private page = 0;
+  @state() private switchMode: number = DEFAULT_CONFIG.switchMode;
+  @state() private laneNotes: number[] = [...DEFAULT_CONFIG.laneNotes];
+  /** Raw per-lane length of the selected pattern (0 = follows STEPS). */
+  @state() private laneLengthsRaw: number[] = new Array(LANE_COUNT).fill(0);
+  @state() private filled: boolean[] = new Array(PATTERN_COUNT).fill(false);
 
   private clipboard: number | null = null;
   private readonly keys = new TransportKeys();
@@ -133,6 +148,8 @@ export class RudimentElement extends LitElement {
     this.swing = config.swing;
     this.gate = config.gate;
     this.laneMutes = [...config.laneMutes];
+    this.laneNotes = [...config.laneNotes];
+    this.switchMode = config.switchMode;
     this.transport = this.sequencer.transportState;
   }
 
@@ -141,7 +158,27 @@ export class RudimentElement extends LitElement {
     this.bank = this.sequencer.bank;
     this.steps = this.sequencer.getPatternSteps();
     this.pattern = this.sequencer.readPattern();
-    this.laneLengths = Array.from({ length: LANE_COUNT }, (_, lane) => this.sequencer.getLaneLength(lane) || this.steps);
+    this.laneLengthsRaw = Array.from({ length: LANE_COUNT }, (_, lane) => this.sequencer.getLaneLength(lane));
+    this.laneLengths = this.laneLengthsRaw.map((len) => len || this.steps);
+    // Pages past every lane's reach ghost; never sit on one.
+    this.page = Math.min(this.page, this.pageCount - 1);
+    this.refreshFilled();
+  }
+
+  private refreshFilled() {
+    this.filled = Array.from({ length: PATTERN_COUNT }, (_, i) => this.sequencer.patternHasContent(i));
+  }
+
+  /** Pages holding at least one live step (the longest lane decides). */
+  private get pageCount(): number {
+    const longest = Math.max(this.steps, ...this.laneLengths);
+    return Math.max(1, Math.ceil(longest / PAGE_STEPS));
+  }
+
+  /** The page the pattern playhead is on, −1 when stopped. */
+  private get playingPage(): number {
+    if (this.grid < 0) return -1;
+    return Math.floor((this.grid % this.steps) / PAGE_STEPS);
   }
 
   // --- Transport ---
@@ -202,6 +239,15 @@ export class RudimentElement extends LitElement {
             @change=${this.onToolbarChange}
           ></rudiment-toolbar>
         </row-element>
+        <row-element label="Patterns">
+          <drum-selector-panel
+            .bank=${this.bank}
+            .selectedPattern=${this.selectedPattern}
+            .switchMode=${this.switchMode}
+            .filled=${this.filled}
+            @change=${this.onPatternSelectorChange}
+          ></drum-selector-panel>
+        </row-element>
         <row-element label="Pattern">
           <div class="pattern-section">
             <div class="pattern-header">
@@ -212,6 +258,16 @@ export class RudimentElement extends LitElement {
                   <lcd-element .text=${String(this.steps)}></lcd-element>
                   <button class="inc-btn" @click=${() => this.setSteps(Math.min(MAX_STEPS, this.steps + 1))}>+</button>
                 </div>
+              </div>
+              <div class="pages">
+                ${Array.from({ length: PAGE_COUNT }, (_, i) => html`
+                  <button
+                    class=${classMap({ "page-btn": true, active: i === this.page, playing: i === this.playingPage })}
+                    ?disabled=${i >= this.pageCount}
+                    title=${i >= this.pageCount ? "no lane reaches this page" : `steps ${i * PAGE_STEPS + 1}–${(i + 1) * PAGE_STEPS}`}
+                    @click=${() => (this.page = i)}
+                  >${i + 1}</button>
+                `)}
               </div>
               <control-learn-wrapper .controlID=${ControlID.RUD_SWING}>
                 <knob-element
@@ -234,6 +290,15 @@ export class RudimentElement extends LitElement {
                 ></knob-element>
               </control-learn-wrapper>
             </div>
+            <div class="brush">
+              ${VELOCITY_LEVELS.map((velocity, i) => html`
+                <button
+                  class=${classMap({ "brush-btn": true, active: this.brush === velocity, [`level-${i}`]: true })}
+                  title=${`paint hits at velocity ${velocity}`}
+                  @click=${() => (this.brush = velocity)}
+                >${VELOCITY_LEVEL_NAMES[i]}</button>
+              `)}
+            </div>
             <drum-grid-panel
               .pattern=${this.pattern}
               .laneNames=${DEFAULT_LANES.map((l) => l.name)}
@@ -241,7 +306,7 @@ export class RudimentElement extends LitElement {
               .laneMutes=${this.laneMutes}
               .selectedLane=${this.selectedLane}
               .grid=${this.grid}
-              .page=${0}
+              .page=${this.page}
               .brush=${this.brush}
               @hit-change=${this.onHitChange}
               @lane-select=${(e: CustomEvent) => (this.selectedLane = e.detail.lane)}
@@ -249,8 +314,66 @@ export class RudimentElement extends LitElement {
             ></drum-grid-panel>
           </div>
         </row-element>
+        <row-element label="Lane">
+          ${this.renderLaneStrip()}
+        </row-element>
       </div>
     `;
+  }
+
+  private renderLaneStrip() {
+    const lane = this.selectedLane;
+    const raw = this.laneLengthsRaw[lane] ?? 0;
+    return html`
+      <div class="lane-strip">
+        <div class="lcd-control lane-name">
+          <lcd-element .text=${DEFAULT_LANES[lane].name}></lcd-element>
+        </div>
+        <div class="lcd-control">
+          <label class="ctrl-label">NOTE</label>
+          <div class="lcd-row">
+            <button class="inc-btn" @click=${() => this.setLaneNote(lane, this.laneNotes[lane] - 1)}>-</button>
+            <lcd-element .text=${noteName(this.laneNotes[lane])}></lcd-element>
+            <button class="inc-btn" @click=${() => this.setLaneNote(lane, this.laneNotes[lane] + 1)}>+</button>
+          </div>
+        </div>
+        <div class="lcd-control">
+          <label class="ctrl-label">LEN</label>
+          <div class="lcd-row">
+            <button class="inc-btn" ?disabled=${raw === 0} @click=${() => this.setLaneLength(lane, raw - 1)}>-</button>
+            <lcd-element .text=${raw === 0 ? "PAT" : String(raw)}></lcd-element>
+            <button class="inc-btn" ?disabled=${raw === MAX_STEPS} @click=${() => this.setLaneLength(lane, raw === 0 ? this.steps + 1 : raw + 1)}>+</button>
+          </div>
+        </div>
+        <button class="toggle-btn" title="clear this lane in this pattern" @click=${() => this.sequencer.clearLane(lane)}>CLR</button>
+      </div>
+    `;
+  }
+
+  private setLaneNote(lane: number, note: number) {
+    this.sequencer.setLaneNote(lane, Math.max(0, Math.min(127, note)));
+  }
+
+  /** Stepping below 1 lands on PAT (0 = follow the pattern's STEPS); stepping
+   * up out of PAT starts one past STEPS, since LEN = STEPS is PAT already. */
+  private setLaneLength(lane: number, length: number) {
+    this.sequencer.setLaneLength(lane, Math.max(0, Math.min(MAX_STEPS, length)));
+  }
+
+  private onPatternSelectorChange(e: SynthChangeEvent<PatternEvent>) {
+    const { type, value } = e.detail;
+    switch (type) {
+      case PatternEvent.SELECT_SLOT:
+        this.selectPattern(this.bank * BANK_SIZE + (value as number));
+        break;
+      case PatternEvent.SELECT_BANK:
+        this.selectBank(value as number);
+        break;
+      case PatternEvent.SWITCH_MODE:
+        this.switchMode = value as number;
+        this.sequencer.setSwitchMode(this.switchMode as SwitchMode);
+        break;
+    }
   }
 
   private onToolbarChange(e: SynthChangeEvent<ToolbarEvent>) {
@@ -293,6 +416,7 @@ export class RudimentElement extends LitElement {
     next[lane] = [...next[lane]];
     next[lane][step] = velocity;
     this.pattern = next;
+    this.refreshFilled();
   }
 
   private onLaneMute(e: CustomEvent) {
@@ -384,6 +508,96 @@ export class RudimentElement extends LitElement {
 
       .inc-btn:hover {
         background: var(--medium);
+      }
+
+      .inc-btn:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+
+      .pages {
+        display: flex;
+        gap: 0.25em;
+        margin-right: auto;
+      }
+
+      .page-btn,
+      .toggle-btn,
+      .brush-btn {
+        padding: 0.25em 0.5em;
+        border: 1px solid var(--light-secondary);
+        border-radius: 3px;
+        background: var(--dark-secondary);
+        color: var(--lighter);
+        font-size: 0.65em;
+        cursor: pointer;
+        transition: background var(--ui-transition-time);
+      }
+
+      .page-btn {
+        position: relative;
+        min-width: 2.2em;
+      }
+
+      /* The playing page's LED. */
+      .page-btn.playing::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--rudiment-accent);
+      }
+
+      .page-btn.active,
+      .brush-btn.active {
+        background: var(--rudiment-accent);
+        color: var(--darker);
+        border-color: var(--rudiment-accent);
+      }
+
+      .page-btn.active.playing::after {
+        background: var(--darker);
+      }
+
+      .page-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
+
+      .brush {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.3em;
+      }
+
+      /* Each level previews its own cell brightness. */
+      .brush-btn {
+        border-color: color-mix(in srgb, var(--rudiment-accent) var(--level-mix), var(--dark-secondary));
+      }
+
+      .brush-btn.level-0 { --level-mix: 40%; }
+      .brush-btn.level-1 { --level-mix: 72%; }
+      .brush-btn.level-2 { --level-mix: 100%; }
+
+      .brush-btn.active {
+        background: color-mix(in srgb, var(--rudiment-accent) var(--level-mix), var(--dark-secondary));
+        border-color: transparent;
+      }
+
+      .lane-strip {
+        display: flex;
+        align-items: center;
+        gap: 1em;
+        background: var(--rudiment-lane-panel-color, var(--rudiment-panel-color));
+        border-radius: 0.4rem;
+        padding: 0.6em 1em;
+      }
+
+      .lane-name {
+        --lcd-screen-width: 4.5em;
       }
     `;
   }
