@@ -21,10 +21,12 @@
  * minus the workspace chrome (`ui`), which belongs to the user, not the song.
  *
  * INIT is virtual: never stored, always first, opens an empty rack. Nothing
- * in this module can write it.
+ * in this module can write it. Factory presets ship with the app the same
+ * way — read-only, never stored, listed right after INIT.
  */
 
 import { RackSession, RACK_VERSION, sanitizeRackSession } from "./rack-storage";
+import { CE_PORTE_SESSION } from "./factory-presets/ce-porte";
 
 export const INIT_PRESET_ID = "init";
 export const INIT_PRESET_NAME = "INIT";
@@ -34,6 +36,29 @@ export interface AppPreset {
   id: string;
   name: string;
   session: RackSession;
+}
+
+const FACTORY_SOURCES: Array<{ id: string; name: string; session: unknown }> = [
+  { id: "factory-ce-porte", name: "CE PORTE", session: CE_PORTE_SESSION },
+];
+
+let factoryCache: AppPreset[] | null = null;
+
+/** The presets that ship with the app, in stepping order. Read-only. */
+export function factoryPresets(): AppPreset[] {
+  if (!factoryCache) {
+    factoryCache = [];
+    for (const src of FACTORY_SOURCES) {
+      const session = sanitizeRackSession(src.session);
+      if (session) factoryCache.push({ id: src.id, name: src.name, session: toPresetSession(session) });
+    }
+  }
+  return factoryCache;
+}
+
+/** INIT and the factory presets: openable, never written, renamed or deleted. */
+export function isReadOnlyPreset(id: string): boolean {
+  return id === INIT_PRESET_ID || FACTORY_SOURCES.some((p) => p.id === id);
 }
 
 const STORAGE_KEY = "rack.presets.v1";
@@ -67,7 +92,7 @@ export function loadPresets(): AppPreset[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as { version?: unknown; presets?: unknown };
     if (parsed?.version !== PRESETS_VERSION || !Array.isArray(parsed.presets)) return [];
-    const seen = new Set<string>([INIT_PRESET_ID]);
+    const seen = new Set<string>([INIT_PRESET_ID, ...FACTORY_SOURCES.map((p) => p.id)]);
     const out: AppPreset[] = [];
     for (const p of parsed.presets as Array<Partial<AppPreset>>) {
       if (!p || typeof p.id !== "string" || seen.has(p.id)) continue;
@@ -93,8 +118,9 @@ export function savePresets(presets: AppPreset[]): boolean {
       STORAGE_KEY,
       JSON.stringify({
         version: PRESETS_VERSION,
-        // Belt and braces: INIT is never persisted, whatever the caller holds.
-        presets: presets.filter((p) => p.id !== INIT_PRESET_ID),
+        // Belt and braces: INIT and the factory presets are never persisted,
+        // whatever the caller holds.
+        presets: presets.filter((p) => !isReadOnlyPreset(p.id)),
       })
     );
     return true;

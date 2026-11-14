@@ -30,6 +30,8 @@ import { RackSession, RackSlotEntry, loadRackSession, saveRackSession } from "..
 import {
   AppPreset,
   INIT_PRESET_ID,
+  factoryPresets,
+  isReadOnlyPreset,
   defaultPresetName,
   initSession,
   loadPresets,
@@ -225,7 +227,7 @@ export class Daw extends LitElement {
     // Which preset the working copy descends from. A deleted preset or a
     // pre-preset session falls back to INIT (and reads dirty if non-empty).
     const parentId = stored?.preset?.id;
-    const parent = parentId ? this.presets.find((p) => p.id === parentId) : undefined;
+    const parent = parentId ? this.findPreset(parentId) : undefined;
     this.currentPresetId = parent ? parent.id : INIT_PRESET_ID;
     const cleanReload = stored?.preset && !stored.preset.dirty && (parent || parentId === INIT_PRESET_ID);
     this.presetBaseline = Daw.canonical(parent ? parent.session : initSession());
@@ -776,8 +778,13 @@ export class Daw extends LitElement {
     return this.presetSwitch;
   }
 
+  /** A saved or factory preset by id (INIT is virtual — never found here). */
+  private findPreset(id: string): AppPreset | undefined {
+    return this.presets.find((p) => p.id === id) ?? factoryPresets().find((p) => p.id === id);
+  }
+
   private async switchToPreset(id: string) {
-    const preset = this.presets.find((p) => p.id === id);
+    const preset = this.findPreset(id);
     if (id !== INIT_PRESET_ID && !preset) return;
     const session = preset ? preset.session : initSession();
 
@@ -819,8 +826,8 @@ export class Daw extends LitElement {
   }
 
   /**
-   * Save the workspace. With a name — or on INIT, which is never written —
-   * it creates a new preset and makes it current; otherwise it overwrites
+   * Save the workspace. With a name — or on INIT / a factory preset, which
+   * are never written — it creates a new preset and makes it current; otherwise it overwrites
    * the current one. False when storage refused it (nothing changes).
    */
   savePreset(name?: string): boolean {
@@ -828,7 +835,7 @@ export class Daw extends LitElement {
     const session = toPresetSession(this.snapshot());
     let next: AppPreset[];
     let id = this.currentPresetId;
-    if (name !== undefined || id === INIT_PRESET_ID) {
+    if (name !== undefined || isReadOnlyPreset(id)) {
       id = newPresetId();
       next = [
         ...this.presets,
@@ -847,7 +854,7 @@ export class Daw extends LitElement {
 
   renamePreset(id: string, name: string): boolean {
     const clean = sanitizePresetName(name);
-    if (id === INIT_PRESET_ID || !clean) return false;
+    if (isReadOnlyPreset(id) || !clean) return false;
     const next = this.presets.map((p) => (p.id === id ? { ...p, name: clean } : p));
     if (!savePresets(next)) return false;
     this.presets = next;
@@ -857,7 +864,7 @@ export class Daw extends LitElement {
   /** Delete a preset. Deleting the current one leaves the rack as it is and
    * re-parents the working copy to INIT (so it reads unsaved). */
   deletePreset(id: string): boolean {
-    if (id === INIT_PRESET_ID) return false;
+    if (isReadOnlyPreset(id)) return false;
     const next = this.presets.filter((p) => p.id !== id);
     if (!savePresets(next)) return false;
     this.presets = next;
@@ -946,6 +953,7 @@ export class Daw extends LitElement {
       >
         <preset-bar
           slot="menu"
+          .factory=${factoryPresets().map((p) => ({ id: p.id, name: p.name }))}
           .presets=${this.presets.map((p) => ({ id: p.id, name: p.name }))}
           .currentId=${this.currentPresetId}
           .dirty=${this.presetDirty}

@@ -38,16 +38,21 @@ type EditMode = "save-as" | "rename";
 
 /**
  * The app-level preset selector in the top transport strip: an LCD stepper
- * over INIT + the saved presets, SAVE / SAVE AS, hold-to-delete. Pure view —
+ * over INIT + the factory presets + the saved ones, SAVE / SAVE AS,
+ * hold-to-delete. Pure view —
  * the shell (daw-element) owns the store and answers its events:
  * `preset-open {id}`, `preset-save`, `preset-save-as {name}`,
  * `preset-rename {id, name}`, `preset-delete {id}`.
  */
 @customElement("preset-bar")
 export class PresetBar extends LitElement {
-  /** Saved presets, in stepping order (INIT is prepended here). */
+  /** Saved presets, in stepping order (INIT and the factory ones are prepended here). */
   @property({ attribute: false })
   presets: PresetListEntry[] = [];
+
+  /** Built-in presets: openable, never overwritten, renamed or deleted. */
+  @property({ attribute: false })
+  factory: PresetListEntry[] = [];
 
   @property({ attribute: false })
   currentId = INIT_PRESET_ID;
@@ -55,7 +60,7 @@ export class PresetBar extends LitElement {
   @property({ type: Boolean })
   dirty = false;
 
-  /** Index into [INIT, ...presets] while a stepped open is pending. */
+  /** Index into [INIT, ...factory, ...presets] while a stepped open is pending. */
   @state()
   private pendingIndex: number | null = null;
 
@@ -90,15 +95,16 @@ export class PresetBar extends LitElement {
   }
 
   private get entries(): PresetListEntry[] {
-    return [{ id: INIT_PRESET_ID, name: INIT_PRESET_NAME }, ...this.presets];
+    return [{ id: INIT_PRESET_ID, name: INIT_PRESET_NAME }, ...this.factory, ...this.presets];
   }
 
   private get currentIndex(): number {
     return Math.max(0, this.entries.findIndex((e) => e.id === this.currentId));
   }
 
-  private get onInit(): boolean {
-    return this.currentId === INIT_PRESET_ID;
+  /** INIT or a factory preset: SAVE means save-as, no rename, no delete. */
+  private get readOnly(): boolean {
+    return this.currentId === INIT_PRESET_ID || this.factory.some((p) => p.id === this.currentId);
   }
 
   /** Shell feedback: a status word on the LCD (e.g. "FULL" on a refused write). */
@@ -170,7 +176,7 @@ export class PresetBar extends LitElement {
   }
 
   private onSave = () => {
-    if (this.onInit) {
+    if (this.readOnly) {
       this.beginEdit("save-as");
       return;
     }
@@ -207,13 +213,13 @@ export class PresetBar extends LitElement {
   };
 
   private onLcdDblClick = () => {
-    if (!this.onInit) this.beginEdit("rename");
+    if (!this.readOnly) this.beginEdit("rename");
   };
 
   // --- Hold-to-delete (the rack's hold-to-eject idiom) ---
 
   private onDeleteDown = () => {
-    if (this.onInit) return;
+    if (this.readOnly) return;
     this.deleting = true;
     this.deleteTimer = setTimeout(() => {
       this.deleteTimer = null;
@@ -240,8 +246,8 @@ export class PresetBar extends LitElement {
   render() {
     const index = this.pendingIndex ?? this.currentIndex;
     const last = this.entries.length - 1;
-    const saveTitle = this.onInit
-      ? "Save as a new preset (INIT is never overwritten)"
+    const saveTitle = this.readOnly
+      ? "Save as a new preset (built-in presets are never overwritten)"
       : this.dirty
         ? "Save the current preset"
         : "No unsaved changes";
@@ -266,7 +272,7 @@ export class PresetBar extends LitElement {
             />`
           : html`<lcd-element
               class=${classMap({ pending: this.pendingIndex !== null, warn: this.flashText !== null })}
-              title=${this.onInit ? "Preset" : "Preset — double-click to rename"}
+              title=${this.readOnly ? "Preset" : "Preset — double-click to rename"}
               .text=${this.lcdText()}
               @dblclick=${this.onLcdDblClick}
             ></lcd-element>`}
@@ -288,8 +294,8 @@ export class PresetBar extends LitElement {
           ?disabled=${this.editMode !== null}
           @click=${() => this.beginEdit("save-as")}
         >SAVE AS</button>
-        ${this.onInit
-          ? html`<button class="text-btn del-btn" disabled title="INIT can't be deleted">DEL</button>`
+        ${this.readOnly
+          ? html`<button class="text-btn del-btn" disabled title="Built-in presets can't be deleted">DEL</button>`
           : html`<button
               class=${classMap({ "text-btn": true, "del-btn": true, holding: this.deleting })}
               title="Hold to delete this preset"

@@ -94,7 +94,11 @@ transport strip's `menu` slot). The autosaved session stays the **working
 copy** and records `preset: {id, dirty}`; a preset is its snapshot with
 EVERY device's state (self-persisting ones included) minus the `ui`
 chrome, which never travels or dirties. **INIT** is virtual (never
-stored, always first, empty rack); saving on it is save-as. Dirty = the
+stored, always first, empty rack); saving on it is save-as. **Factory
+presets** ship in code the same way (`core/factory-presets/*`, listed in
+`FACTORY_SOURCES`, shown right after INIT): read-only via
+`isReadOnlyPreset` — never stored, renamed or deleted, SAVE is save-as —
+and sanitized on load like any saved preset. Dirty = the
 canonical preset-shaped JSON differs from the baseline taken once the
 rack has rendered after an open/save (slot elements push config on
 render). `openPreset` is a deliberate switch: queued (latest wins),
