@@ -26,7 +26,7 @@
  */
 
 import { RackSession, RACK_VERSION, sanitizeRackSession } from "./rack-storage";
-import { CE_PORTE_SESSION } from "./factory-presets/ce-porte";
+import { SIDE_DOOR_SESSION } from "./factory-presets/side-door";
 
 export const INIT_PRESET_ID = "init";
 export const INIT_PRESET_NAME = "INIT";
@@ -39,7 +39,7 @@ export interface AppPreset {
 }
 
 const FACTORY_SOURCES: Array<{ id: string; name: string; session: unknown }> = [
-  { id: "factory-ce-porte", name: "CE PORTE", session: CE_PORTE_SESSION },
+  { id: "factory-side-door", name: "SIDE DOOR", session: SIDE_DOOR_SESSION },
 ];
 
 let factoryCache: AppPreset[] | null = null;

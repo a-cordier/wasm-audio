@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-/** Factory preset session: bass (monolog ← sequels), chord stabs (poly-ticks
- * ← dischord) and a break (drumlin ← rudiment) at 111 BPM. Stored in the
- * RackSession shape and sanitized on load like any saved preset. */
-export const CE_PORTE_SESSION: unknown = {
+/** Factory preset session: an E dorian funk vamp at 110 BPM — a syncopated
+ * sub bass with octave pops and slides (monolog ← sequels), resonant chord
+ * stabs under a clock-synced filter LFO (poly-ticks ← dischord) and a
+ * swung 16th-hat break (drumlin ← rudiment). Stored in the RackSession
+ * shape and sanitized on load like any saved preset. */
+export const SIDE_DOOR_SESSION: unknown = {
   "version": 1,
   "slotCounter": 5,
   "slots": [
@@ -29,19 +31,19 @@ export const CE_PORTE_SESSION: unknown = {
       "outputChannel": 0,
       "inputDevice": "internal",
       "mixer": {
-        "gain": 0.45,
+        "gain": 0.5,
         "pan": 0,
         "mute": false,
         "solo": false,
         "eq": {
           "low": -10,
-          "mid": 6,
+          "mid": 2,
           "midFreq": 1500,
-          "high": 6
+          "high": 3
         },
         "sends": {
-          "slot-4": 0.45,
-          "slot-5": 0.22
+          "slot-4": 0.22,
+          "slot-5": 0.08
         }
       },
       "collapsed": false,
@@ -50,16 +52,16 @@ export const CE_PORTE_SESSION: unknown = {
       "state": {
         "osc1": {
           "mode": {
-            "value": 1
+            "value": 2
           },
           "semiShift": {
             "value": 63.5
           },
           "centShift": {
-            "value": 60
+            "value": 61
           },
           "cycle": {
-            "value": 63.5
+            "value": 34
           }
         },
         "osc2": {
@@ -70,30 +72,30 @@ export const CE_PORTE_SESSION: unknown = {
             "value": 95.25
           },
           "centShift": {
-            "value": 67
+            "value": 66
           },
           "cycle": {
             "value": 63.5
           }
         },
         "osc2Amplitude": {
-          "value": 85
+          "value": 50
         },
         "noiseLevel": {
           "value": 0
         },
         "envelope": {
           "attack": {
-            "value": 3
+            "value": 1
           },
           "decay": {
-            "value": 2
+            "value": 0
           },
           "sustain": {
-            "value": 18
+            "value": 30
           },
           "release": {
-            "value": 30
+            "value": 6
           }
         },
         "filter": {
@@ -101,13 +103,13 @@ export const CE_PORTE_SESSION: unknown = {
             "value": 0
           },
           "cutoff": {
-            "value": 106
+            "value": 72
           },
           "resonance": {
-            "value": 25
+            "value": 72
           },
           "drive": {
-            "value": 10
+            "value": 25
           }
         },
         "cutoffMod": {
@@ -115,13 +117,13 @@ export const CE_PORTE_SESSION: unknown = {
             "value": 0
           },
           "decay": {
-            "value": 2
+            "value": 1
           },
           "amount": {
-            "value": 30
+            "value": 50
           },
           "velocity": {
-            "value": 0
+            "value": 85
           }
         },
         "lfo1": {
@@ -129,33 +131,33 @@ export const CE_PORTE_SESSION: unknown = {
             "value": 0
           },
           "frequency": {
-            "value": 0
+            "value": 20
           },
           "modAmount": {
-            "value": 0
+            "value": 55
           },
           "destination": {
-            "value": 0
+            "value": 2
           },
           "sync": {
-            "value": 0
+            "value": 127
           },
           "div": {
-            "value": 4
+            "value": 9
           }
         },
         "lfo2": {
           "mode": {
-            "value": 0
+            "value": 3
           },
           "frequency": {
-            "value": 0
+            "value": 3
           },
           "modAmount": {
-            "value": 0
+            "value": 35
           },
           "destination": {
-            "value": 0
+            "value": 4
           },
           "sync": {
             "value": 0
@@ -188,13 +190,13 @@ export const CE_PORTE_SESSION: unknown = {
         },
         "space": {
           "spread": {
-            "value": 35
+            "value": 30
           },
           "width": {
-            "value": 45
+            "value": 40
           },
           "drift": {
-            "value": 40
+            "value": 30
           }
         }
       }
@@ -254,13 +256,13 @@ export const CE_PORTE_SESSION: unknown = {
             "value": 0
           },
           "cutoff": {
-            "value": 58
+            "value": 50
           },
           "resonance": {
-            "value": 40
+            "value": 45
           },
           "drive": {
-            "value": 20
+            "value": 30
           }
         },
         "ampEnv": {
@@ -271,7 +273,7 @@ export const CE_PORTE_SESSION: unknown = {
             "value": 2
           },
           "sustain": {
-            "value": 20
+            "value": 30
           },
           "release": {
             "value": 0
@@ -285,10 +287,10 @@ export const CE_PORTE_SESSION: unknown = {
             "value": 0
           },
           "amount": {
-            "value": 10
+            "value": 28
           },
           "velocity": {
-            "value": 0
+            "value": 30
           }
         },
         "lfo": {
@@ -319,7 +321,7 @@ export const CE_PORTE_SESSION: unknown = {
         },
         "performance": {
           "glide": {
-            "value": 24
+            "value": 28
           },
           "legato": {
             "value": 127
@@ -346,10 +348,10 @@ export const CE_PORTE_SESSION: unknown = {
       "state": {
         "version": 1,
         "config": {
-          "bpm": 111,
+          "bpm": 110,
           "subdivision": 4,
-          "swing": 0,
-          "gate": 92,
+          "swing": 32,
+          "gate": 70,
           "direction": 0,
           "loop": true,
           "outputChannel": 1,
@@ -364,109 +366,87 @@ export const CE_PORTE_SESSION: unknown = {
             "steps": [
               {
                 "index": 0,
-                "note": 29,
-                "velocity": 100
+                "note": 28,
+                "velocity": 115,
+                "slide": true
               },
               {
-                "index": 2,
-                "note": 30,
-                "velocity": 100,
-                "slide": true
+                "index": 1,
+                "note": 28,
+                "velocity": 115
               },
               {
                 "index": 3,
-                "note": 30,
-                "velocity": 100,
-                "slide": true
+                "note": 28,
+                "velocity": 85
               },
               {
                 "index": 4,
-                "note": 30,
-                "velocity": 100
-              },
-              {
-                "index": 5,
-                "note": 30,
-                "velocity": 100
+                "note": 40,
+                "velocity": 120
               },
               {
                 "index": 6,
-                "note": 29,
-                "velocity": 100,
+                "note": 38,
+                "velocity": 95,
                 "slide": true
               },
               {
                 "index": 7,
-                "note": 29,
-                "velocity": 100
-              },
-              {
-                "index": 8,
-                "note": 27,
-                "velocity": 100,
-                "slide": true
-              },
-              {
-                "index": 9,
-                "note": 27,
-                "velocity": 100,
-                "slide": true
+                "note": 40,
+                "velocity": 105
               },
               {
                 "index": 10,
-                "note": 27,
+                "note": 28,
+                "velocity": 100
+              },
+              {
+                "index": 11,
+                "note": 31,
+                "velocity": 85
+              },
+              {
+                "index": 12,
+                "note": 33,
                 "velocity": 100,
                 "slide": true
               },
               {
-                "index": 11,
-                "note": 27,
+                "index": 13,
+                "note": 35,
                 "velocity": 100
               },
               {
                 "index": 14,
-                "note": 34,
-                "velocity": 100,
-                "slide": true
-              },
-              {
-                "index": 15,
-                "note": 34,
-                "velocity": 100,
-                "slide": true
+                "note": 38,
+                "velocity": 110
               },
               {
                 "index": 16,
-                "note": 34,
-                "velocity": 100
+                "note": 33,
+                "velocity": 115,
+                "slide": true
               },
               {
-                "index": 18,
-                "note": 32,
-                "velocity": 100,
-                "slide": true
+                "index": 17,
+                "note": 33,
+                "velocity": 115
               },
               {
                 "index": 19,
-                "note": 32,
-                "velocity": 100,
-                "slide": true
+                "note": 33,
+                "velocity": 85
               },
               {
                 "index": 20,
-                "note": 32,
-                "velocity": 100
-              },
-              {
-                "index": 21,
-                "note": 32,
-                "velocity": 100,
-                "slide": true
+                "note": 40,
+                "velocity": 120
               },
               {
                 "index": 22,
-                "note": 32,
-                "velocity": 100
+                "note": 31,
+                "velocity": 90
               },
               {
                 "index": 23,
@@ -474,104 +454,81 @@ export const CE_PORTE_SESSION: unknown = {
                 "velocity": 100
               },
               {
-                "index": 24,
-                "note": 34,
-                "velocity": 100,
-                "slide": true
-              },
-              {
-                "index": 25,
-                "note": 34,
-                "velocity": 100,
-                "slide": true
-              },
-              {
                 "index": 26,
-                "note": 34,
-                "velocity": 100,
-                "slide": true
+                "note": 37,
+                "velocity": 100
               },
               {
                 "index": 27,
-                "note": 34,
-                "velocity": 100
+                "note": 38,
+                "velocity": 95
+              },
+              {
+                "index": 28,
+                "note": 40,
+                "velocity": 115,
+                "slide": true
+              },
+              {
+                "index": 29,
+                "note": 40,
+                "velocity": 115
               },
               {
                 "index": 30,
-                "note": 29,
-                "velocity": 100,
-                "slide": true
+                "note": 38,
+                "velocity": 90
               },
               {
                 "index": 31,
-                "note": 29,
-                "velocity": 100,
-                "slide": true
+                "note": 35,
+                "velocity": 85
               },
               {
                 "index": 32,
-                "note": 29,
-                "velocity": 100
+                "note": 28,
+                "velocity": 115,
+                "slide": true
               },
               {
-                "index": 34,
-                "note": 30,
-                "velocity": 100,
-                "slide": true
+                "index": 33,
+                "note": 28,
+                "velocity": 115
               },
               {
                 "index": 35,
-                "note": 30,
-                "velocity": 100,
-                "slide": true
+                "note": 28,
+                "velocity": 85
               },
               {
                 "index": 36,
-                "note": 30,
-                "velocity": 100
-              },
-              {
-                "index": 37,
-                "note": 30,
-                "velocity": 100
+                "note": 40,
+                "velocity": 120
               },
               {
                 "index": 38,
-                "note": 29,
-                "velocity": 100,
+                "note": 38,
+                "velocity": 95,
                 "slide": true
               },
               {
                 "index": 39,
-                "note": 29,
-                "velocity": 100
-              },
-              {
-                "index": 40,
-                "note": 27,
-                "velocity": 100,
-                "slide": true
-              },
-              {
-                "index": 41,
-                "note": 27,
-                "velocity": 100,
-                "slide": true
+                "note": 40,
+                "velocity": 105
               },
               {
                 "index": 42,
-                "note": 27,
-                "velocity": 100,
-                "slide": true
-              },
-              {
-                "index": 43,
-                "note": 27,
+                "note": 28,
                 "velocity": 100
               },
               {
+                "index": 43,
+                "note": 31,
+                "velocity": 85
+              },
+              {
                 "index": 44,
-                "note": 34,
+                "note": 33,
                 "velocity": 100,
                 "slide": true
               },
@@ -583,42 +540,39 @@ export const CE_PORTE_SESSION: unknown = {
               },
               {
                 "index": 46,
-                "note": 34,
-                "velocity": 100,
-                "slide": true
+                "note": 35,
+                "velocity": 100
               },
               {
                 "index": 47,
-                "note": 34,
-                "velocity": 100
+                "note": 38,
+                "velocity": 110
               },
               {
-                "index": 50,
-                "note": 32,
-                "velocity": 100,
+                "index": 48,
+                "note": 33,
+                "velocity": 115,
                 "slide": true
+              },
+              {
+                "index": 49,
+                "note": 33,
+                "velocity": 115
               },
               {
                 "index": 51,
-                "note": 32,
-                "velocity": 100,
-                "slide": true
+                "note": 33,
+                "velocity": 85
               },
               {
                 "index": 52,
-                "note": 32,
-                "velocity": 100
-              },
-              {
-                "index": 53,
-                "note": 32,
-                "velocity": 100,
-                "slide": true
+                "note": 40,
+                "velocity": 120
               },
               {
                 "index": 54,
-                "note": 32,
-                "velocity": 100
+                "note": 31,
+                "velocity": 90
               },
               {
                 "index": 55,
@@ -626,39 +580,35 @@ export const CE_PORTE_SESSION: unknown = {
                 "velocity": 100
               },
               {
-                "index": 56,
-                "note": 34,
-                "velocity": 100,
-                "slide": true
-              },
-              {
-                "index": 57,
-                "note": 34,
-                "velocity": 100,
-                "slide": true
-              },
-              {
                 "index": 58,
-                "note": 34,
-                "velocity": 100,
-                "slide": true
+                "note": 31,
+                "velocity": 95
               },
               {
                 "index": 59,
-                "note": 34,
-                "velocity": 100
+                "note": 30,
+                "velocity": 90
+              },
+              {
+                "index": 60,
+                "note": 28,
+                "velocity": 110,
+                "slide": true
+              },
+              {
+                "index": 61,
+                "note": 28,
+                "velocity": 110
               },
               {
                 "index": 62,
-                "note": 29,
-                "velocity": 100,
-                "slide": true
+                "note": 38,
+                "velocity": 95
               },
               {
                 "index": 63,
-                "note": 29,
-                "velocity": 100,
-                "slide": true
+                "note": 39,
+                "velocity": 100
               }
             ]
           }
@@ -682,17 +632,17 @@ export const CE_PORTE_SESSION: unknown = {
       "state": {
         "version": 1,
         "config": {
-          "bpm": 111,
+          "bpm": 110,
           "subdivision": 4,
-          "swing": 44,
-          "gate": 100,
+          "swing": 32,
+          "gate": 55,
           "direction": 0,
           "loop": true,
           "outputChannel": 0,
           "switchMode": 1,
           "metronome": false,
-          "key": 1,
-          "scale": 0,
+          "key": 4,
+          "scale": 4,
           "voices": 3,
           "voicing": 1,
           "order": 0,
@@ -704,88 +654,125 @@ export const CE_PORTE_SESSION: unknown = {
             "length": 64,
             "steps": [
               {
-                "index": 0,
-                "degree": 4,
-                "velocity": 100
-              },
-              {
-                "index": 3,
-                "degree": 3,
-                "velocity": 100
-              },
-              {
-                "index": 6,
-                "degree": 2,
-                "velocity": 100
-              },
-              {
-                "index": 10,
-                "degree": 4,
-                "velocity": 100,
-                "quality": 4
-              },
-              {
-                "index": 16,
-                "degree": 4,
-                "velocity": 100
-              },
-              {
-                "index": 19,
-                "degree": 5,
-                "velocity": 100
-              },
-              {
-                "index": 22,
-                "degree": 6,
-                "velocity": 100
-              },
-              {
-                "index": 26,
-                "degree": 3,
-                "velocity": 100
-              },
-              {
-                "index": 32,
-                "degree": 4,
-                "velocity": 100
-              },
-              {
-                "index": 35,
-                "degree": 2,
-                "velocity": 100,
-                "quality": 5
-              },
-              {
-                "index": 38,
-                "degree": 4,
-                "velocity": 100,
-                "quality": 16
-              },
-              {
-                "index": 42,
-                "degree": 2,
-                "velocity": 100,
+                "index": 2,
+                "degree": 1,
+                "velocity": 112,
                 "quality": 19
               },
               {
-                "index": 48,
-                "degree": 2,
-                "velocity": 100
+                "index": 5,
+                "degree": 1,
+                "velocity": 80,
+                "quality": 19
               },
               {
-                "index": 51,
-                "degree": 5,
-                "velocity": 100
+                "index": 8,
+                "degree": 1,
+                "velocity": 65,
+                "quality": 5
               },
               {
-                "index": 54,
-                "degree": 6,
-                "velocity": 100
+                "index": 11,
+                "degree": 1,
+                "velocity": 115,
+                "quality": 19
               },
               {
-                "index": 58,
-                "degree": 3,
-                "velocity": 100
+                "index": 14,
+                "degree": 1,
+                "velocity": 85,
+                "quality": 5
+              },
+              {
+                "index": 18,
+                "degree": 4,
+                "velocity": 112,
+                "quality": 17
+              },
+              {
+                "index": 21,
+                "degree": 4,
+                "velocity": 80,
+                "quality": 17
+              },
+              {
+                "index": 24,
+                "degree": 4,
+                "velocity": 70,
+                "quality": 22
+              },
+              {
+                "index": 27,
+                "degree": 4,
+                "velocity": 115,
+                "quality": 17
+              },
+              {
+                "index": 30,
+                "degree": 7,
+                "velocity": 90,
+                "octave": -1,
+                "quality": 16
+              },
+              {
+                "index": 34,
+                "degree": 1,
+                "velocity": 112,
+                "quality": 19
+              },
+              {
+                "index": 37,
+                "degree": 1,
+                "velocity": 80,
+                "quality": 19
+              },
+              {
+                "index": 40,
+                "degree": 1,
+                "velocity": 65,
+                "quality": 5
+              },
+              {
+                "index": 43,
+                "degree": 1,
+                "velocity": 115,
+                "quality": 19
+              },
+              {
+                "index": 46,
+                "degree": 1,
+                "velocity": 85,
+                "quality": 5
+              },
+              {
+                "index": 50,
+                "degree": 4,
+                "velocity": 112,
+                "quality": 17
+              },
+              {
+                "index": 53,
+                "degree": 4,
+                "velocity": 80,
+                "quality": 17
+              },
+              {
+                "index": 56,
+                "degree": 4,
+                "velocity": 70,
+                "quality": 22
+              },
+              {
+                "index": 59,
+                "degree": 4,
+                "velocity": 118,
+                "quality": 21
+              },
+              {
+                "index": 62,
+                "degree": 4,
+                "velocity": 85,
+                "quality": 17
               }
             ]
           }
@@ -823,13 +810,13 @@ export const CE_PORTE_SESSION: unknown = {
       "state": {
         "kick": {
           "tune": {
-            "value": 35
+            "value": 48
           },
           "punch": {
-            "value": 60
+            "value": 85
           },
           "decay": {
-            "value": 55
+            "value": 38
           },
           "level": {
             "value": 127
@@ -843,13 +830,13 @@ export const CE_PORTE_SESSION: unknown = {
         },
         "snare": {
           "tune": {
-            "value": 55
+            "value": 65
           },
           "snap": {
-            "value": 85
+            "value": 95
           },
           "decay": {
-            "value": 60
+            "value": 42
           },
           "level": {
             "value": 127
@@ -863,13 +850,13 @@ export const CE_PORTE_SESSION: unknown = {
         },
         "clap": {
           "tone": {
-            "value": 60
+            "value": 75
           },
           "decay": {
-            "value": 45
+            "value": 35
           },
           "level": {
-            "value": 80
+            "value": 70
           },
           "note": {
             "value": 39
@@ -880,16 +867,16 @@ export const CE_PORTE_SESSION: unknown = {
         },
         "hats": {
           "tone": {
-            "value": 72
+            "value": 85
           },
           "chDecay": {
-            "value": 40
+            "value": 28
           },
           "chLevel": {
-            "value": 100
+            "value": 95
           },
           "ohDecay": {
-            "value": 50
+            "value": 45
           },
           "ohLevel": {
             "value": 95
@@ -901,7 +888,7 @@ export const CE_PORTE_SESSION: unknown = {
             "value": 46
           },
           "ohTone": {
-            "value": 70
+            "value": 85
           },
           "chRoute": {
             "value": 0
@@ -929,10 +916,10 @@ export const CE_PORTE_SESSION: unknown = {
         },
         "rim": {
           "tune": {
-            "value": 50
+            "value": 60
           },
           "decay": {
-            "value": 40
+            "value": 35
           },
           "level": {
             "value": 95
@@ -980,7 +967,7 @@ export const CE_PORTE_SESSION: unknown = {
         },
         "out": {
           "accent": {
-            "value": 90
+            "value": 105
           }
         }
       }
@@ -998,9 +985,9 @@ export const CE_PORTE_SESSION: unknown = {
       "state": {
         "version": 1,
         "config": {
-          "bpm": 111,
+          "bpm": 110,
           "subdivision": 4,
-          "swing": 22,
+          "swing": 32,
           "gate": 50,
           "outputChannel": 2,
           "switchMode": 1,
@@ -1053,151 +1040,261 @@ export const CE_PORTE_SESSION: unknown = {
               {
                 "lane": 0,
                 "index": 0,
-                "velocity": 120
+                "velocity": 122
               },
               {
                 "lane": 0,
-                "index": 10,
-                "velocity": 112
-              },
-              {
-                "lane": 0,
-                "index": 13,
-                "velocity": 70
-              },
-              {
-                "lane": 0,
-                "index": 16,
-                "velocity": 120
-              },
-              {
-                "lane": 0,
-                "index": 26,
-                "velocity": 70
-              },
-              {
-                "lane": 0,
-                "index": 29,
-                "velocity": 112
-              },
-              {
-                "lane": 1,
-                "index": 4,
-                "velocity": 110
-              },
-              {
-                "lane": 1,
-                "index": 12,
-                "velocity": 115
-              },
-              {
-                "lane": 1,
-                "index": 20,
-                "velocity": 110
-              },
-              {
-                "lane": 1,
-                "index": 28,
-                "velocity": 115
-              },
-              {
-                "lane": 2,
-                "index": 4,
-                "velocity": 90
-              },
-              {
-                "lane": 2,
-                "index": 12,
-                "velocity": 90
-              },
-              {
-                "lane": 2,
-                "index": 20,
-                "velocity": 90
-              },
-              {
-                "lane": 2,
-                "index": 28,
-                "velocity": 90
-              },
-              {
-                "lane": 4,
-                "index": 0,
-                "velocity": 90
-              },
-              {
-                "lane": 4,
-                "index": 2,
-                "velocity": 50
-              },
-              {
-                "lane": 4,
                 "index": 3,
-                "velocity": 85
+                "velocity": 75
               },
               {
-                "lane": 4,
-                "index": 6,
-                "velocity": 50
-              },
-              {
-                "lane": 4,
-                "index": 8,
-                "velocity": 55
-              },
-              {
-                "lane": 4,
-                "index": 10,
-                "velocity": 85
-              },
-              {
-                "lane": 4,
-                "index": 14,
-                "velocity": 45
-              },
-              {
-                "lane": 4,
-                "index": 16,
-                "velocity": 90
-              },
-              {
-                "lane": 4,
-                "index": 18,
-                "velocity": 50
-              },
-              {
-                "lane": 4,
-                "index": 19,
-                "velocity": 85
-              },
-              {
-                "lane": 4,
-                "index": 22,
-                "velocity": 50
-              },
-              {
-                "lane": 4,
-                "index": 24,
-                "velocity": 55
-              },
-              {
-                "lane": 4,
-                "index": 26,
-                "velocity": 85
-              },
-              {
-                "lane": 4,
-                "index": 30,
-                "velocity": 45
-              },
-              {
-                "lane": 5,
+                "lane": 0,
                 "index": 7,
                 "velocity": 105
               },
               {
-                "lane": 5,
+                "lane": 0,
+                "index": 10,
+                "velocity": 115
+              },
+              {
+                "lane": 0,
+                "index": 16,
+                "velocity": 122
+              },
+              {
+                "lane": 0,
+                "index": 22,
+                "velocity": 105
+              },
+              {
+                "lane": 0,
+                "index": 26,
+                "velocity": 115
+              },
+              {
+                "lane": 0,
+                "index": 27,
+                "velocity": 70
+              },
+              {
+                "lane": 1,
+                "index": 4,
+                "velocity": 115
+              },
+              {
+                "lane": 1,
+                "index": 9,
+                "velocity": 42
+              },
+              {
+                "lane": 1,
+                "index": 12,
+                "velocity": 120
+              },
+              {
+                "lane": 1,
+                "index": 15,
+                "velocity": 48
+              },
+              {
+                "lane": 1,
+                "index": 20,
+                "velocity": 115
+              },
+              {
+                "lane": 1,
                 "index": 23,
+                "velocity": 42
+              },
+              {
+                "lane": 1,
+                "index": 28,
+                "velocity": 120
+              },
+              {
+                "lane": 1,
+                "index": 29,
+                "velocity": 48
+              },
+              {
+                "lane": 2,
+                "index": 12,
+                "velocity": 95
+              },
+              {
+                "lane": 2,
+                "index": 28,
+                "velocity": 95
+              },
+              {
+                "lane": 3,
+                "index": 6,
+                "velocity": 80
+              },
+              {
+                "lane": 3,
+                "index": 25,
+                "velocity": 80
+              },
+              {
+                "lane": 4,
+                "index": 0,
+                "velocity": 105
+              },
+              {
+                "lane": 4,
+                "index": 1,
+                "velocity": 40
+              },
+              {
+                "lane": 4,
+                "index": 2,
+                "velocity": 75
+              },
+              {
+                "lane": 4,
+                "index": 3,
+                "velocity": 45
+              },
+              {
+                "lane": 4,
+                "index": 4,
+                "velocity": 105
+              },
+              {
+                "lane": 4,
+                "index": 5,
+                "velocity": 40
+              },
+              {
+                "lane": 4,
+                "index": 6,
+                "velocity": 75
+              },
+              {
+                "lane": 4,
+                "index": 7,
+                "velocity": 45
+              },
+              {
+                "lane": 4,
+                "index": 8,
+                "velocity": 105
+              },
+              {
+                "lane": 4,
+                "index": 9,
+                "velocity": 40
+              },
+              {
+                "lane": 4,
+                "index": 10,
+                "velocity": 75
+              },
+              {
+                "lane": 4,
+                "index": 11,
+                "velocity": 45
+              },
+              {
+                "lane": 4,
+                "index": 12,
+                "velocity": 105
+              },
+              {
+                "lane": 4,
+                "index": 13,
+                "velocity": 40
+              },
+              {
+                "lane": 4,
+                "index": 15,
+                "velocity": 45
+              },
+              {
+                "lane": 4,
+                "index": 16,
+                "velocity": 105
+              },
+              {
+                "lane": 4,
+                "index": 17,
+                "velocity": 40
+              },
+              {
+                "lane": 4,
+                "index": 18,
+                "velocity": 75
+              },
+              {
+                "lane": 4,
+                "index": 19,
+                "velocity": 45
+              },
+              {
+                "lane": 4,
+                "index": 20,
+                "velocity": 105
+              },
+              {
+                "lane": 4,
+                "index": 21,
+                "velocity": 40
+              },
+              {
+                "lane": 4,
+                "index": 22,
+                "velocity": 75
+              },
+              {
+                "lane": 4,
+                "index": 23,
+                "velocity": 45
+              },
+              {
+                "lane": 4,
+                "index": 24,
+                "velocity": 105
+              },
+              {
+                "lane": 4,
+                "index": 25,
+                "velocity": 40
+              },
+              {
+                "lane": 4,
+                "index": 26,
+                "velocity": 75
+              },
+              {
+                "lane": 4,
+                "index": 27,
+                "velocity": 45
+              },
+              {
+                "lane": 4,
+                "index": 28,
+                "velocity": 105
+              },
+              {
+                "lane": 4,
+                "index": 29,
+                "velocity": 40
+              },
+              {
+                "lane": 4,
+                "index": 31,
+                "velocity": 45
+              },
+              {
+                "lane": 5,
+                "index": 14,
+                "velocity": 105
+              },
+              {
+                "lane": 5,
+                "index": 30,
                 "velocity": 105
               }
             ]
@@ -1287,7 +1384,7 @@ export const CE_PORTE_SESSION: unknown = {
     }
   ],
   "transport": {
-    "bpm": 111
+    "bpm": 110
   },
   "mixer": {
     "master": 0.8,
