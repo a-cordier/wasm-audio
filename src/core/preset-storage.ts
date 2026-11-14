@@ -92,22 +92,80 @@ export function loadPresets(): AppPreset[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as { version?: unknown; presets?: unknown };
     if (parsed?.version !== PRESETS_VERSION || !Array.isArray(parsed.presets)) return [];
-    const seen = new Set<string>([INIT_PRESET_ID, ...FACTORY_SOURCES.map((p) => p.id)]);
-    const out: AppPreset[] = [];
-    for (const p of parsed.presets as Array<Partial<AppPreset>>) {
-      if (!p || typeof p.id !== "string" || seen.has(p.id)) continue;
-      const session = sanitizeRackSession(p.session);
-      if (!session) continue;
-      seen.add(p.id);
-      out.push({
-        id: p.id,
-        name: sanitizePresetName(p.name) || "PRESET",
-        session: toPresetSession(session),
-      });
-    }
-    return out;
+    return sanitizePresetList(parsed.presets);
   } catch {
     return [];
+  }
+}
+
+/** Sanitize-on-read for a stored or imported preset list: read-only ids and
+ * duplicates drop, sessions go through the rack sanitizer. */
+function sanitizePresetList(raw: unknown[]): AppPreset[] {
+  const seen = new Set<string>([INIT_PRESET_ID, ...FACTORY_SOURCES.map((p) => p.id)]);
+  const out: AppPreset[] = [];
+  for (const p of raw as Array<Partial<AppPreset>>) {
+    if (!p || typeof p.id !== "string" || seen.has(p.id)) continue;
+    const session = sanitizeRackSession(p.session);
+    if (!session) continue;
+    seen.add(p.id);
+    out.push({
+      id: p.id,
+      name: sanitizePresetName(p.name) || "PRESET",
+      session: toPresetSession(session),
+    });
+  }
+  return out;
+}
+
+// --- Export / import: the file that moves presets between browsers ---
+
+export const BUNDLE_FORMAT = "wasm-audio.presets";
+
+/** The live workspace at export time — unsaved edits included. */
+export interface BundleCurrent {
+  presetId: string;
+  name: string;
+  dirty: boolean;
+  session: RackSession;
+}
+
+export function buildPresetBundle(presets: AppPreset[], current: BundleCurrent): string {
+  return JSON.stringify(
+    {
+      format: BUNDLE_FORMAT,
+      version: PRESETS_VERSION,
+      exportedAt: new Date().toISOString(),
+      presets: presets.filter((p) => !isReadOnlyPreset(p.id)),
+      current,
+    },
+    null,
+    2
+  );
+}
+
+/** Null for anything that isn't a preset export. */
+export function parsePresetBundle(text: string): { presets: AppPreset[]; current: BundleCurrent | null } | null {
+  try {
+    const parsed = JSON.parse(text) as {
+      format?: unknown;
+      version?: unknown;
+      presets?: unknown;
+      current?: Partial<BundleCurrent>;
+    };
+    if (parsed?.format !== BUNDLE_FORMAT || parsed.version !== PRESETS_VERSION) return null;
+    const presets = Array.isArray(parsed.presets) ? sanitizePresetList(parsed.presets) : [];
+    const session = sanitizeRackSession(parsed.current?.session);
+    const current = session
+      ? {
+          presetId: typeof parsed.current?.presetId === "string" ? parsed.current.presetId : INIT_PRESET_ID,
+          name: sanitizePresetName(parsed.current?.name) || "PRESET",
+          dirty: parsed.current?.dirty === true,
+          session: toPresetSession(session),
+        }
+      : null;
+    return { presets, current };
+  } catch {
+    return null;
   }
 }
 

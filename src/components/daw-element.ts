@@ -30,6 +30,7 @@ import { RackSession, RackSlotEntry, loadRackSession, saveRackSession } from "..
 import {
   AppPreset,
   INIT_PRESET_ID,
+  PRESET_NAME_MAX,
   factoryPresets,
   isReadOnlyPreset,
   defaultPresetName,
@@ -37,6 +38,8 @@ import {
   loadPresets,
   newPresetId,
   sanitizePresetName,
+  buildPresetBundle,
+  parsePresetBundle,
   savePresets,
   toPresetSession,
 } from "../core/preset-storage";
@@ -861,6 +864,63 @@ export class Daw extends LitElement {
     return true;
   }
 
+  /** The export file: every saved preset plus the live workspace (`current`,
+   * unsaved edits included) — what moves between browsers. */
+  presetBundle(): string {
+    const name =
+      this.currentPresetId === INIT_PRESET_ID
+        ? "INIT"
+        : (this.findPreset(this.currentPresetId)?.name ?? "PRESET");
+    return buildPresetBundle(this.presets, {
+      presetId: this.currentPresetId,
+      name,
+      dirty: this.presetDirty,
+      session: toPresetSession(this.snapshot()),
+    });
+  }
+
+  exportPresets() {
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[T:]/g, "-");
+    const url = URL.createObjectURL(new Blob([this.presetBundle()], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `wasm-audio-presets-${stamp}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  /**
+   * Merge an export file into the saved presets: same id replaces, new ids
+   * append, and the file's unsaved workspace lands as "<NAME> WIP". The
+   * working copy is never switched. Returns the number of presets taken,
+   * null for an unreadable file, -1 when storage refused the write.
+   */
+  importPresets(text: string): number | null {
+    const bundle = parsePresetBundle(text);
+    if (!bundle) return null;
+    const next = [...this.presets];
+    let count = 0;
+    for (const p of bundle.presets) {
+      const at = next.findIndex((q) => q.id === p.id);
+      if (at >= 0) next[at] = p;
+      else next.push(p);
+      count++;
+    }
+    if (bundle.current?.dirty) {
+      const base = bundle.current.name.replace(/ WIP$/, "").slice(0, PRESET_NAME_MAX - 4);
+      // One WIP per name: importing the same file twice replaces, never stacks.
+      const name = sanitizePresetName(`${base} WIP`);
+      const at = next.findIndex((q) => q.name === name);
+      if (at >= 0) next[at] = { ...next[at], session: bundle.current.session };
+      else next.push({ id: newPresetId(), name, session: bundle.current.session });
+      count++;
+    }
+    if (count === 0) return 0;
+    if (!savePresets(next)) return -1;
+    this.presets = next;
+    return count;
+  }
+
   /** Delete a preset. Deleting the current one leaves the rack as it is and
    * re-parents the working copy to INIT (so it reads unsaved). */
   deletePreset(id: string): boolean {
@@ -962,6 +1022,8 @@ export class Daw extends LitElement {
           @preset-save-as=${this.onPresetSaveAs}
           @preset-rename=${this.onPresetRename}
           @preset-delete=${this.onPresetDelete}
+          @preset-export=${this.onPresetExport}
+          @preset-import=${this.onPresetImport}
         ></preset-bar>
       </transport-bar>
       ${!this.audioReady
@@ -1040,6 +1102,13 @@ export class Daw extends LitElement {
   private onPresetDelete = (e: CustomEvent<{ id: string }>) =>
     this.presetWrite(this.deletePreset(e.detail.id));
 
+  private onPresetExport = () => this.exportPresets();
+
+  private onPresetImport = (e: CustomEvent<{ text: string }>) => {
+    const count = this.importPresets(e.detail.text);
+    this.presetBar()?.flash(count === null ? "BAD FILE" : count < 0 ? "FULL" : `IMPORTED ${count}`);
+  };
+
   private onDeviceMount(e: CustomEvent<{ pluginId: string }>) {
     void this.mountDevice(e.detail.pluginId);
   }
@@ -1107,6 +1176,9 @@ export class Daw extends LitElement {
       :host {
         display: grid;
         grid-template-rows: auto minmax(0, 1fr) auto;
+        /* One column pinned to the viewport: an implicit auto column grows
+         * to its widest child and pushes the chrome's right edge off-screen. */
+        grid-template-columns: minmax(0, 1fr);
         height: 100%;
         width: 100%;
       }

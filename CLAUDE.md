@@ -58,8 +58,9 @@ the JS reference, `LFOKernel::nextSampleAt` the C++ one.
 **The workspace is a fixed-chrome grid**: daw-element is a 100vh grid —
 device-browser rail docked left (collapsible tab), an independently
 scrolling rack viewport (the PAGE never scrolls), a thin full-width
-transport strip pinned to the TOP edge (room to grow the global menu —
-export…), and the mixer board docked at the bottom: hardware-desk strips
+transport strip pinned to the TOP edge (transport centred, the global
+menu docked right; narrow windows collapse the spacer, then wrap the menu
+onto a second line — chrome never leaves the viewport), and the mixer board docked at the bottom: hardware-desk strips
 (contiguous, full width, hairline dividers; CLICK + MASTER close the
 board; foldable, meter rAF stops while folded). Sequencers never take a
 mixer channel: their metronomes sum into the shared CLICK bus
@@ -98,7 +99,13 @@ stored, always first, empty rack); saving on it is save-as. **Factory
 presets** ship in code the same way (`core/factory-presets/*`, listed in
 `FACTORY_SOURCES`, shown right after INIT): read-only via
 `isReadOnlyPreset` — never stored, renamed or deleted, SAVE is save-as —
-and sanitized on load like any saved preset. Dirty = the
+and sanitized on load like any saved preset. **EXPORT / IMPORT** move
+presets between browsers as one JSON file (`format: "wasm-audio.presets"`):
+every saved preset plus `current`, the live workspace with unsaved edits.
+Import merges — same id replaces, new ids append, a dirty `current` lands
+as "<NAME> WIP" — and never switches the working copy.
+`node scripts/factory-preset.mjs <export.json> <name|current> <slug>`
+turns one into a factory source file. Dirty = the
 canonical preset-shaped JSON differs from the baseline taken once the
 rack has rendered after an open/save (slot elements push config on
 render). `openPreset` is a deliberate switch: queued (latest wins),

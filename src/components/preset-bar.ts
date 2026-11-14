@@ -42,7 +42,8 @@ type EditMode = "save-as" | "rename";
  * hold-to-delete. Pure view —
  * the shell (daw-element) owns the store and answers its events:
  * `preset-open {id}`, `preset-save`, `preset-save-as {name}`,
- * `preset-rename {id, name}`, `preset-delete {id}`.
+ * `preset-rename {id, name}`, `preset-delete {id}`, `preset-export`,
+ * `preset-import {text}`.
  */
 @customElement("preset-bar")
 export class PresetBar extends LitElement {
@@ -81,6 +82,9 @@ export class PresetBar extends LitElement {
 
   @query(".lcd-input")
   private input?: HTMLInputElement;
+
+  @query(".file-input")
+  private fileInput?: HTMLInputElement;
 
   private stepTimer: ReturnType<typeof setTimeout> | null = null;
   private flashTimer: ReturnType<typeof setTimeout> | null = null;
@@ -228,6 +232,22 @@ export class PresetBar extends LitElement {
     }, HOLD_DELETE_MS);
   };
 
+  /** A tap is not a hold: say so instead of doing nothing. */
+  private onDeleteUp = () => {
+    if (this.deleteTimer !== null) this.flash("HOLD");
+    this.onDeleteCancel();
+  };
+
+  // --- Export / import ---
+
+  private onImportPick = async (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    this.dispatch("preset-import", { text: await file.text() });
+  };
+
   private onDeleteCancel = () => {
     if (this.deleteTimer !== null) {
       clearTimeout(this.deleteTimer);
@@ -301,9 +321,22 @@ export class PresetBar extends LitElement {
               title="Hold to delete this preset"
               ?disabled=${this.editMode !== null}
               @pointerdown=${this.onDeleteDown}
-              @pointerup=${this.onDeleteCancel}
+              @pointerup=${this.onDeleteUp}
               @pointerleave=${this.onDeleteCancel}
             >DEL</button>`}
+        <button
+          class="text-btn"
+          title="Export all presets and the current workspace to a file"
+          ?disabled=${this.editMode !== null}
+          @click=${() => this.dispatch("preset-export")}
+        >EXPORT</button>
+        <button
+          class="text-btn"
+          title="Import presets from an export file"
+          ?disabled=${this.editMode !== null}
+          @click=${() => this.fileInput?.click()}
+        >IMPORT</button>
+        <input class="file-input" type="file" accept="application/json,.json" hidden @change=${this.onImportPick} />
       </div>
     `;
   }
@@ -320,6 +353,7 @@ export class PresetBar extends LitElement {
       align-items: center;
       gap: var(--preset-bar-gap, 4px);
       height: var(--preset-bar-height, 24px);
+      white-space: nowrap;
     }
 
     lcd-element {

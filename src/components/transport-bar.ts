@@ -163,13 +163,21 @@ export class TransportBar extends LitElement {
       --lcd-font-size: 11px;
     }
 
-    /* Transport centred; the global menu (presets…) docks right. */
+    /* Transport centred; the global menu (presets…) docks right. The two
+     * sides share the free space equally while the menu fits its half; a
+     * narrower bar collapses the left spacer first, then wraps the menu
+     * onto its own line — nothing ever leaves the viewport. */
     .bar {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 18px;
+      gap: 6px 18px;
       padding: 6px 1.5em;
+    }
+
+    .side {
+      flex: 1 1 0;
+      min-width: 0;
     }
 
     .transport {
@@ -181,6 +189,7 @@ export class TransportBar extends LitElement {
     .side.menu {
       display: flex;
       justify-content: flex-end;
+      min-width: max-content;
     }
 
     .round-btn {
